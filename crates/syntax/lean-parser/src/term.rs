@@ -169,6 +169,13 @@ impl<'a> Parser<'a> {
         loop {
             self.skip_whitespace();
             
+            // Stop at keywords that shouldn't be consumed as arguments
+            if self.peek_keyword("with") || self.peek_keyword("then") || 
+               self.peek_keyword("else") || self.peek_keyword("in") ||
+               self.peek_keyword("from") {
+                break;
+            }
+            
             // Check if we can parse another atom
             if let Ok(arg) = self.try_parse(|p| p.atom_term()) {
                 terms.push(arg);

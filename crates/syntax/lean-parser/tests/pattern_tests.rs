@@ -66,8 +66,8 @@ fn test_match_simple() {
                                     },
                                     end: SourcePos {
                                         line: 1,
-                                        column: 25,
-                                        offset: 24,
+                                        column: 26,
+                                        offset: 25,
                                     },
                                 },
                                 children: [
@@ -226,8 +226,8 @@ fn test_match_wildcard() {
                                     },
                                     end: SourcePos {
                                         line: 1,
-                                        column: 27,
-                                        offset: 26,
+                                        column: 28,
+                                        offset: 27,
                                     },
                                 },
                                 children: [
@@ -242,8 +242,8 @@ fn test_match_wildcard() {
                                                 },
                                                 end: SourcePos {
                                                     line: 1,
-                                                    column: 22,
-                                                    offset: 21,
+                                                    column: 23,
+                                                    offset: 22,
                                                 },
                                             },
                                             children: [
