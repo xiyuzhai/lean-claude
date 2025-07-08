@@ -19,3 +19,37 @@ target
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# Local development notes
+CLAUDE.md
+.claude/
+**/notes/
+**/.notes/
+
+# Any references to other projects
+*visored*
+*husky*
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+out/
+build/
+dist/
+
+# Testing
+*.profraw
+*.profdata
+coverage/
+
+# Benchmarks
+benches/target/
+criterion/
+
+# Documentation
+docs/_build/
