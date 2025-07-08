@@ -1,4 +1,4 @@
-use lean_syntax::{SourcePos, SourceRange};
+use lean_syn_expr::{SourcePos, SourceRange};
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]

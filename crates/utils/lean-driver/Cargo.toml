@@ -1,0 +1,16 @@
+[package]
+name = "lean-driver"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+lean-parser = { path = "../../syntax/lean-parser" }
+lean-elaborator = { path = "../../semantics/lean-elaborator" }
+lean-kernel = { path = "../../semantics/lean-kernel" }
+lean-codegen = { path = "../../mir/lean-codegen" }
+
+anyhow = { workspace = true }
+
+[dev-dependencies]

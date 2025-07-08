@@ -1,13 +1,15 @@
 [package]
-name = "lean-syntax"
+name = "lean-kernel"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
 [dependencies]
-lean-eterned = { path = "../lean-abstractions/lean-eterned" }
+eterned = { path = "../../abstractions/eterned" }
+lean-syn-expr = { path = "../../syntax/lean-syn-expr" }
 
+thiserror = { workspace = true }
 smallvec = { workspace = true }
 indexmap = { workspace = true }
 

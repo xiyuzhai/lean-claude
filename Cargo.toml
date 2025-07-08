@@ -1,15 +1,15 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/lean-abstractions/lean-eterned",
-    "crates/lean-parser",
-    "crates/lean-syntax",
-    "crates/lean-kernel",
-    "crates/lean-elaborator",
-    "crates/lean-meta",
-    "crates/lean-ir",
-    "crates/lean-codegen",
-    "crates/lean-driver",
+    "crates/abstractions/eterned",
+    "crates/syntax/lean-parser",
+    "crates/syntax/lean-syn-expr",
+    "crates/semantics/lean-kernel",
+    "crates/semantics/lean-elaborator",
+    "crates/semantics/lean-meta",
+    "crates/mir/lean-ir",
+    "crates/mir/lean-codegen",
+    "crates/utils/lean-driver",
     "apps/leanc-rs",
 ]
 

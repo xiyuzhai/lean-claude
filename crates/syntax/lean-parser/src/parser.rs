@@ -1,6 +1,6 @@
 use crate::error::{ParseError, ParseErrorKind};
 use crate::input::Input;
-use lean_syntax::{Syntax, SourcePos};
+use lean_syn_expr::{Syntax, SourcePos};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;

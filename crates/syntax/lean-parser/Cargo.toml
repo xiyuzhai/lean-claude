@@ -6,8 +6,8 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
-lean-eterned = { path = "../lean-abstractions/lean-eterned" }
-lean-syntax = { path = "../lean-syntax" }
+eterned = { path = "../../abstractions/eterned" }
+lean-syn-expr = { path = "../lean-syn-expr" }
 
 thiserror = { workspace = true }
 smallvec = { workspace = true }

@@ -10,7 +10,7 @@ name = "leanc-rs"
 path = "src/main.rs"
 
 [dependencies]
-lean-driver = { path = "../../crates/lean-driver" }
+lean-driver = { path = "../../crates/utils/lean-driver" }
 anyhow = { workspace = true }
 clap = { version = "4.4", features = ["derive"] }
 tracing = { workspace = true }

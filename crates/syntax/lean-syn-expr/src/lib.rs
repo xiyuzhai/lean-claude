@@ -1,6 +1,6 @@
 #![feature(let_chains)]
 
-use lean_eterned::BaseCoword;
+use eterned::BaseCoword;
 use smallvec::SmallVec;
 use std::fmt;
 

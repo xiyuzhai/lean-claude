@@ -1,5 +1,5 @@
-use lean_eterned::BaseCoword;
-use lean_syntax::{SourcePos, SourceRange};
+use eterned::BaseCoword;
+use lean_syn_expr::{SourcePos, SourceRange};
 use std::str::Chars;
 
 #[derive(Clone)]

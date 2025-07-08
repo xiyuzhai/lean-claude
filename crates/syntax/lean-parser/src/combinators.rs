@@ -1,7 +1,7 @@
 use crate::parser::{Parser, ParserResult};
 use crate::error::{ParseError, ParseErrorKind};
-use lean_syntax::{Syntax, SyntaxNode, SyntaxKind, SyntaxAtom};
-use lean_eterned::BaseCoword;
+use lean_syn_expr::{Syntax, SyntaxNode, SyntaxKind, SyntaxAtom};
+use eterned::BaseCoword;
 use smallvec::SmallVec;
 
 impl<'a> Parser<'a> {

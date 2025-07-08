@@ -1,6 +1,6 @@
 use crate::level::Level;
 use crate::name::Name;
-use lean_eterned::BaseCoword;
+use eterned::BaseCoword;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

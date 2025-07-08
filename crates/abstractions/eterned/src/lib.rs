@@ -2,7 +2,6 @@
 
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
-use parking_lot::RwLock;
 use sha2::{Digest, Sha512};
 use std::sync::Arc;
 

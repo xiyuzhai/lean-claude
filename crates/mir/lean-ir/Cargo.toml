@@ -6,6 +6,6 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
-lean-kernel = { path = "../lean-kernel" }
+lean-kernel = { path = "../../semantics/lean-kernel" }
 
 [dev-dependencies]
