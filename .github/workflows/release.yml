@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+  build-release:
+    name: Build Release
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build: [linux, macos, windows]
+        include:
+          - build: linux
+            os: ubuntu-latest
+            rust: nightly
+            target: x86_64-unknown-linux-gnu
+            archive-name: leanc-rs-linux-x86_64.tar.gz
+          - build: macos
+            os: macos-latest
+            rust: nightly
+            target: x86_64-apple-darwin
+            archive-name: leanc-rs-macos-x86_64.tar.gz
+          - build: macos-arm64
+            os: macos-latest
+            rust: nightly
+            target: aarch64-apple-darwin
+            archive-name: leanc-rs-macos-arm64.tar.gz
+          - build: windows
+            os: windows-latest
+            rust: nightly
+            target: x86_64-pc-windows-msvc
+            archive-name: leanc-rs-windows-x86_64.zip
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }} --bin leanc-rs
+
+      - name: Build archive (Unix)
+        shell: bash
+        run: |
+          staging="leanc-rs-${{ github.ref_name }}-${{ matrix.target }}"
+          mkdir -p "$staging"
+          
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp "target/${{ matrix.target }}/release/leanc-rs.exe" "$staging/"
+          else
+            cp "target/${{ matrix.target }}/release/leanc-rs" "$staging/"
+          fi
+          
+          cp README.md LICENSE-MIT LICENSE-APACHE "$staging/"
+          
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            7z a "${{ matrix.archive-name }}" "$staging"
+          else
+            tar czf "${{ matrix.archive-name }}" "$staging"
+          fi
+          
+          echo "ASSET=${{ matrix.archive-name }}" >> $GITHUB_ENV
+        if: matrix.os != 'windows-latest'
+
+      - name: Build archive (Windows)
+        shell: bash
+        run: |
+          staging="leanc-rs-${{ github.ref_name }}-${{ matrix.target }}"
+          mkdir -p "$staging"
+          cp "target/${{ matrix.target }}/release/leanc-rs.exe" "$staging/"
+          cp README.md LICENSE-MIT LICENSE-APACHE "$staging/"
+          7z a "${{ matrix.archive-name }}" "$staging"
+          echo "ASSET=${{ matrix.archive-name }}" >> $GITHUB_ENV
+        if: matrix.os == 'windows-latest'
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET }}
+          asset_content_type: application/octet-stream

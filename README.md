@@ -1,4 +1,8 @@
-# Lean Compiler in Rust
+# Lean-Claude
+
+[![CI](https://github.com/xiyuzhai/lean-claude/actions/workflows/ci.yml/badge.svg)](https://github.com/xiyuzhai/lean-claude/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 A complete reimplementation of the Lean4 compiler in Rust, following Lean4's architecture and design decisions.
 
@@ -187,13 +191,19 @@ lean-rs/
 
 ## Current Status
 
-- [ ] Phase 0: Project Setup
-- [ ] Phase 1: Lexer-less Parser
-- [ ] Phase 2: Core Data Structures
+- [x] Phase 0: Project Setup
+- [x] Phase 1: Lexer-less Parser (Basic implementation complete)
+- [ ] Phase 2: Core Data Structures (In progress)
 - [ ] Phase 3: Elaborator
 - [ ] Phase 4: Type Checker
 - [ ] Phase 5: Code Generation
 - [ ] Phase 6: Integration
+
+### Recent Progress
+- ✅ Implemented lexer-less parser with all major commands
+- ✅ Added support for terms, applications, and binders
+- ✅ Created test framework with expect-test
+- ✅ Set up CI/CD with GitHub Actions
 
 ## Contributing
 
