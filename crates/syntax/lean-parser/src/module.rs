@@ -213,122 +213,291 @@ impl<'a> Parser<'a> {
         }))
     }
     
-    // Placeholder implementations for other commands
-    pub fn def_command(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-        self.keyword("def")?;
-        Err(ParseError::new(
-            ParseErrorKind::Custom("def command not yet implemented".to_string()),
-            start,
-        ))
-    }
-    
-    pub fn theorem_command(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-        self.keyword("theorem")?;
-        Err(ParseError::new(
-            ParseErrorKind::Custom("theorem command not yet implemented".to_string()),
-            start,
-        ))
-    }
-    
-    pub fn axiom_command(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-        self.keyword("axiom")?;
-        Err(ParseError::new(
-            ParseErrorKind::Custom("axiom command not yet implemented".to_string()),
-            start,
-        ))
-    }
-    
-    pub fn constant_command(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-        self.keyword("constant")?;
-        Err(ParseError::new(
-            ParseErrorKind::Custom("constant command not yet implemented".to_string()),
-            start,
-        ))
-    }
-    
-    pub fn variable_command(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-        self.keyword("variable")?;
-        Err(ParseError::new(
-            ParseErrorKind::Custom("variable command not yet implemented".to_string()),
-            start,
-        ))
-    }
-    
-    pub fn universe_command(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-        self.keyword("universe")?;
-        Err(ParseError::new(
-            ParseErrorKind::Custom("universe command not yet implemented".to_string()),
-            start,
-        ))
-    }
-    
-    pub fn instance_command(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-        self.keyword("instance")?;
-        Err(ParseError::new(
-            ParseErrorKind::Custom("instance command not yet implemented".to_string()),
-            start,
-        ))
-    }
     
     pub fn class_command(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
+        
         self.keyword("class")?;
-        Err(ParseError::new(
-            ParseErrorKind::Custom("class command not yet implemented".to_string()),
-            start,
-        ))
+        self.skip_whitespace();
+        
+        // Parse class name
+        let name = self.identifier()?;
+        self.skip_whitespace();
+        
+        // Parse type parameters
+        let mut params = Vec::new();
+        while self.peek() == Some('{') || self.peek() == Some('[') || self.peek() == Some('(') {
+            params.push(self.binder_group()?);
+            self.skip_whitespace();
+        }
+        
+        // Parse extends clause (optional)
+        let mut extends = Vec::new();
+        if self.peek_keyword("extends") {
+            self.keyword("extends")?;
+            self.skip_whitespace();
+            
+            // Parse parent classes
+            loop {
+                extends.push(self.term()?);
+                self.skip_whitespace();
+                
+                if self.peek() == Some(',') {
+                    self.advance();
+                    self.skip_whitespace();
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        // Parse where clause for class body
+        if self.peek_keyword("where") {
+            self.keyword("where")?;
+            self.skip_whitespace();
+        }
+        
+        // Parse class fields
+        let mut fields = Vec::new();
+        while self.peek().map_or(false, |ch| is_id_start(ch)) && !self.peek_keyword("def") && !self.peek_keyword("theorem") {
+            let field_name = self.identifier()?;
+            self.skip_whitespace();
+            
+            self.expect_char(':')?;
+            self.skip_whitespace();
+            
+            let field_type = self.term()?;
+            self.skip_whitespace();
+            
+            let field_start = field_name.range().map(|r| r.start.clone()).unwrap_or(self.position());
+            fields.push(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::Field,
+                range: self.input().range_from(field_start),
+                children: smallvec![field_name, field_type],
+            })));
+        }
+        
+        let range = self.input().range_from(start);
+        let mut children = smallvec![name];
+        children.extend(params);
+        children.extend(extends);
+        children.extend(fields);
+        
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Class,
+            range,
+            children,
+        })))
     }
     
     pub fn structure_command(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
+        
         self.keyword("structure")?;
-        Err(ParseError::new(
-            ParseErrorKind::Custom("structure command not yet implemented".to_string()),
-            start,
-        ))
+        self.skip_whitespace();
+        
+        // Parse structure name
+        let name = self.identifier()?;
+        self.skip_whitespace();
+        
+        // Parse type parameters
+        let mut params = Vec::new();
+        while self.peek() == Some('{') || self.peek() == Some('[') || self.peek() == Some('(') {
+            params.push(self.binder_group()?);
+            self.skip_whitespace();
+        }
+        
+        // Parse extends clause (optional)
+        let mut extends = Vec::new();
+        if self.peek_keyword("extends") {
+            self.keyword("extends")?;
+            self.skip_whitespace();
+            
+            // Parse parent structures
+            loop {
+                extends.push(self.term()?);
+                self.skip_whitespace();
+                
+                if self.peek() == Some(',') {
+                    self.advance();
+                    self.skip_whitespace();
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        // Parse where clause for structure body
+        if self.peek_keyword("where") {
+            self.keyword("where")?;
+            self.skip_whitespace();
+        }
+        
+        // Parse structure fields
+        let mut fields = Vec::new();
+        while self.peek().map_or(false, |ch| is_id_start(ch)) {
+            let field_name = self.identifier()?;
+            self.skip_whitespace();
+            
+            self.expect_char(':')?;
+            self.skip_whitespace();
+            
+            let field_type = self.term()?;
+            self.skip_whitespace();
+            
+            // Optional default value
+            let default = if self.peek() == Some(':') && self.input().peek_nth(1) == Some('=') {
+                self.advance(); // consume ':'
+                self.advance(); // consume '='
+                self.skip_whitespace();
+                Some(self.term()?)
+            } else {
+                None
+            };
+            
+            let field_start = field_name.range().map(|r| r.start.clone()).unwrap_or(self.position());
+            let field_range = self.input().range_from(field_start);
+            let mut field_children = smallvec![field_name, field_type];
+            if let Some(def) = default {
+                field_children.push(def);
+            }
+            
+            fields.push(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::Field,
+                range: field_range,
+                children: field_children,
+            })));
+            
+            self.skip_whitespace();
+        }
+        
+        let range = self.input().range_from(start);
+        let mut children = smallvec![name];
+        children.extend(params);
+        children.extend(extends);
+        children.extend(fields);
+        
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Structure,
+            range,
+            children,
+        })))
     }
     
     pub fn inductive_command(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
+        
         self.keyword("inductive")?;
-        Err(ParseError::new(
-            ParseErrorKind::Custom("inductive command not yet implemented".to_string()),
-            start,
-        ))
+        self.skip_whitespace();
+        
+        // Parse inductive name
+        let name = self.identifier()?;
+        self.skip_whitespace();
+        
+        // Parse type parameters
+        let mut params = Vec::new();
+        while self.peek() == Some('{') || self.peek() == Some('[') || self.peek() == Some('(') {
+            params.push(self.binder_group()?);
+            self.skip_whitespace();
+        }
+        
+        // Parse type annotation (optional)
+        let ty = if self.peek() == Some(':') {
+            self.advance(); // consume ':'
+            self.skip_whitespace();
+            Some(self.term()?)
+        } else {
+            None
+        };
+        
+        self.skip_whitespace();
+        
+        // Parse where clause or pipe for constructors
+        if self.peek_keyword("where") {
+            self.keyword("where")?;
+            self.skip_whitespace();
+        }
+        
+        // Parse constructors
+        let mut constructors = Vec::new();
+        
+        // First constructor might not have a pipe
+        if self.peek() != Some('|') && self.peek().map_or(false, |ch| is_id_start(ch)) {
+            constructors.push(self.constructor()?);
+            self.skip_whitespace();
+        }
+        
+        // Remaining constructors with pipes
+        while self.peek() == Some('|') {
+            self.advance(); // consume '|'
+            self.skip_whitespace();
+            constructors.push(self.constructor()?);
+            self.skip_whitespace();
+        }
+        
+        let range = self.input().range_from(start);
+        let mut children = smallvec![name];
+        children.extend(params);
+        if let Some(t) = ty {
+            children.push(t);
+        }
+        children.extend(constructors);
+        
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Inductive,
+            range,
+            children,
+        })))
+    }
+    
+    /// Parse a constructor: `name : type`
+    fn constructor(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        
+        // Parse constructor name
+        let name = self.identifier()?;
+        self.skip_whitespace();
+        
+        // Parse type
+        self.expect_char(':')?;
+        self.skip_whitespace();
+        let ty = self.term()?;
+        
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Constructor,
+            range,
+            children: smallvec![name, ty],
+        })))
     }
     
     pub fn hash_command(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
         self.advance(); // consume '#'
-        Err(ParseError::new(
-            ParseErrorKind::Custom("hash command not yet implemented".to_string()),
-            start,
-        ))
-    }
-    
-    /// Check if the upcoming text matches a keyword
-    pub fn peek_keyword(&self, keyword: &str) -> bool {
-        let mut chars = self.input().remaining().chars();
         
-        for expected_ch in keyword.chars() {
-            match chars.next() {
-                Some(ch) if ch == expected_ch => continue,
-                _ => return false,
-            }
-        }
+        // Parse hash command name
+        let cmd_name = self.identifier()?;
+        self.skip_whitespace();
         
-        // Ensure keyword is not part of a larger identifier
-        match chars.next() {
-            Some(ch) if is_id_continue(ch) => false,
-            _ => true,
-        }
+        // Parse the argument (usually a term)
+        let arg = self.term()?;
+        
+        let range = self.input().range_from(start);
+        
+        // Determine the specific hash command kind
+        let kind = match cmd_name.as_str() {
+            "check" => SyntaxKind::HashCheck,
+            "eval" => SyntaxKind::HashEval,
+            "print" => SyntaxKind::HashPrint,
+            "reduce" => SyntaxKind::HashReduce,
+            _ => SyntaxKind::HashCommand, // Generic hash command
+        };
+        
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind,
+            range,
+            children: smallvec![cmd_name, arg],
+        })))
     }
     
     /// Skip to the next line (error recovery)
@@ -346,6 +515,3 @@ fn is_id_start(ch: char) -> bool {
     ch.is_alphabetic() || ch == '_'
 }
 
-fn is_id_continue(ch: char) -> bool {
-    ch.is_alphanumeric() || ch == '_' || ch == '\'' || ch == '?' || ch == '!'
-}

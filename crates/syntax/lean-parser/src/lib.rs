@@ -2,9 +2,11 @@
 #![feature(if_let_guard)]
 
 pub mod input;
+pub mod error;
 pub mod parser;
 pub mod combinators;
-pub mod error;
+pub mod term;
+pub mod command;
 pub mod module;
 
 pub use input::{Input, ParserInput};

@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/abstractions/eterned",
+    "crates/abstractions/eterned/eterned-macros",
     "crates/syntax/lean-parser",
     "crates/syntax/lean-syn-expr",
     "crates/semantics/lean-kernel",

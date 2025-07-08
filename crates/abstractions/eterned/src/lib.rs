@@ -5,6 +5,8 @@ use once_cell::sync::Lazy;
 use sha2::{Digest, Sha512};
 use std::sync::Arc;
 
+pub use eterned_macros::eterned;
+
 pub static ETERNER_DB: Lazy<EternerDb> = Lazy::new(EternerDb::default);
 
 #[derive(Default)]

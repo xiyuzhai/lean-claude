@@ -168,4 +168,246 @@ impl<'a> Parser<'a> {
             }
         }
     }
+
+    pub fn identifier(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        
+        if !self.peek().map_or(false, |ch| is_id_start(ch)) {
+            return Err(ParseError::new(
+                ParseErrorKind::Expected("identifier".to_string()),
+                start,
+            ));
+        }
+        
+        let name = self.consume_while(|ch| is_id_continue(ch));
+        let range = self.input().range_from(start);
+        
+        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+            range,
+            value: eterned::BaseCoword::new(name),
+        }))
+    }
+
+    pub fn keyword(&mut self, kw: &str) -> ParserResult<()> {
+        let start = self.position();
+        
+        if !self.peek_keyword(kw) {
+            return Err(ParseError::new(
+                ParseErrorKind::Expected(format!("keyword '{}'", kw)),
+                start,
+            ));
+        }
+        
+        // Consume the keyword
+        for _ in kw.chars() {
+            self.advance();
+        }
+        
+        Ok(())
+    }
+
+    pub fn peek_keyword(&self, keyword: &str) -> bool {
+        let mut chars = self.input().remaining().chars();
+        
+        for expected_ch in keyword.chars() {
+            match chars.next() {
+                Some(ch) if ch == expected_ch => continue,
+                _ => return false,
+            }
+        }
+        
+        // Ensure keyword is not part of a larger identifier
+        match chars.next() {
+            Some(ch) if is_id_continue(ch) => false,
+            _ => true,
+        }
+    }
+
+    pub fn number(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        
+        if !self.peek().map_or(false, |ch| ch.is_ascii_digit()) {
+            return Err(ParseError::new(
+                ParseErrorKind::Expected("number".to_string()),
+                start,
+            ));
+        }
+        
+        let num = self.consume_while(|ch| ch.is_ascii_digit() || ch == '.');
+        let range = self.input().range_from(start);
+        
+        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+            range,
+            value: eterned::BaseCoword::new(num),
+        }))
+    }
+
+    pub fn string_literal(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        
+        self.expect_char('"')?;
+        let mut content = String::new();
+        
+        while let Some(ch) = self.peek() {
+            if ch == '"' {
+                self.advance();
+                break;
+            } else if ch == '\\' {
+                self.advance();
+                match self.peek() {
+                    Some('n') => {
+                        self.advance();
+                        content.push('\n');
+                    }
+                    Some('t') => {
+                        self.advance();
+                        content.push('\t');
+                    }
+                    Some('r') => {
+                        self.advance();
+                        content.push('\r');
+                    }
+                    Some('\\') => {
+                        self.advance();
+                        content.push('\\');
+                    }
+                    Some('"') => {
+                        self.advance();
+                        content.push('"');
+                    }
+                    _ => {
+                        return Err(ParseError::new(
+                            ParseErrorKind::Custom("invalid escape sequence".to_string()),
+                            self.position(),
+                        ));
+                    }
+                }
+            } else {
+                content.push(ch);
+                self.advance();
+            }
+        }
+        
+        let range = self.input().range_from(start);
+        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+            range,
+            value: eterned::BaseCoword::new(content),
+        }))
+    }
+
+    pub fn char_literal(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        
+        self.expect_char('\'')?;
+        
+        let ch = match self.peek() {
+            Some('\\') => {
+                self.advance();
+                match self.peek() {
+                    Some('n') => {
+                        self.advance();
+                        '\n'
+                    }
+                    Some('t') => {
+                        self.advance();
+                        '\t'
+                    }
+                    Some('r') => {
+                        self.advance();
+                        '\r'
+                    }
+                    Some('\\') => {
+                        self.advance();
+                        '\\'
+                    }
+                    Some('\'') => {
+                        self.advance();
+                        '\''
+                    }
+                    _ => {
+                        return Err(ParseError::new(
+                            ParseErrorKind::Custom("invalid escape sequence".to_string()),
+                            self.position(),
+                        ));
+                    }
+                }
+            }
+            Some(c) => {
+                self.advance();
+                c
+            }
+            None => {
+                return Err(ParseError::new(
+                    ParseErrorKind::UnexpectedEof,
+                    self.position(),
+                ));
+            }
+        };
+        
+        self.expect_char('\'')?;
+        
+        let range = self.input().range_from(start);
+        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+            range,
+            value: eterned::BaseCoword::new(ch.to_string()),
+        }))
+    }
+
+    /// Parse a binder group: `(x y : α)` or `{α : Type}` or `[inst : Functor F]`
+    pub fn binder_group(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        
+        let (_open_delim, close_delim, binder_kind) = match self.peek() {
+            Some('(') => ('(', ')', lean_syn_expr::SyntaxKind::LeftParen),
+            Some('{') => ('{', '}', lean_syn_expr::SyntaxKind::LeftBrace),
+            Some('[') => ('[', ']', lean_syn_expr::SyntaxKind::LeftBracket),
+            _ => return Err(ParseError::new(
+                ParseErrorKind::Expected("binder".to_string()),
+                start,
+            )),
+        };
+        
+        self.advance(); // consume opening delimiter
+        self.skip_whitespace();
+        
+        let mut names = Vec::new();
+        
+        // Parse names
+        while self.peek().map_or(false, |ch| is_id_start(ch)) {
+            names.push(self.identifier()?);
+            self.skip_whitespace();
+        }
+        
+        // Parse type annotation
+        let ty = if self.peek() == Some(':') {
+            self.advance(); // consume ':'
+            self.skip_whitespace();
+            Some(self.term()?)
+        } else {
+            None
+        };
+        
+        self.skip_whitespace();
+        self.expect_char(close_delim)?;
+        
+        let range = self.input().range_from(start);
+        let mut children = names;
+        if let Some(t) = ty {
+            children.push(t);
+        }
+        
+        Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
+            kind: binder_kind,
+            range,
+            children: children.into(),
+        })))
+    }
+}
+
+fn is_id_start(ch: char) -> bool {
+    ch.is_alphabetic() || ch == '_'
+}
+
+fn is_id_continue(ch: char) -> bool {
+    ch.is_alphanumeric() || ch == '_' || ch == '\'' || ch == '?' || ch == '!'
 }

@@ -110,6 +110,13 @@ pub enum SyntaxKind {
     // Commands
     Command,
     Declaration,
+    Field,
+    Constructor,
+    HashCommand,
+    HashCheck,
+    HashEval,
+    HashPrint,
+    HashReduce,
     
     // Tactics
     Tactic,
@@ -138,6 +145,13 @@ impl Syntax {
             Syntax::Missing => None,
             Syntax::Node(node) => Some(node.kind),
             Syntax::Atom(_) => None,
+        }
+    }
+    
+    pub fn as_str(&self) -> &str {
+        match self {
+            Syntax::Atom(atom) => atom.value.as_str(),
+            _ => "",
         }
     }
 }
@@ -199,6 +213,13 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::By => "by",
             SyntaxKind::Command => "command",
             SyntaxKind::Declaration => "declaration",
+            SyntaxKind::Field => "field",
+            SyntaxKind::Constructor => "constructor",
+            SyntaxKind::HashCommand => "hash command",
+            SyntaxKind::HashCheck => "#check",
+            SyntaxKind::HashEval => "#eval",
+            SyntaxKind::HashPrint => "#print",
+            SyntaxKind::HashReduce => "#reduce",
             SyntaxKind::Tactic => "tactic",
             SyntaxKind::TacticSeq => "tactic sequence",
             SyntaxKind::Module => "module",
