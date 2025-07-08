@@ -1,0 +1,17 @@
+[package]
+name = "lean-kernel"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+lean-eterned = { path = "../lean-abstractions/lean-eterned" }
+lean-syntax = { path = "../lean-syntax" }
+
+thiserror = { workspace = true }
+smallvec = { workspace = true }
+indexmap = { workspace = true }
+
+[dev-dependencies]
+expect-test = { workspace = true }
