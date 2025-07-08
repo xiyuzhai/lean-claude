@@ -1,0 +1,20 @@
+[package]
+name = "lean-parser"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+lean-eterned = { path = "../lean-abstractions/lean-eterned" }
+lean-syntax = { path = "../lean-syntax" }
+
+thiserror = { workspace = true }
+smallvec = { workspace = true }
+indexmap = { workspace = true }
+once_cell = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+expect-test = { workspace = true }
+proptest = { workspace = true }
