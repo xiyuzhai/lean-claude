@@ -4,7 +4,7 @@ use eterned::BaseCoword;
 use smallvec::SmallVec;
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SourcePos {
     pub line: u32,
     pub column: u32,
@@ -106,6 +106,14 @@ pub enum SyntaxKind {
     Have,
     Show,
     By,
+    BinOp,
+    UnaryOp,
+    Match,
+    MatchArm,
+    
+    // Patterns
+    ConstructorPattern,
+    WildcardPattern,
     
     // Commands
     Command,
@@ -211,6 +219,12 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::Have => "have",
             SyntaxKind::Show => "show",
             SyntaxKind::By => "by",
+            SyntaxKind::BinOp => "binary operation",
+            SyntaxKind::UnaryOp => "unary operation",
+            SyntaxKind::Match => "match",
+            SyntaxKind::MatchArm => "match arm",
+            SyntaxKind::ConstructorPattern => "constructor pattern",
+            SyntaxKind::WildcardPattern => "wildcard pattern",
             SyntaxKind::Command => "command",
             SyntaxKind::Declaration => "declaration",
             SyntaxKind::Field => "field",

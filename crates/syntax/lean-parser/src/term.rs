@@ -1,5 +1,6 @@
 use crate::parser::{Parser, ParserResult};
 use crate::error::{ParseError, ParseErrorKind};
+use crate::precedence::{Precedence, Associativity, get_binary_operator, get_unary_operator};
 use lean_syn_expr::{Syntax, SyntaxNode, SyntaxKind};
 
 use smallvec::smallvec;
@@ -7,37 +8,157 @@ use smallvec::smallvec;
 impl<'a> Parser<'a> {
     /// Parse a term (expression)
     pub fn term(&mut self) -> ParserResult<Syntax> {
-        self.arrow_term()
+        self.term_with_precedence(Precedence::MIN)
     }
     
-    /// Parse arrow type: `α → β`
-    pub fn arrow_term(&mut self) -> ParserResult<Syntax> {
+    /// Parse a term with precedence (Pratt parsing)
+    pub fn term_with_precedence(&mut self, min_prec: Precedence) -> ParserResult<Syntax> {
         let start = self.position();
-        let mut left = self.app_term()?;
         
-        self.skip_whitespace();
+        // Parse prefix operator or primary expression
+        let mut left = self.prefix_term()?;
         
-        // Check for arrow
-        if self.peek() == Some('→') || (self.peek() == Some('-') && self.input().peek_nth(1) == Some('>')) {
-            if self.peek() == Some('-') {
-                self.advance(); // consume '-'
-                self.advance(); // consume '>'
-            } else {
-                self.advance(); // consume '→'
-            }
-            
+        loop {
             self.skip_whitespace();
-            let right = self.arrow_term()?;
             
-            let range = self.input().range_from(start);
-            left = Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::Arrow,
-                range,
-                children: smallvec![left, right],
-            }));
+            // Check for binary operator
+            if let Some(op_info) = self.peek_binary_operator() {
+                if op_info.precedence < min_prec {
+                    break;
+                }
+                
+                let op_str = op_info.symbol.clone();
+                let op_prec = op_info.precedence;
+                let op_assoc = op_info.associativity;
+                
+                // Capture operator position before consuming
+                let op_start = self.position();
+                
+                // Consume the operator
+                for _ in op_str.chars() {
+                    self.advance();
+                }
+                
+                let op_range = self.input().range_from(op_start);
+                
+                self.skip_whitespace();
+                
+                // Calculate right precedence based on associativity
+                let right_prec = match op_assoc {
+                    Associativity::Left => Precedence(op_prec.0 + 1),
+                    Associativity::Right => op_prec,
+                    Associativity::None => Precedence(op_prec.0 + 1),
+                };
+                
+                // Parse right side
+                let right = self.term_with_precedence(right_prec)?;
+                
+                // Create binary operation node
+                let range = self.input().range_from(start.clone());
+                left = Syntax::Node(Box::new(SyntaxNode {
+                    kind: match op_str.as_str() {
+                        "->" | "→" => SyntaxKind::Arrow,
+                        _ => SyntaxKind::BinOp,
+                    },
+                    range,
+                    children: smallvec![
+                        left,
+                        Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                            range: op_range,
+                            value: eterned::BaseCoword::new(op_str),
+                        }),
+                        right
+                    ],
+                }));
+            } else {
+                break;
+            }
         }
         
         Ok(left)
+    }
+    
+    /// Parse prefix term (unary operators or primary)
+    fn prefix_term(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        
+        // Check for unary operator
+        if let Some(op_info) = self.peek_unary_operator() {
+            let op_str = op_info.symbol.clone();
+            
+            let op_start = self.position();
+            
+            // Consume the operator
+            for _ in op_str.chars() {
+                self.advance();
+            }
+            
+            let op_range = self.input().range_from(op_start);
+            
+            self.skip_whitespace();
+            
+            // Parse the operand
+            let operand = self.prefix_term()?;
+            
+            let range = self.input().range_from(start);
+            Ok(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::UnaryOp,
+                range,
+                children: smallvec![
+                    Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                        range: op_range,
+                        value: eterned::BaseCoword::new(op_str),
+                    }),
+                    operand
+                ],
+            })))
+        } else {
+            // Parse primary expression then check for application
+            self.app_term()
+        }
+    }
+    
+    /// Peek at the next binary operator
+    fn peek_binary_operator(&self) -> Option<&'static crate::precedence::OperatorInfo> {
+        // Try two-character operators first
+        let two_char = self.peek_chars(2);
+        if let Some(op_info) = get_binary_operator(&two_char) {
+            return Some(op_info);
+        }
+        
+        // Then single-character operators
+        if let Some(ch) = self.peek() {
+            let one_char = ch.to_string();
+            if let Some(op_info) = get_binary_operator(&one_char) {
+                return Some(op_info);
+            }
+        }
+        
+        None
+    }
+    
+    /// Peek at the next unary operator
+    fn peek_unary_operator(&self) -> Option<&'static crate::precedence::OperatorInfo> {
+        if let Some(ch) = self.peek() {
+            let one_char = ch.to_string();
+            if let Some(op_info) = get_unary_operator(&one_char) {
+                return Some(op_info);
+            }
+        }
+        None
+    }
+    
+    /// Peek multiple characters ahead
+    fn peek_chars(&self, n: usize) -> String {
+        let mut result = String::new();
+        for i in 0..n {
+            if let Some(ch) = self.input().peek_nth(i) {
+                result.push(ch);
+            } else {
+                break;
+            }
+        }
+        result
     }
     
     /// Parse application: `f x y z`
@@ -83,6 +204,7 @@ impl<'a> Parser<'a> {
             Some('s') if self.peek_keyword("show") => self.show_term(),
             Some('f') if self.peek_keyword("fun") => self.lambda_term(),
             Some('f') if self.peek_keyword("forall") => self.forall_term(),
+            Some('m') if self.peek_keyword("match") => self.match_expr(),
             Some(ch) if ch.is_ascii_digit() => self.number(),
             Some('"') => self.string_literal(),
             Some('\'') => self.char_literal(),
