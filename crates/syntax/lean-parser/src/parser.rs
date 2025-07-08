@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
                 self.advance();
                 Ok(())
             }
-            Some(ch) => Err(ParseError::new(
+            Some(_ch) => Err(ParseError::new(
                 ParseErrorKind::Expected(format!("'{}'", expected)),
                 self.position(),
             )),
@@ -106,7 +106,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let start_offset = self.input.position().offset;
+        let _start_offset = self.input.position().offset;
         match f(self) {
             Ok(syntax) => {
                 let end_offset = self.input.position().offset;

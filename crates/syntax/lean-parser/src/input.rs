@@ -1,4 +1,3 @@
-use eterned::BaseCoword;
 use lean_syn_expr::{SourcePos, SourceRange};
 use std::str::Chars;
 

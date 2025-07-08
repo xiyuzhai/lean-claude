@@ -61,6 +61,22 @@ pub enum SyntaxKind {
     LeftBrace,
     RightBrace,
     
+    // Operators
+    Arrow,      // →
+    DArrow,     // =>
+    Colon,
+    ColonEq,    // :=
+    Dot,
+    DotDot,     // ..
+    Comma,
+    Semicolon,
+    At,         // @
+    Hash,       // #
+    Dollar,     // $
+    Backtick,   // `
+    Question,   // ?
+    Exclamation,// !
+    
     // Keywords
     Def,
     Theorem,
@@ -73,6 +89,14 @@ pub enum SyntaxKind {
     Section,
     Import,
     Open,
+    Instance,
+    Class,
+    Structure,
+    Inductive,
+    Where,
+    Extends,
+    With,
+    Deriving,
     
     // Terms
     App,
@@ -133,6 +157,20 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::RightBracket => "]",
             SyntaxKind::LeftBrace => "{",
             SyntaxKind::RightBrace => "}",
+            SyntaxKind::Arrow => "→",
+            SyntaxKind::DArrow => "=>",
+            SyntaxKind::Colon => ":",
+            SyntaxKind::ColonEq => ":=",
+            SyntaxKind::Dot => ".",
+            SyntaxKind::DotDot => "..",
+            SyntaxKind::Comma => ",",
+            SyntaxKind::Semicolon => ";",
+            SyntaxKind::At => "@",
+            SyntaxKind::Hash => "#",
+            SyntaxKind::Dollar => "$",
+            SyntaxKind::Backtick => "`",
+            SyntaxKind::Question => "?",
+            SyntaxKind::Exclamation => "!",
             SyntaxKind::Def => "def",
             SyntaxKind::Theorem => "theorem",
             SyntaxKind::Axiom => "axiom",
@@ -144,6 +182,14 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::Section => "section",
             SyntaxKind::Import => "import",
             SyntaxKind::Open => "open",
+            SyntaxKind::Instance => "instance",
+            SyntaxKind::Class => "class",
+            SyntaxKind::Structure => "structure",
+            SyntaxKind::Inductive => "inductive",
+            SyntaxKind::Where => "where",
+            SyntaxKind::Extends => "extends",
+            SyntaxKind::With => "with",
+            SyntaxKind::Deriving => "deriving",
             SyntaxKind::App => "application",
             SyntaxKind::Lambda => "lambda",
             SyntaxKind::Forall => "forall",

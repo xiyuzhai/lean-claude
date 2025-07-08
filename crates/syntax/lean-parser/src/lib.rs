@@ -5,6 +5,7 @@ pub mod input;
 pub mod parser;
 pub mod combinators;
 pub mod error;
+pub mod module;
 
 pub use input::{Input, ParserInput};
 pub use parser::{Parser, ParserResult};

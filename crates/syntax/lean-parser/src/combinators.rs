@@ -1,8 +1,7 @@
 use crate::parser::{Parser, ParserResult};
 use crate::error::{ParseError, ParseErrorKind};
-use lean_syn_expr::{Syntax, SyntaxNode, SyntaxKind, SyntaxAtom};
+use lean_syn_expr::{Syntax, SyntaxAtom};
 use eterned::BaseCoword;
-use smallvec::SmallVec;
 
 impl<'a> Parser<'a> {
     pub fn identifier(&mut self) -> ParserResult<Syntax> {
