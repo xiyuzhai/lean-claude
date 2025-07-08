@@ -1,0 +1,11 @@
+[package]
+name = "lean-meta"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+lean-kernel = { path = "../lean-kernel" }
+
+[dev-dependencies]

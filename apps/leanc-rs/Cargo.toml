@@ -1,0 +1,17 @@
+[package]
+name = "leanc-rs"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "leanc-rs"
+path = "src/main.rs"
+
+[dependencies]
+lean-driver = { path = "../../crates/lean-driver" }
+anyhow = { workspace = true }
+clap = { version = "4.4", features = ["derive"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
