@@ -234,6 +234,7 @@ impl<'a> Parser<'a> {
             Some('f') if self.peek_keyword("fun") => self.lambda_term(),
             Some('f') if self.peek_keyword("forall") => self.forall_term(),
             Some('m') if self.peek_keyword("match") => self.match_expr(),
+            Some('b') if self.peek_keyword("by") => self.by_tactic(),
             Some('r') if self.peek_raw_string() => self.raw_string_literal(),
             Some('s') if self.peek_interpolated_string() => self.interpolated_string_literal(),
             Some('0') if self.peek_special_number() => self.number(),

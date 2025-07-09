@@ -9,6 +9,7 @@ pub mod module;
 pub mod parser;
 pub mod pattern;
 pub mod precedence;
+pub mod tactic;
 pub mod term;
 
 pub use error::{ParseError, ParseErrorKind};
