@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
                     Ok(ident)
                 }
             }
-            _ => Err(ParseError::new(
+            _ => Err(ParseError::boxed(
                 ParseErrorKind::Expected("pattern".to_string()),
                 start,
             )),
@@ -131,7 +131,7 @@ impl<'a> Parser<'a> {
         } else if self.peek() == Some('⇒') {
             self.advance();
         } else {
-            return Err(ParseError::new(
+            return Err(ParseError::boxed(
                 ParseErrorKind::Expected("=> or ⇒".to_string()),
                 self.position(),
             ));

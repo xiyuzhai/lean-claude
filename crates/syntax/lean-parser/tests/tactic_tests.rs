@@ -1,11 +1,11 @@
 use lean_parser::parser::Parser;
 
-fn parse_tactic(input: &str) -> Result<lean_syn_expr::Syntax, lean_parser::error::ParseError> {
+fn parse_tactic(input: &str) -> Result<lean_syn_expr::Syntax, Box<lean_parser::error::ParseError>> {
     let mut parser = Parser::new(input);
     parser.by_tactic()
 }
 
-fn parse_module(input: &str) -> Result<lean_syn_expr::Syntax, lean_parser::error::ParseError> {
+fn parse_module(input: &str) -> Result<lean_syn_expr::Syntax, Box<lean_parser::error::ParseError>> {
     let mut parser = Parser::new(input);
     parser.module()
 }

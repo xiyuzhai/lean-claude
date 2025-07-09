@@ -67,6 +67,11 @@ impl ParseError {
             expected_list: Vec::new(),
         }
     }
+    
+    /// Create a boxed ParseError for use in ParserResult
+    pub fn boxed(kind: ParseErrorKind, position: SourcePos) -> Box<Self> {
+        Box::new(Self::new(kind, position))
+    }
 
     pub fn with_range(mut self, range: SourceRange) -> Self {
         self.range = Some(range);
@@ -114,12 +119,12 @@ impl ParseError {
 
         // Add context as notes
         for ctx in &self.context {
-            diagnostic = diagnostic.with_note(format!("while {}", ctx));
+            diagnostic = diagnostic.with_note(format!("while {ctx}"));
         }
 
         // Add suggestions
         for suggestion in &self.suggestions {
-            diagnostic = diagnostic.with_help(format!("try: {}", suggestion));
+            diagnostic = diagnostic.with_help(format!("try: {suggestion}"));
         }
 
         // Add help
@@ -129,7 +134,7 @@ impl ParseError {
 
         // Add examples
         for example in &self.examples {
-            diagnostic = diagnostic.with_help(format!("example: {}", example));
+            diagnostic = diagnostic.with_help(format!("example: {example}"));
         }
 
         // Add expected list

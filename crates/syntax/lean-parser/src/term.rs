@@ -251,11 +251,11 @@ impl<'a> Parser<'a> {
             Some('"') => self.string_literal(),
             Some('\'') => self.char_literal(),
             Some(ch) if is_id_start(ch) => self.identifier(),
-            Some(_) => Err(ParseError::new(
+            Some(_) => Err(ParseError::boxed(
                 ParseErrorKind::Expected("term".to_string()),
                 self.position(),
             )),
-            None => Err(ParseError::new(
+            None => Err(ParseError::boxed(
                 ParseErrorKind::UnexpectedEof,
                 self.position(),
             )),
@@ -319,7 +319,7 @@ impl<'a> Parser<'a> {
         } else if self.peek() == Some('→') {
             self.advance();
         } else {
-            return Err(ParseError::new(
+            return Err(ParseError::boxed(
                 ParseErrorKind::Expected("=> or →".to_string()),
                 self.position(),
             ));

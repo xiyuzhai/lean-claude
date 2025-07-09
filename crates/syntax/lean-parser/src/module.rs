@@ -79,25 +79,25 @@ impl<'a> Parser<'a> {
                 '#' => self.hash_command(),
                 '-' if self.input().peek_nth(1) == Some('-') => {
                     // Line comment, not a command
-                    Err(ParseError::new(
+                    Err(ParseError::boxed(
                         ParseErrorKind::Expected("command".to_string()),
                         start,
                     ))
                 }
                 '/' if self.input().peek_nth(1) == Some('-') => {
                     // Block comment, not a command
-                    Err(ParseError::new(
+                    Err(ParseError::boxed(
                         ParseErrorKind::Expected("command".to_string()),
                         start,
                     ))
                 }
-                _ => Err(ParseError::new(
+                _ => Err(ParseError::boxed(
                     ParseErrorKind::Expected("command".to_string()),
                     start,
                 )),
             }
         } else {
-            Err(ParseError::new(ParseErrorKind::UnexpectedEof, start))
+            Err(ParseError::boxed(ParseErrorKind::UnexpectedEof, start))
         }
     }
 

@@ -371,7 +371,7 @@ impl<'a> Parser<'a> {
                     self.advance();
                     self.skip_whitespace();
                 } else if self.peek() != Some(']') {
-                    return Err(ParseError::new(
+                    return Err(ParseError::boxed(
                         ParseErrorKind::Expected(", or ]".to_string()),
                         self.position(),
                     ));
@@ -431,7 +431,7 @@ impl<'a> Parser<'a> {
                 self.advance();
                 self.skip_whitespace();
             } else if self.peek() != Some(']') {
-                return Err(ParseError::new(
+                return Err(ParseError::boxed(
                     ParseErrorKind::Expected(", or ]".to_string()),
                     self.position(),
                 ));
@@ -554,7 +554,7 @@ impl<'a> Parser<'a> {
                 self.advance();
                 "≠"
             }
-            _ => return Err(ParseError::new(
+            _ => return Err(ParseError::boxed(
                 ParseErrorKind::Expected("relation operator".to_string()),
                 self.position(),
             ))
@@ -627,7 +627,7 @@ impl<'a> Parser<'a> {
                     self.advance();
                     "≠"
                 }
-                _ => return Err(ParseError::new(
+                _ => return Err(ParseError::boxed(
                     ParseErrorKind::Expected("relation operator".to_string()),
                     self.position(),
                 ))

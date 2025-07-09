@@ -247,7 +247,7 @@ impl<'a> DiagnosticEmitter<'a> {
             let gutter_width = line_num_str.len() + 1;
             
             output.push_str(&format!("{:>width$} |\n", "", width = gutter_width));
-            output.push_str(&format!("{} | {}\n", line_num_str, line));
+            output.push_str(&format!("{line_num_str} | {line}\n"));
             
             // Underline
             let underline_start = (col - 1) as usize;

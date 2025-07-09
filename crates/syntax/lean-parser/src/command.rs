@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
             self.advance(); // consume ':'
             self.expect_char('=')?;
         } else {
-            return Err(ParseError::new(
+            return Err(ParseError::boxed(
                 ParseErrorKind::Expected(":=".to_string()),
                 self.position(),
             ));
@@ -245,7 +245,7 @@ impl<'a> Parser<'a> {
             self.advance(); // consume ':'
             self.expect_char('=')?;
         } else {
-            return Err(ParseError::new(
+            return Err(ParseError::boxed(
                 ParseErrorKind::Expected(":=".to_string()),
                 self.position(),
             ));

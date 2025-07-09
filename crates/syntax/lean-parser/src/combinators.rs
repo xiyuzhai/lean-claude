@@ -28,7 +28,7 @@ impl<'a> Parser<'a> {
                     self.advance();
                     self.skip_whitespace_and_comments();
                 } else if self.peek() != Some(close) {
-                    return Err(ParseError::new(
+                    return Err(ParseError::boxed(
                         ParseErrorKind::Expected(format!("'{sep}' or '{close}'")),
                         self.position(),
                     ));

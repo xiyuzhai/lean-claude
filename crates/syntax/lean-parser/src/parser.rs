@@ -10,7 +10,7 @@ use crate::{
     lexical::{is_id_continue, is_id_start},
 };
 
-pub type ParserResult<T> = Result<T, ParseError>;
+pub type ParserResult<T> = Result<T, Box<ParseError>>;
 pub type ParserFn = Rc<dyn Fn(&mut Parser) -> ParserResult<Syntax>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,7 +34,7 @@ pub struct Parser<'a> {
 #[derive(Clone)]
 enum MemoEntry {
     Success(Syntax, usize),
-    Failure(ParseError),
+    Failure(Box<ParseError>),
 }
 
 impl<'a> Parser<'a> {
@@ -121,8 +121,8 @@ impl<'a> Parser<'a> {
             drop(categories);
             cat_clone.parse(self, min_prec)
         } else {
-            Err(ParseError::new(
-                ParseErrorKind::Custom(format!("Unknown category: {}", category_name)),
+            Err(ParseError::boxed(
+                ParseErrorKind::Custom(format!("Unknown category: {category_name}")),
                 self.position(),
             ))
         }
@@ -146,11 +146,11 @@ impl<'a> Parser<'a> {
                 self.advance();
                 Ok(())
             }
-            Some(_ch) => Err(ParseError::new(
+            Some(_ch) => Err(ParseError::boxed(
                 ParseErrorKind::Expected(format!("'{expected}'")),
                 self.position(),
             )),
-            None => Err(ParseError::new(
+            None => Err(ParseError::boxed(
                 ParseErrorKind::UnexpectedEof,
                 self.position(),
             )),
@@ -265,7 +265,7 @@ impl<'a> Parser<'a> {
         let start = self.position();
 
         if !self.peek().is_some_and(is_id_start) {
-            return Err(ParseError::new(
+            return Err(ParseError::boxed(
                 ParseErrorKind::Expected("identifier".to_string()),
                 start,
             ));
@@ -284,7 +284,7 @@ impl<'a> Parser<'a> {
         let start = self.position();
 
         if !self.peek_keyword(kw) {
-            return Err(ParseError::new(
+            return Err(ParseError::boxed(
                 ParseErrorKind::Expected(format!("keyword '{kw}'")),
                 start,
             ));
@@ -339,7 +339,7 @@ impl<'a> Parser<'a> {
         let start = self.position();
 
         if !self.peek().is_some_and(|ch| ch.is_ascii_digit()) {
-            return Err(ParseError::new(
+            return Err(ParseError::boxed(
                 ParseErrorKind::Expected("number".to_string()),
                 start,
             ));
@@ -354,7 +354,7 @@ impl<'a> Parser<'a> {
                     let mut hex = String::from("0x");
                     hex.push_str(&self.consume_while(|ch| ch.is_ascii_hexdigit()));
                     if hex.len() == 2 {
-                        return Err(ParseError::new(
+                        return Err(ParseError::boxed(
                             ParseErrorKind::Custom(
                                 "hexadecimal literal must have at least one digit".to_string(),
                             ),
@@ -370,7 +370,7 @@ impl<'a> Parser<'a> {
                     let mut bin = String::from("0b");
                     bin.push_str(&self.consume_while(|ch| ch == '0' || ch == '1'));
                     if bin.len() == 2 {
-                        return Err(ParseError::new(
+                        return Err(ParseError::boxed(
                             ParseErrorKind::Custom(
                                 "binary literal must have at least one digit".to_string(),
                             ),
@@ -386,7 +386,7 @@ impl<'a> Parser<'a> {
                     let mut oct = String::from("0o");
                     oct.push_str(&self.consume_while(|ch| ('0'..='7').contains(&ch)));
                     if oct.len() == 2 {
-                        return Err(ParseError::new(
+                        return Err(ParseError::boxed(
                             ParseErrorKind::Custom(
                                 "octal literal must have at least one digit".to_string(),
                             ),
@@ -481,7 +481,7 @@ impl<'a> Parser<'a> {
                         content.push('"');
                     }
                     _ => {
-                        return Err(ParseError::new(
+                        return Err(ParseError::boxed(
                             ParseErrorKind::Custom("invalid escape sequence".to_string()),
                             self.position(),
                         ));
@@ -530,7 +530,7 @@ impl<'a> Parser<'a> {
                         '\''
                     }
                     _ => {
-                        return Err(ParseError::new(
+                        return Err(ParseError::boxed(
                             ParseErrorKind::Custom("invalid escape sequence".to_string()),
                             self.position(),
                         ));
@@ -542,7 +542,7 @@ impl<'a> Parser<'a> {
                 c
             }
             None => {
-                return Err(ParseError::new(
+                return Err(ParseError::boxed(
                     ParseErrorKind::UnexpectedEof,
                     self.position(),
                 ));
@@ -610,7 +610,7 @@ impl<'a> Parser<'a> {
                     self.advance();
                 }
                 None => {
-                    return Err(ParseError::new(
+                    return Err(ParseError::boxed(
                         ParseErrorKind::Custom("unterminated raw string literal".to_string()),
                         self.position(),
                     ));
@@ -703,7 +703,7 @@ impl<'a> Parser<'a> {
                             current_str.push('}');
                         }
                         _ => {
-                            return Err(ParseError::new(
+                            return Err(ParseError::boxed(
                                 ParseErrorKind::Custom("invalid escape sequence".to_string()),
                                 self.position(),
                             ));
@@ -759,7 +759,7 @@ impl<'a> Parser<'a> {
             Some('{') => ('{', '}', lean_syn_expr::SyntaxKind::LeftBrace),
             Some('[') => ('[', ']', lean_syn_expr::SyntaxKind::LeftBracket),
             _ => {
-                return Err(ParseError::new(
+                return Err(ParseError::boxed(
                     ParseErrorKind::Expected("binder".to_string()),
                     start,
                 ))

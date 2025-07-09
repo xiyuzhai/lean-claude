@@ -37,7 +37,7 @@ pub struct ParserEntry {
 }
 
 /// Parsing table for a category
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ParsingTable {
     /// Leading parsers indexed by first token
     pub leading: HashMap<String, Vec<ParserEntry>>,
@@ -49,18 +49,14 @@ pub struct ParsingTable {
 
 impl ParsingTable {
     pub fn new() -> Self {
-        Self {
-            leading: HashMap::new(),
-            trailing: HashMap::new(),
-            default_parsers: Vec::new(),
-        }
+        Self::default()
     }
 
     /// Add a leading parser (triggered by specific token)
     pub fn add_leading(&mut self, trigger: impl Into<String>, entry: ParserEntry) {
         self.leading
             .entry(trigger.into())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(entry);
     }
 
@@ -180,7 +176,7 @@ impl ParserCategory {
         }
         
         // Generate helpful error
-        Err(self.expected_error(parser))
+        Err(Box::new(self.expected_error(parser)))
     }
 
     fn continue_parsing<'a>(
@@ -212,7 +208,7 @@ impl ParserCategory {
         // Check two-character operators first
         if let Some(ch1) = parser.peek() {
             if let Some(ch2) = parser.input().peek_nth(1) {
-                let two_char = format!("{}{}", ch1, ch2);
+                let two_char = format!("{ch1}{ch2}");
                 if let Some(entry) = self.tables.trailing.get(&two_char) {
                     return Some(entry);
                 }
@@ -239,7 +235,7 @@ impl ParserCategory {
         // Consume the operator token(s)
         let op_str = if let Some(ch1) = parser.peek() {
             if let Some(ch2) = parser.input().peek_nth(1) {
-                let two_char = format!("{}{}", ch1, ch2);
+                let two_char = format!("{ch1}{ch2}");
                 if self.tables.trailing.contains_key(&two_char) {
                     parser.advance();
                     parser.advance();
@@ -253,7 +249,7 @@ impl ParserCategory {
                 ch1.to_string()
             }
         } else {
-            return Err(ParseError::new(
+            return Err(ParseError::boxed(
                 ParseErrorKind::UnexpectedEof,
                 parser.position(),
             ));
@@ -301,9 +297,9 @@ impl ParserCategory {
     fn enhance_error<'a>(
         &self,
         parser: &Parser<'a>,
-        mut error: ParseError,
+        mut error: Box<ParseError>,
         _start_pos: lean_syn_expr::SourcePos,
-    ) -> ParseError {
+    ) -> Box<ParseError> {
         // Add category context
         error.add_context(format!("while parsing {}", self.name));
         
@@ -327,8 +323,8 @@ impl ParserCategory {
         
         // Add available alternatives
         let mut expected = Vec::new();
-        for (token, _) in &self.tables.leading {
-            expected.push(format!("'{}'", token));
+        for token in self.tables.leading.keys() {
+            expected.push(format!("'{token}'"));
         }
         if !expected.is_empty() {
             error.add_expected_list(expected);
@@ -351,7 +347,7 @@ impl ParserCategory {
         let mut expected = Vec::new();
         
         // Collect what we could parse here
-        for (_token, entries) in &self.tables.leading {
+        for entries in self.tables.leading.values() {
             if let Some(entry) = entries.first() {
                 expected.push(entry.name.clone());
             }
@@ -365,15 +361,14 @@ impl ParserCategory {
 }
 
 /// Category registry for managing all parser categories
+#[derive(Default)]
 pub struct CategoryRegistry {
     categories: HashMap<String, ParserCategory>,
 }
 
 impl CategoryRegistry {
     pub fn new() -> Self {
-        Self {
-            categories: HashMap::new(),
-        }
+        Self::default()
     }
 
     /// Register a new category

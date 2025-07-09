@@ -7,12 +7,12 @@ fn check_parse(input: &str, expected: Expect) {
     
     match result {
         Ok(syntax) => {
-            let output = format!("{:#?}", syntax);
+            let output = format!("{syntax:#?}");
             expected.assert_eq(&output);
         }
         Err(err) => {
             let diagnostic = err.to_diagnostic();
-            let output = format!("Error: {:#?}", diagnostic);
+            let output = format!("Error: {diagnostic:#?}");
             expected.assert_eq(&output);
         }
     }
