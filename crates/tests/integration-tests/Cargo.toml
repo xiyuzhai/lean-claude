@@ -12,6 +12,10 @@ path = "../../../tests/integration/mathlib4_parser_test.rs"
 name = "parser_integration_test"
 path = "../../../tests/integration/parser_integration_test.rs"
 
+[[test]]
+name = "syntax_test_suite"
+path = "../../../tests/integration/syntax_test_suite.rs"
+
 [dependencies]
 lean-parser = { path = "../../syntax/lean-parser" }
 lean-syn-expr = { path = "../../syntax/lean-syn-expr" }
