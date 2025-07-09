@@ -177,6 +177,22 @@ impl<'a> Parser<'a> {
                 || self.peek_keyword("else")
                 || self.peek_keyword("in")
                 || self.peek_keyword("from")
+                // Stop at command keywords
+                || self.peek_keyword("def")
+                || self.peek_keyword("theorem")
+                || self.peek_keyword("axiom")
+                || self.peek_keyword("constant")
+                || self.peek_keyword("variable")
+                || self.peek_keyword("instance")
+                || self.peek_keyword("class")
+                || self.peek_keyword("structure")
+                || self.peek_keyword("inductive")
+                || self.peek_keyword("import")
+                || self.peek_keyword("namespace")
+                || self.peek_keyword("section")
+                || self.peek_keyword("end")
+                || self.peek_keyword("open")
+                || self.peek_keyword("universe")
             {
                 break;
             }

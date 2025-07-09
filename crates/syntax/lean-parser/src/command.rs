@@ -1,7 +1,10 @@
 use lean_syn_expr::{Syntax, SyntaxKind, SyntaxNode};
 use smallvec::smallvec;
 
-use crate::parser::{Parser, ParserResult};
+use crate::{
+    error::{ParseError, ParseErrorKind},
+    parser::{Parser, ParserResult},
+};
 
 impl<'a> Parser<'a> {
     /// Parse def command: `def name [params] : type := value`
@@ -31,7 +34,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // Parse definition
+        // Parse definition - always expect ':='
         self.skip_whitespace();
         self.expect_char(':')?;
         self.expect_char('=')?;
@@ -79,8 +82,13 @@ impl<'a> Parser<'a> {
 
         // Parse proof
         self.skip_whitespace();
-        self.expect_char(':')?;
-        self.expect_char('=')?;
+        // Parse := operator
+        if self.peek() == Some(':') {
+            self.advance(); // consume ':'
+            self.expect_char('=')?;
+        } else {
+            return Err(ParseError::new(ParseErrorKind::Expected(":=".to_string()), self.position()));
+        }
         self.skip_whitespace();
 
         let proof = self.term()?;
@@ -215,8 +223,13 @@ impl<'a> Parser<'a> {
 
         // Parse definition
         self.skip_whitespace();
-        self.expect_char(':')?;
-        self.expect_char('=')?;
+        // Parse := operator
+        if self.peek() == Some(':') {
+            self.advance(); // consume ':'
+            self.expect_char('=')?;
+        } else {
+            return Err(ParseError::new(ParseErrorKind::Expected(":=".to_string()), self.position()));
+        }
         self.skip_whitespace();
 
         let value = self.term()?;
