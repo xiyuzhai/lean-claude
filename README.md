@@ -160,6 +160,28 @@ The compiler follows Lean4's pipeline:
 - [ ] Performance comparison
 - [ ] Memory usage analysis
 
+## Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/xiyuzhai/lean-claude.git
+cd lean-claude
+
+# Run all checks
+make check
+
+# Build the project
+make build
+
+# Run tests
+make test
+
+# See all available commands
+make help
+```
+
+For detailed development instructions, see [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ## Development Guidelines
 
 ### Code Organization
