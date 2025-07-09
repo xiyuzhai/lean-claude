@@ -86,7 +86,7 @@ fn test_parse_specific_mathlib4_file() {
     let mut parser = Parser::new(&content);
 
     match parser.module() {
-        Ok(syntax) => {
+        Ok(_syntax) => {
             println!("Successfully parsed Mathlib/Data/Nat/Basic.lean");
             // Could add more specific assertions about the parsed structure
         }
