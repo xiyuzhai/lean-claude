@@ -20,6 +20,21 @@ impl Precedence {
     pub const POW: Precedence = Precedence(80); // ^
     pub const COMPOSE: Precedence = Precedence(90); // ∘
     pub const APP: Precedence = Precedence(1024); // function application
+    
+    /// Get the next higher precedence
+    pub fn next(self) -> Precedence {
+        Precedence(self.0.saturating_add(1))
+    }
+    
+    /// Get the associativity for standard operators at this precedence
+    pub fn associativity(self) -> Associativity {
+        // Most operators are left-associative by default
+        // Right-associative operators will override this
+        match self.0 {
+            25 => Associativity::Right, // Function arrow
+            _ => Associativity::Left,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

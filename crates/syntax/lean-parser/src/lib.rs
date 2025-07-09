@@ -1,7 +1,9 @@
 #![feature(if_let_guard)]
 
+pub mod category;
 pub mod combinators;
 pub mod command;
+pub mod diagnostic;
 pub mod error;
 pub mod input;
 pub mod lexical;

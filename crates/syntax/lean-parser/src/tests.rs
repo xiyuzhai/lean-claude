@@ -2,6 +2,7 @@ use expect_test::{expect, Expect};
 
 use crate::parser::Parser;
 
+mod category_test;
 mod module_tests;
 
 fn check_parse(input: &str, expected: Expect) {

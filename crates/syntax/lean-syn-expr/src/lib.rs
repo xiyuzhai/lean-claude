@@ -40,6 +40,7 @@ pub enum Syntax {
     Atom(SyntaxAtom),
 }
 
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SyntaxAtom {
     pub range: SourceRange,
@@ -106,11 +107,11 @@ pub enum SyntaxKind {
     Lambda,
     Forall,
     Let,
+    BinOp,
+    UnaryOp,
     Have,
     Show,
     By,
-    BinOp,
-    UnaryOp,
     Match,
     MatchArm,
 
@@ -247,13 +248,13 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::Deriving => "deriving",
             SyntaxKind::App => "application",
             SyntaxKind::Lambda => "lambda",
+            SyntaxKind::BinOp => "binary operator",
+            SyntaxKind::UnaryOp => "unary operator",
             SyntaxKind::Forall => "forall",
             SyntaxKind::Let => "let",
             SyntaxKind::Have => "have",
             SyntaxKind::Show => "show",
             SyntaxKind::By => "by",
-            SyntaxKind::BinOp => "binary operation",
-            SyntaxKind::UnaryOp => "unary operation",
             SyntaxKind::Match => "match",
             SyntaxKind::MatchArm => "match arm",
             SyntaxKind::ConstructorPattern => "constructor pattern",

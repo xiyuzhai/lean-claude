@@ -1,14 +1,17 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use lean_syn_expr::{SourcePos, Syntax};
+use lean_syn_expr::{SourcePos, SourceRange, Syntax};
 
 use crate::{
+    category::CategoryRegistry,
+    diagnostic::Diagnostic,
     error::{ParseError, ParseErrorKind},
     input::Input,
     lexical::{is_id_continue, is_id_start},
 };
 
 pub type ParserResult<T> = Result<T, ParseError>;
+pub type ParserFn = Rc<dyn Fn(&mut Parser) -> ParserResult<Syntax>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ParsingMode {
@@ -20,6 +23,12 @@ pub struct Parser<'a> {
     input: Input<'a>,
     memo_table: Rc<RefCell<HashMap<(usize, &'static str), MemoEntry>>>,
     mode: ParsingMode,
+    /// Category registry for extensible parsing
+    categories: Rc<RefCell<CategoryRegistry>>,
+    /// Current parsing category
+    current_category: String,
+    /// Collected warnings during parsing
+    warnings: Vec<Diagnostic>,
 }
 
 #[derive(Clone)]
@@ -30,10 +39,26 @@ enum MemoEntry {
 
 impl<'a> Parser<'a> {
     pub fn new(source: &'a str) -> Self {
+        let categories = crate::category::init_standard_categories();
         Self {
             input: Input::new(source),
             memo_table: Rc::new(RefCell::new(HashMap::new())),
             mode: ParsingMode::Term,
+            categories: Rc::new(RefCell::new(categories)),
+            current_category: "term".to_string(),
+            warnings: Vec::new(),
+        }
+    }
+
+    /// Create parser with custom categories
+    pub fn with_categories(source: &'a str, categories: CategoryRegistry) -> Self {
+        Self {
+            input: Input::new(source),
+            memo_table: Rc::new(RefCell::new(HashMap::new())),
+            mode: ParsingMode::Term,
+            categories: Rc::new(RefCell::new(categories)),
+            current_category: "term".to_string(),
+            warnings: Vec::new(),
         }
     }
 
@@ -58,6 +83,49 @@ impl<'a> Parser<'a> {
         let result = f(self);
         self.mode = old_mode;
         result
+    }
+
+    /// Parse with a specific category
+    pub fn with_category<T, F>(&mut self, category: &str, f: F) -> T
+    where
+        F: FnOnce(&mut Self) -> T,
+    {
+        let old_category = self.current_category.clone();
+        self.current_category = category.to_string();
+        let result = f(self);
+        self.current_category = old_category;
+        result
+    }
+
+    /// Add a warning
+    pub fn add_warning(&mut self, span: SourceRange, message: impl Into<String>) {
+        self.warnings.push(
+            Diagnostic::warning(message)
+                .with_span(span)
+        );
+    }
+
+    /// Get collected warnings
+    pub fn warnings(&self) -> &[Diagnostic] {
+        &self.warnings
+    }
+
+    /// Parse using current category rules
+    pub fn parse_category(&mut self, min_prec: crate::precedence::Precedence) -> ParserResult<Syntax> {
+        let category_name = self.current_category.clone();
+        let categories = self.categories.borrow();
+        
+        if let Some(category) = categories.get(&category_name) {
+            // Clone to avoid borrow issues
+            let cat_clone = category.clone();
+            drop(categories);
+            cat_clone.parse(self, min_prec)
+        } else {
+            Err(ParseError::new(
+                ParseErrorKind::Custom(format!("Unknown category: {}", category_name)),
+                self.position(),
+            ))
+        }
     }
 
     pub fn position(&self) -> SourcePos {
