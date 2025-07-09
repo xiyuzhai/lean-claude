@@ -279,7 +279,8 @@ impl<'a> Parser<'a> {
         self.binder_group()
     }
 
-    /// Parse instance implicit term: `[term]` or instance implicit binder `[Monad m]`
+    /// Parse instance implicit term: `[term]` or instance implicit binder
+    /// `[Monad m]`
     pub fn inst_implicit_term(&mut self) -> ParserResult<Syntax> {
         // This is actually parsing a binder group in instance implicit brackets
         // It's already handled by binder_group(), so just delegate to it

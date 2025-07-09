@@ -514,7 +514,7 @@ impl<'a> Parser<'a> {
         let mut steps = Vec::new();
 
         // First step
-        let lhs = self.atom_term()?;  // Left side should be atomic
+        let lhs = self.atom_term()?; // Left side should be atomic
         self.skip_whitespace();
 
         // Parse relation operator (=, <, ≤, etc.)
@@ -554,10 +554,12 @@ impl<'a> Parser<'a> {
                 self.advance();
                 "≠"
             }
-            _ => return Err(ParseError::boxed(
-                ParseErrorKind::Expected("relation operator".to_string()),
-                self.position(),
-            ))
+            _ => {
+                return Err(ParseError::boxed(
+                    ParseErrorKind::Expected("relation operator".to_string()),
+                    self.position(),
+                ))
+            }
         };
         let rel = Syntax::Atom(SyntaxAtom {
             range: self.input().range_from(rel_start),
@@ -627,10 +629,12 @@ impl<'a> Parser<'a> {
                     self.advance();
                     "≠"
                 }
-                _ => return Err(ParseError::boxed(
-                    ParseErrorKind::Expected("relation operator".to_string()),
-                    self.position(),
-                ))
+                _ => {
+                    return Err(ParseError::boxed(
+                        ParseErrorKind::Expected("relation operator".to_string()),
+                        self.position(),
+                    ))
+                }
             };
             let rel = Syntax::Atom(SyntaxAtom {
                 range: self.input().range_from(rel_start),
@@ -655,7 +659,7 @@ impl<'a> Parser<'a> {
                 range: self.input().range_from(step_start),
                 children: smallvec![rel, rhs, proof],
             })));
-            
+
             self.skip_whitespace_and_comments();
         }
 
@@ -869,9 +873,9 @@ impl<'a> Parser<'a> {
     /// Parse constructor tactic
     fn constructor_tactic(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
-        
+
         self.keyword("constructor")?;
-        
+
         let range = self.input().range_from(start);
         Ok(Syntax::Node(Box::new(SyntaxNode {
             kind: SyntaxKind::Constructor,
@@ -879,40 +883,40 @@ impl<'a> Parser<'a> {
             children: smallvec![],
         })))
     }
-    
+
     /// These are placeholders for category-based parsing
     pub fn parse_tactic_exact(&mut self) -> ParserResult<Syntax> {
         self.exact_tactic()
     }
-    
+
     pub fn parse_tactic_apply(&mut self) -> ParserResult<Syntax> {
         self.apply_tactic()
     }
-    
+
     pub fn parse_tactic_intro(&mut self) -> ParserResult<Syntax> {
         self.intro_tactic()
     }
-    
+
     pub fn parse_tactic_cases(&mut self) -> ParserResult<Syntax> {
         self.cases_tactic()
     }
-    
+
     pub fn parse_tactic_induction(&mut self) -> ParserResult<Syntax> {
         self.induction_tactic()
     }
-    
+
     pub fn parse_tactic_simp(&mut self) -> ParserResult<Syntax> {
         self.simp_tactic()
     }
-    
+
     pub fn parse_tactic_rewrite(&mut self) -> ParserResult<Syntax> {
         self.rewrite_tactic()
     }
-    
+
     pub fn parse_tactic_constructor(&mut self) -> ParserResult<Syntax> {
         self.constructor_tactic()
     }
-    
+
     pub fn parse_tactic_assumption(&mut self) -> ParserResult<Syntax> {
         self.assumption_tactic()
     }

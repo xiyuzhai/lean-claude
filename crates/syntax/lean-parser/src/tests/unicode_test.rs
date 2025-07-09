@@ -1,10 +1,11 @@
-use crate::Parser;
 use expect_test::{expect, Expect};
+
+use crate::Parser;
 
 fn check_parse_positions(input: &str, expected: Expect) {
     let mut parser = Parser::new(input);
     let mut positions = Vec::new();
-    
+
     while let Some(ch) = parser.peek() {
         let pos = parser.position();
         positions.push(format!(
@@ -13,7 +14,7 @@ fn check_parse_positions(input: &str, expected: Expect) {
         ));
         parser.advance();
     }
-    
+
     let output = positions.join("\n");
     expected.assert_eq(&output);
 }

@@ -188,7 +188,7 @@ impl<'a> DiagnosticEmitter<'a> {
     /// Emit a diagnostic with rustc-style formatting
     pub fn emit(&self, diagnostic: &Diagnostic) -> String {
         let mut output = String::new();
-        
+
         // Header with severity and message
         let severity_str = match diagnostic.severity {
             Severity::Error => "error",
@@ -196,23 +196,23 @@ impl<'a> DiagnosticEmitter<'a> {
             Severity::Note => "note",
             Severity::Help => "help",
         };
-        
+
         if let Some(code) = &diagnostic.code {
             output.push_str(&format!("{severity_str}[{code}]: {}\n", diagnostic.message));
         } else {
             output.push_str(&format!("{severity_str}: {}\n", diagnostic.message));
         }
-        
+
         // Primary span with source context
         if let Some(span) = &diagnostic.primary_span {
             self.emit_span(&mut output, span, Some(&diagnostic.message));
         }
-        
+
         // Additional labeled spans
         for labeled in &diagnostic.labeled_spans {
             self.emit_span(&mut output, &labeled.span, Some(&labeled.label));
         }
-        
+
         // Subdiagnostics
         for sub in &diagnostic.subdiagnostics {
             let prefix = match sub.severity {
@@ -221,34 +221,34 @@ impl<'a> DiagnosticEmitter<'a> {
                 _ => "note",
             };
             output.push_str(&format!("{prefix}: {}\n", sub.message));
-            
+
             if let Some(span) = &sub.span {
                 self.emit_span(&mut output, span, None);
             }
         }
-        
+
         output
     }
 
     fn emit_span(&self, output: &mut String, span: &SourceRange, label: Option<&str>) {
         let line_num = span.start.line;
         let col = span.start.column;
-        
+
         // Line number and file info
         output.push_str(&format!("  --> {}:{}:{}\n", "<input>", line_num, col));
-        
+
         // Context lines
         if line_num > 0 && (line_num as usize) <= self.lines.len() {
             let line_idx = (line_num - 1) as usize;
             let line = self.lines[line_idx];
-            
+
             // Line number gutter
             let line_num_str = line_num.to_string();
             let gutter_width = line_num_str.len() + 1;
-            
+
             output.push_str(&format!("{:>width$} |\n", "", width = gutter_width));
             output.push_str(&format!("{line_num_str} | {line}\n"));
-            
+
             // Underline
             let underline_start = (col - 1) as usize;
             let underline_end = if span.end.line == span.start.line {
@@ -256,11 +256,11 @@ impl<'a> DiagnosticEmitter<'a> {
             } else {
                 line.len()
             };
-            
+
             output.push_str(&format!("{:>width$} | ", "", width = gutter_width));
             output.push_str(&" ".repeat(underline_start));
             output.push_str(&"^".repeat((underline_end - underline_start).max(1)));
-            
+
             if let Some(label) = label {
                 output.push_str(&format!(" {label}"));
             }

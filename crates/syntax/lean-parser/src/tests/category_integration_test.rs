@@ -1,12 +1,13 @@
 #[cfg(test)]
 mod tests {
-    use crate::Parser;
     use expect_test::{expect, Expect};
+
+    use crate::Parser;
 
     fn check_parse_module(input: &str, expected: Expect) {
         let mut parser = Parser::new(input);
         let result = parser.module();
-        
+
         match result {
             Ok(syntax) => {
                 let output = format!("{syntax:#?}");
@@ -38,7 +39,9 @@ theorem myTheorem : myFunction 5 = 6 := by
 end Example
 "#;
 
-        check_parse_module(module_text, expect![[r#"
+        check_parse_module(
+            module_text,
+            expect![[r#"
             Node(
                 SyntaxNode {
                     kind: Module,
@@ -760,24 +763,25 @@ end Example
                         ),
                     ],
                 },
-            )"#]]);
+            )"#]],
+        );
     }
 
     #[test]
     fn test_error_recovery_suggestions() {
-        // Test missing 'by' in tactic proof - actually this parses 'simp' as an identifier
-        // which is valid syntax, just not what the user intended
+        // Test missing 'by' in tactic proof - actually this parses 'simp' as an
+        // identifier which is valid syntax, just not what the user intended
         let result = Parser::new("theorem foo : True := simp").theorem_command();
         assert!(result.is_ok()); // This is actually valid syntax
-        
+
         // Test missing command keyword at command level (not module level)
         let result = Parser::new("myDef := 42").command();
         assert!(result.is_err());
-        
+
         // Test incomplete theorem
         let result = Parser::new("theorem foo : True :=").theorem_command();
         assert!(result.is_err());
-        
+
         // Test tactic without 'by'
         let result = Parser::new("exact h").term();
         assert!(result.is_ok()); // This parses as function application

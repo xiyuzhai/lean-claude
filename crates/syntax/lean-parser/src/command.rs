@@ -11,9 +11,10 @@ impl<'a> Parser<'a> {
     /// Parse def command: `def name [params] : type := value`
     pub fn def_command(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
-        
+
         // Check for attributes before the command
-        let has_attrs = self.peek() == Some('@') || (self.peek() == Some('[') && self.peek_attribute_list());
+        let has_attrs =
+            self.peek() == Some('@') || (self.peek() == Some('[') && self.peek_attribute_list());
         let attrs = if has_attrs {
             Some(self.parse_attributes()?)
         } else {

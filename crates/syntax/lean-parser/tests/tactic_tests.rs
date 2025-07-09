@@ -180,7 +180,7 @@ fn test_calc_tactic() {
     for input in test_cases {
         let result = parse_tactic(input);
         match &result {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => eprintln!("Parse error for calc: {e:?}"),
         }
         assert!(result.is_ok(), "Failed to parse calc: {input}");

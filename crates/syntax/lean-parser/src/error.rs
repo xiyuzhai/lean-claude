@@ -31,7 +31,7 @@ pub enum ParseErrorKind {
 
     #[error("expected {0}")]
     Expected(String),
-    
+
     #[error("expected one of: {}", .0.join(", "))]
     ExpectedOneOf(Vec<String>),
 
@@ -67,7 +67,7 @@ impl ParseError {
             expected_list: Vec::new(),
         }
     }
-    
+
     /// Create a boxed ParseError for use in ParserResult
     pub fn boxed(kind: ParseErrorKind, position: SourcePos) -> Box<Self> {
         Box::new(Self::new(kind, position))
@@ -179,19 +179,17 @@ pub fn enhance_error_message(error: &mut ParseError) {
                 _ => {}
             }
         }
-        ParseErrorKind::UnexpectedChar(ch) => {
-            match ch {
-                ';' => {
-                    error.add_help("semicolons separate tactics, not terms");
-                    error.add_suggestion("remove the semicolon or wrap in parentheses");
-                }
-                ',' => {
-                    error.add_help("commas are used in lists and function arguments");
-                    error.add_suggestion("check if you're missing brackets or parentheses");
-                }
-                _ => {}
+        ParseErrorKind::UnexpectedChar(ch) => match ch {
+            ';' => {
+                error.add_help("semicolons separate tactics, not terms");
+                error.add_suggestion("remove the semicolon or wrap in parentheses");
             }
-        }
+            ',' => {
+                error.add_help("commas are used in lists and function arguments");
+                error.add_suggestion("check if you're missing brackets or parentheses");
+            }
+            _ => {}
+        },
         _ => {}
     }
 }

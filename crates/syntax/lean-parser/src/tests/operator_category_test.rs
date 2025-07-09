@@ -1,10 +1,11 @@
-use crate::Parser;
 use expect_test::{expect, Expect};
+
+use crate::Parser;
 
 fn check_parse(input: &str, expected: Expect) {
     let mut parser = Parser::new(input);
     let result = parser.term();
-    
+
     match result {
         Ok(syntax) => {
             let output = format!("{syntax:#?}");
@@ -81,7 +82,7 @@ fn test_unary_operators_category() {
                 },
             )"#]],
     );
-    
+
     // Logical not
     check_parse(
         "!p",

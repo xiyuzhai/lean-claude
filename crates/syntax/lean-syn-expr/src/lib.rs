@@ -40,7 +40,6 @@ pub enum Syntax {
     Atom(SyntaxAtom),
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SyntaxAtom {
     pub range: SourceRange,
@@ -173,7 +172,7 @@ pub enum SyntaxKind {
     Precedence,
     Attribute,
     AttributeList,
-    
+
     // Other
     Module,
     Error,

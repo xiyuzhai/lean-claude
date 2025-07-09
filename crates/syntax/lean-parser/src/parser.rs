@@ -99,10 +99,8 @@ impl<'a> Parser<'a> {
 
     /// Add a warning
     pub fn add_warning(&mut self, span: SourceRange, message: impl Into<String>) {
-        self.warnings.push(
-            Diagnostic::warning(message)
-                .with_span(span)
-        );
+        self.warnings
+            .push(Diagnostic::warning(message).with_span(span));
     }
 
     /// Get collected warnings
@@ -111,10 +109,13 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse using current category rules
-    pub fn parse_category(&mut self, min_prec: crate::precedence::Precedence) -> ParserResult<Syntax> {
+    pub fn parse_category(
+        &mut self,
+        min_prec: crate::precedence::Precedence,
+    ) -> ParserResult<Syntax> {
         let category_name = self.current_category.clone();
         let categories = self.categories.borrow();
-        
+
         if let Some(category) = categories.get(&category_name) {
             // Clone to avoid borrow issues
             let cat_clone = category.clone();
@@ -300,16 +301,19 @@ impl<'a> Parser<'a> {
 
     pub fn peek_attribute_list(&self) -> bool {
         // Check if we're at the start of an attribute list
-        // This is a heuristic to distinguish between regular brackets and attribute lists
+        // This is a heuristic to distinguish between regular brackets and attribute
+        // lists
         if self.peek() == Some('[') {
             // Look ahead to see if this looks like an attribute
             let mut offset = 1;
-            
+
             // Skip whitespace after [
-            while self.input().peek_nth(offset) == Some(' ') || self.input().peek_nth(offset) == Some('\t') {
+            while self.input().peek_nth(offset) == Some(' ')
+                || self.input().peek_nth(offset) == Some('\t')
+            {
                 offset += 1;
             }
-            
+
             // Check if we have an identifier (attribute name)
             if let Some(ch) = self.input().peek_nth(offset) {
                 ch.is_alphabetic() || ch == '_'
