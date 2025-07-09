@@ -1,4 +1,4 @@
-/// Common lexical helpers for the parser
+//! Common lexical helpers for the parser
 
 /// Check if a character can start an identifier
 pub fn is_id_start(ch: char) -> bool {

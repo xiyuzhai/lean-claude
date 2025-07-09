@@ -515,14 +515,4 @@ impl<'a> Parser<'a> {
             children: smallvec![cmd_name, arg],
         })))
     }
-
-    /// Skip to the next line (error recovery)
-    fn skip_to_next_line(&mut self) {
-        while let Some(ch) = self.peek() {
-            self.advance();
-            if ch == '\n' {
-                break;
-            }
-        }
-    }
 }

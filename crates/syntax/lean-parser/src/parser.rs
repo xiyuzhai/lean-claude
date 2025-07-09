@@ -270,7 +270,7 @@ impl<'a> Parser<'a> {
                     self.advance(); // consume '0'
                     self.advance(); // consume 'o'
                     let mut oct = String::from("0o");
-                    oct.push_str(&self.consume_while(|ch| ch >= '0' && ch <= '7'));
+                    oct.push_str(&self.consume_while(|ch| ('0'..='7').contains(&ch)));
                     if oct.len() == 2 {
                         return Err(ParseError::new(
                             ParseErrorKind::Custom(
