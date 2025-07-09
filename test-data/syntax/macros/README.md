@@ -1,72 +1,91 @@
-# Lean 4 Macro System Test Files
+# Lean 4 Macro Expansion Examples
 
-This directory contains test files for the Lean 4 macro system implementation.
+This directory contains examples of Lean 4's macro system and how macros are expanded.
 
-## Files
+## Overview
 
-### basic_macros.lean
-- Simple macro definitions
-- Macros with parameters
-- Macros with attributes and precedence
-- Category-specific macros
+Lean 4 macros are pure syntax transformations that happen during parsing. They allow you to extend the language with new syntax that gets transformed into core Lean expressions.
 
-### macro_rules.lean
-- Pattern-based macro expansion
-- Multiple expansion rules
-- Extending existing syntax
-- Custom tactics via macro_rules
+## Files in this Directory
 
-### notation.lean
-- Basic notation definitions
-- Infix, prefix, postfix notations
-- Precedence and associativity
-- Unicode notation
-- Scoped and local notation
+- `basic_macros.lean` - Basic macro definitions
+- `advanced_macros.lean` - Advanced macro features
+- `macro_rules.lean` - Pattern-based macro rules
+- `syntax_quotations.lean` - Syntax quotation examples
+- `macro_expansion_examples.lean` - **Examples showing macro expansions**
+- `expansion_traces.lean` - **Step-by-step expansion traces**
+- `expansion_demo.rs` - Rust demo program for testing expansions
 
-### syntax_declarations.lean
-- Syntax category declarations
-- Syntax with parameters and repetitions
-- Optional components and alternatives
-- Complex syntax patterns
+## Quick Examples
 
-### syntax_quotations.lean
-- Syntax quotations: `(...)
-- Antiquotations: $x
-- Pattern matching on syntax
-- Category-specific quotations
+### 1. Simple Value Macro
 
-### advanced_macros.lean
-- Recursive macro expansion
-- Hygiene and variable binding
-- Error handling in macros
-- Variadic and conditional macros
-
-### elab_macros.lean
-- Interaction between macros and elaborators
-- Custom elaborators using macro expansion
-- Syntax transformation
-- Pattern matching in elaborators
-
-## Testing Strategy
-
-These files test:
-1. **Parsing**: Can the parser correctly parse all macro-related syntax?
-2. **Syntax tree construction**: Are the AST nodes properly constructed?
-3. **Error handling**: Do invalid macro definitions produce appropriate errors?
-4. **Edge cases**: Unicode, nested quotations, complex patterns
-
-## Usage
-
-To test the parser with these files:
-```rust
-let content = std::fs::read_to_string("test-data/syntax/macros/basic_macros.lean")?;
-let mut parser = Parser::new(&content);
-let module = parser.module()?;
+```lean
+macro "answer" : term => `(42)
+def x := answer
+-- Expands to: def x := 42
 ```
 
-## Notes
+### 2. Parameter Substitution
 
-- These files contain syntactically valid Lean 4 macro definitions
-- They are not meant to be executed, only parsed
-- Some constructs may not be fully implemented in the parser yet
-- The files progressively increase in complexity
+```lean
+macro "double" x:term : term => `($x + $x)
+def y := double 21
+-- Expands to: def y := 21 + 21
+```
+
+### 3. Nested Expansion
+
+```lean
+macro "twice" x:term : term => `($x + $x)
+macro "quad" x:term : term => `(twice (twice $x))
+def z := quad 5
+-- Expands to: def z := ((5 + 5) + (5 + 5))
+```
+
+### 4. Control Flow Macros
+
+```lean
+macro "unless" c:term "do" body:term : term => `(if !$c then $body)
+def result := unless false do 100
+-- Expands to: def result := if !false then 100
+```
+
+## How Macro Expansion Works
+
+1. **Parsing**: The parser encounters a macro invocation
+2. **Pattern Matching**: The macro's pattern is matched against the syntax
+3. **Binding**: Antiquotations (`$x`) are bound to matched syntax elements
+4. **Template Substitution**: The template is instantiated with bindings
+5. **Hygiene**: Fresh names are generated to avoid variable capture
+6. **Recursive Expansion**: The result is expanded again if it contains more macros
+
+## Testing Macro Expansion
+
+To see macro expansion in action:
+
+```bash
+# Run the Rust demo
+cd /path/to/lean-claude
+cargo run --example macro_expansion_demo
+
+# Or use the parser tests
+cargo test -p lean-parser expansion_test
+```
+
+## Key Concepts
+
+- **Syntax Quotations**: `` `(expr) `` - represents Lean syntax
+- **Antiquotations**: `$x` - splices bound syntax into quotations
+- **Categories**: `:term`, `:tactic`, etc. - specify syntax categories
+- **Hygiene**: Automatic renaming prevents variable capture
+- **Precedence**: `macro:50` - controls parsing precedence
+
+## Advanced Features
+
+- Pattern matching with `macro_rules`
+- Multiple patterns for one macro
+- Custom syntax categories
+- Macro attributes (`@[simp]`, etc.)
+- Recursive macro expansion
+- Splicing lists with `$xs,*`
