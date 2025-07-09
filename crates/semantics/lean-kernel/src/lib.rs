@@ -1,5 +1,3 @@
-#![feature(let_chains)]
-
 pub mod environment;
 pub mod expr;
 pub mod level;

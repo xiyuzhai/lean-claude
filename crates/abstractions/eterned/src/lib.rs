@@ -1,5 +1,3 @@
-#![feature(let_chains)]
-
 use std::sync::Arc;
 
 use dashmap::DashMap;

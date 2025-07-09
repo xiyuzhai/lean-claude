@@ -55,7 +55,7 @@ impl<'a> Parser<'a> {
                 Ok(())
             }
             Some(_ch) => Err(ParseError::new(
-                ParseErrorKind::Expected(format!("'{}'", expected)),
+                ParseErrorKind::Expected(format!("'{expected}'")),
                 self.position(),
             )),
             None => Err(ParseError::new(
@@ -172,7 +172,7 @@ impl<'a> Parser<'a> {
     pub fn identifier(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 
-        if !self.peek().map_or(false, is_id_start) {
+        if !self.peek().is_some_and(is_id_start) {
             return Err(ParseError::new(
                 ParseErrorKind::Expected("identifier".to_string()),
                 start,
@@ -193,7 +193,7 @@ impl<'a> Parser<'a> {
 
         if !self.peek_keyword(kw) {
             return Err(ParseError::new(
-                ParseErrorKind::Expected(format!("keyword '{}'", kw)),
+                ParseErrorKind::Expected(format!("keyword '{kw}'")),
                 start,
             ));
         }
@@ -223,7 +223,7 @@ impl<'a> Parser<'a> {
     pub fn number(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 
-        if !self.peek().map_or(false, |ch| ch.is_ascii_digit()) {
+        if !self.peek().is_some_and(|ch| ch.is_ascii_digit()) {
             return Err(ParseError::new(
                 ParseErrorKind::Expected("number".to_string()),
                 start,
@@ -373,7 +373,7 @@ impl<'a> Parser<'a> {
         let mut names = Vec::new();
 
         // Parse names
-        while self.peek().map_or(false, is_id_start) {
+        while self.peek().is_some_and(is_id_start) {
             names.push(self.identifier()?);
             self.skip_whitespace();
         }

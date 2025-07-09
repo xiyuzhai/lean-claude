@@ -294,7 +294,7 @@ impl<'a> Parser<'a> {
         while self.peek() != Some('=') && self.peek() != Some('→') {
             if self.peek() == Some('{') || self.peek() == Some('[') || self.peek() == Some('(') {
                 binders.push(self.binder_group()?);
-            } else if self.peek().map_or(false, is_id_start) {
+            } else if self.peek().is_some_and(is_id_start) {
                 binders.push(self.identifier()?);
             } else {
                 break;
@@ -347,7 +347,7 @@ impl<'a> Parser<'a> {
         while self.peek() != Some(',') {
             if self.peek() == Some('{') || self.peek() == Some('[') || self.peek() == Some('(') {
                 binders.push(self.binder_group()?);
-            } else if self.peek().map_or(false, is_id_start) {
+            } else if self.peek().is_some_and(is_id_start) {
                 binders.push(self.identifier()?);
             } else {
                 break;

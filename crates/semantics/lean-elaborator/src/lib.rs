@@ -1,5 +1,3 @@
-#![feature(let_chains)]
-
 // Placeholder for elaborator implementation
 pub struct Elaborator;
 

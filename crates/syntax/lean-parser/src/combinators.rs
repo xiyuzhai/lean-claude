@@ -29,7 +29,7 @@ impl<'a> Parser<'a> {
                     self.skip_whitespace_and_comments();
                 } else if self.peek() != Some(close) {
                     return Err(ParseError::new(
-                        ParseErrorKind::Expected(format!("'{}' or '{}'", sep, close)),
+                        ParseErrorKind::Expected(format!("'{sep}' or '{close}'")),
                         self.position(),
                     ));
                 }

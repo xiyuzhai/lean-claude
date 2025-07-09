@@ -29,7 +29,7 @@ impl Environment {
 
     pub fn add_universe(&mut self, name: Name) -> Result<(), String> {
         if self.universe_names.contains(&name) {
-            return Err(format!("universe '{}' already declared", name));
+            return Err(format!("universe '{name}' already declared"));
         }
         self.universe_names.insert(name);
         Ok(())
@@ -43,7 +43,7 @@ impl Environment {
         // Verify universe parameters are declared
         for univ in &decl.universe_params {
             if !self.universe_names.contains(univ) {
-                return Err(format!("universe '{}' not declared", univ));
+                return Err(format!("universe '{univ}' not declared"));
             }
         }
 

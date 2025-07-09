@@ -1,5 +1,3 @@
-#![feature(let_chains)]
-
 use std::fmt;
 
 use eterned::BaseCoword;
@@ -247,6 +245,6 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::Module => "module",
             SyntaxKind::Error => "error",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }

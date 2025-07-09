@@ -113,11 +113,11 @@ impl fmt::Display for Level {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.kind {
             LevelKind::Zero => write!(f, "0"),
-            LevelKind::Succ(l) => write!(f, "{} + 1", l),
-            LevelKind::Max(l1, l2) => write!(f, "max {} {}", l1, l2),
-            LevelKind::IMax(l1, l2) => write!(f, "imax {} {}", l1, l2),
-            LevelKind::Param(name) => write!(f, "{}", name),
-            LevelKind::MVar(name) => write!(f, "?{}", name),
+            LevelKind::Succ(l) => write!(f, "{l} + 1"),
+            LevelKind::Max(l1, l2) => write!(f, "max {l1} {l2}"),
+            LevelKind::IMax(l1, l2) => write!(f, "imax {l1} {l2}"),
+            LevelKind::Param(name) => write!(f, "{name}"),
+            LevelKind::MVar(name) => write!(f, "?{name}"),
         }
     }
 }

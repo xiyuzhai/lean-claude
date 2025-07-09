@@ -22,13 +22,13 @@ impl<'a> Parser<'a> {
                 // Check if it's a constructor pattern with arguments
                 if self
                     .peek()
-                    .map_or(false, |ch| ch.is_alphabetic() || ch == '(' || ch == '_')
+                    .is_some_and(|ch| ch.is_alphabetic() || ch == '(' || ch == '_')
                 {
                     // Constructor pattern
                     let mut args = vec![ident];
                     while self
                         .peek()
-                        .map_or(false, |ch| ch.is_alphabetic() || ch == '(' || ch == '_')
+                        .is_some_and(|ch| ch.is_alphabetic() || ch == '(' || ch == '_')
                     {
                         args.push(self.pattern()?);
                         self.skip_whitespace();

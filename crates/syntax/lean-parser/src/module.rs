@@ -153,7 +153,7 @@ impl<'a> Parser<'a> {
 
         // Optional namespace name
         let mut children = smallvec![];
-        if self.peek().map_or(false, is_id_start) {
+        if self.peek().is_some_and(is_id_start) {
             children.push(self.identifier()?);
         }
 
@@ -174,7 +174,7 @@ impl<'a> Parser<'a> {
 
         // Optional section name
         let mut children = smallvec![];
-        if self.peek().map_or(false, is_id_start) {
+        if self.peek().is_some_and(is_id_start) {
             children.push(self.identifier()?);
         }
 
@@ -195,7 +195,7 @@ impl<'a> Parser<'a> {
         parts.push(self.identifier()?);
 
         // Additional parts separated by dots
-        while self.peek() == Some('.') && self.input().peek_nth(1).map_or(false, is_id_start) {
+        while self.peek() == Some('.') && self.input().peek_nth(1).is_some_and(is_id_start) {
             self.advance(); // consume '.'
             parts.push(self.identifier()?);
         }
@@ -262,7 +262,7 @@ impl<'a> Parser<'a> {
 
         // Parse class fields
         let mut fields = Vec::new();
-        while self.peek().map_or(false, is_id_start)
+        while self.peek().is_some_and(is_id_start)
             && !self.peek_keyword("def")
             && !self.peek_keyword("theorem")
         {
@@ -344,7 +344,7 @@ impl<'a> Parser<'a> {
 
         // Parse structure fields
         let mut fields = Vec::new();
-        while self.peek().map_or(false, is_id_start) {
+        while self.peek().is_some_and(is_id_start) {
             let field_name = self.identifier()?;
             self.skip_whitespace();
 
@@ -434,7 +434,7 @@ impl<'a> Parser<'a> {
         let mut constructors = Vec::new();
 
         // First constructor might not have a pipe
-        if self.peek() != Some('|') && self.peek().map_or(false, is_id_start) {
+        if self.peek() != Some('|') && self.peek().is_some_and(is_id_start) {
             constructors.push(self.constructor()?);
             self.skip_whitespace();
         }

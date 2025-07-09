@@ -131,7 +131,7 @@ impl<'a> Parser<'a> {
         let mut universes = Vec::new();
 
         // Parse universe names
-        while self.peek().map_or(false, is_id_start) {
+        while self.peek().is_some_and(is_id_start) {
             universes.push(self.identifier()?);
             self.skip_whitespace();
         }
@@ -200,7 +200,7 @@ impl<'a> Parser<'a> {
         self.skip_whitespace();
 
         // Optional instance name
-        let name = if self.peek() != Some(':') && self.peek().map_or(false, is_id_start) {
+        let name = if self.peek() != Some(':') && self.peek().is_some_and(is_id_start) {
             Some(self.identifier()?)
         } else {
             None
