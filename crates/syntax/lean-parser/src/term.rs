@@ -4,7 +4,7 @@ use smallvec::smallvec;
 use crate::{
     error::{ParseError, ParseErrorKind},
     lexical::is_id_start,
-    parser::{Parser, ParserResult},
+    parser::{Parser, ParserResult, ParsingMode},
     precedence::{get_binary_operator, get_unary_operator, Associativity, Precedence},
 };
 
@@ -123,6 +123,15 @@ impl<'a> Parser<'a> {
 
     /// Peek at the next binary operator
     fn peek_binary_operator(&self) -> Option<&'static crate::precedence::OperatorInfo> {
+        // In tactic mode, don't treat <|> as a binary operator
+        if self.mode() == ParsingMode::Tactic
+            && self.peek() == Some('<')
+            && self.input().peek_nth(1) == Some('|')
+            && self.input().peek_nth(2) == Some('>')
+        {
+            return None;
+        }
+
         // Try two-character operators first
         let two_char = self.peek_chars(2);
         if let Some(op_info) = get_binary_operator(&two_char) {

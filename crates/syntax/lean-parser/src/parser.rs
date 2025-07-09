@@ -10,9 +10,16 @@ use crate::{
 
 pub type ParserResult<T> = Result<T, ParseError>;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParsingMode {
+    Term,
+    Tactic,
+}
+
 pub struct Parser<'a> {
     input: Input<'a>,
     memo_table: Rc<RefCell<HashMap<(usize, &'static str), MemoEntry>>>,
+    mode: ParsingMode,
 }
 
 #[derive(Clone)]
@@ -26,6 +33,7 @@ impl<'a> Parser<'a> {
         Self {
             input: Input::new(source),
             memo_table: Rc::new(RefCell::new(HashMap::new())),
+            mode: ParsingMode::Term,
         }
     }
 
@@ -35,6 +43,21 @@ impl<'a> Parser<'a> {
 
     pub fn input_mut(&mut self) -> &mut Input<'a> {
         &mut self.input
+    }
+
+    pub fn mode(&self) -> ParsingMode {
+        self.mode
+    }
+
+    pub fn with_mode<T, F>(&mut self, mode: ParsingMode, f: F) -> T
+    where
+        F: FnOnce(&mut Self) -> T,
+    {
+        let old_mode = self.mode;
+        self.mode = mode;
+        let result = f(self);
+        self.mode = old_mode;
+        result
     }
 
     pub fn position(&self) -> SourcePos {

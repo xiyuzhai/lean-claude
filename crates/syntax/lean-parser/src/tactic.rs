@@ -6,7 +6,7 @@ use smallvec::smallvec;
 use crate::{
     error::{ParseError, ParseErrorKind},
     lexical::is_id_start,
-    parser::{Parser, ParserResult},
+    parser::{Parser, ParserResult, ParsingMode},
 };
 
 impl<'a> Parser<'a> {
@@ -17,7 +17,8 @@ impl<'a> Parser<'a> {
         self.keyword("by")?;
         self.skip_whitespace();
 
-        let tactic = self.tactic()?;
+        // Switch to tactic mode for parsing the tactic
+        let tactic = self.with_mode(ParsingMode::Tactic, |p| p.tactic())?;
 
         let range = self.input().range_from(start);
         Ok(Syntax::Node(Box::new(SyntaxNode {
