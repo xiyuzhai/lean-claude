@@ -181,3 +181,6 @@ impl fmt::Display for BinderInfo {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

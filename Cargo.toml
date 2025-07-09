@@ -66,3 +66,7 @@ opt-level = 0
 
 [profile.test]
 opt-level = 2
+
+[[test]]
+name = "mathlib4_parser_test"
+path = "tests/integration/mathlib4_parser_test.rs"

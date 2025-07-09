@@ -17,7 +17,7 @@ impl SourcePos {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SourceRange {
     pub start: SourcePos,
     pub end: SourcePos,
@@ -163,6 +163,9 @@ impl Syntax {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
 
 impl fmt::Display for SyntaxKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

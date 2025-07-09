@@ -89,3 +89,6 @@ impl From<&str> for Name {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

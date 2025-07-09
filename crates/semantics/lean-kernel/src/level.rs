@@ -110,3 +110,6 @@ impl fmt::Display for Level {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
