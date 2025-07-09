@@ -155,6 +155,9 @@ impl<'a> Parser<'a> {
         if self.peek_keyword("contradiction") {
             return self.contradiction_tactic();
         }
+        if self.peek_keyword("constructor") {
+            return self.constructor_tactic();
+        }
         if self.peek_keyword("calc") {
             return self.calc_tactic();
         }
@@ -502,7 +505,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse calc tactic
-    fn calc_tactic(&mut self) -> ParserResult<Syntax> {
+    pub fn calc_tactic(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 
         self.keyword("calc")?;
@@ -861,6 +864,57 @@ impl<'a> Parser<'a> {
         self.expect_char(')')?;
 
         Ok(tactic)
+    }
+
+    /// Parse constructor tactic
+    fn constructor_tactic(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        
+        self.keyword("constructor")?;
+        
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Constructor,
+            range,
+            children: smallvec![],
+        })))
+    }
+    
+    /// These are placeholders for category-based parsing
+    pub fn parse_tactic_exact(&mut self) -> ParserResult<Syntax> {
+        self.exact_tactic()
+    }
+    
+    pub fn parse_tactic_apply(&mut self) -> ParserResult<Syntax> {
+        self.apply_tactic()
+    }
+    
+    pub fn parse_tactic_intro(&mut self) -> ParserResult<Syntax> {
+        self.intro_tactic()
+    }
+    
+    pub fn parse_tactic_cases(&mut self) -> ParserResult<Syntax> {
+        self.cases_tactic()
+    }
+    
+    pub fn parse_tactic_induction(&mut self) -> ParserResult<Syntax> {
+        self.induction_tactic()
+    }
+    
+    pub fn parse_tactic_simp(&mut self) -> ParserResult<Syntax> {
+        self.simp_tactic()
+    }
+    
+    pub fn parse_tactic_rewrite(&mut self) -> ParserResult<Syntax> {
+        self.rewrite_tactic()
+    }
+    
+    pub fn parse_tactic_constructor(&mut self) -> ParserResult<Syntax> {
+        self.constructor_tactic()
+    }
+    
+    pub fn parse_tactic_assumption(&mut self) -> ParserResult<Syntax> {
+        self.assumption_tactic()
     }
 
     /// Parse custom tactic (identifier with optional arguments)

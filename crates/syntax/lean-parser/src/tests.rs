@@ -3,8 +3,11 @@ use expect_test::{expect, Expect};
 use crate::parser::Parser;
 
 mod category_comprehensive_test;
+mod category_integration_test;
 mod category_test;
 mod module_tests;
+mod operator_category_test;
+mod tactic_category_test;
 mod unicode_test;
 
 fn check_parse(input: &str, expected: Expect) {
