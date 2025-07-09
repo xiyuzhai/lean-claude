@@ -3,6 +3,7 @@ use smallvec::smallvec;
 
 use crate::{
     error::{ParseError, ParseErrorKind},
+    lexical::is_id_start,
     parser::{Parser, ParserResult},
 };
 
@@ -87,7 +88,10 @@ impl<'a> Parser<'a> {
             self.advance(); // consume ':'
             self.expect_char('=')?;
         } else {
-            return Err(ParseError::new(ParseErrorKind::Expected(":=".to_string()), self.position()));
+            return Err(ParseError::new(
+                ParseErrorKind::Expected(":=".to_string()),
+                self.position(),
+            ));
         }
         self.skip_whitespace();
 
@@ -228,7 +232,10 @@ impl<'a> Parser<'a> {
             self.advance(); // consume ':'
             self.expect_char('=')?;
         } else {
-            return Err(ParseError::new(ParseErrorKind::Expected(":=".to_string()), self.position()));
+            return Err(ParseError::new(
+                ParseErrorKind::Expected(":=".to_string()),
+                self.position(),
+            ));
         }
         self.skip_whitespace();
 
@@ -248,8 +255,4 @@ impl<'a> Parser<'a> {
             children,
         })))
     }
-}
-
-fn is_id_start(ch: char) -> bool {
-    ch.is_alphabetic() || ch == '_'
 }

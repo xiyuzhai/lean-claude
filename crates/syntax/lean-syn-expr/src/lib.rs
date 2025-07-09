@@ -136,6 +136,7 @@ pub enum SyntaxKind {
     // Other
     Module,
     Error,
+    StringInterpolation,
 }
 
 impl Syntax {
@@ -244,6 +245,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::TacticSeq => "tactic sequence",
             SyntaxKind::Module => "module",
             SyntaxKind::Error => "error",
+            SyntaxKind::StringInterpolation => "string interpolation",
         };
         write!(f, "{s}")
     }

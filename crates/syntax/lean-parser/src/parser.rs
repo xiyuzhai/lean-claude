@@ -5,6 +5,7 @@ use lean_syn_expr::{SourcePos, Syntax};
 use crate::{
     error::{ParseError, ParseErrorKind},
     input::Input,
+    lexical::{is_id_continue, is_id_start},
 };
 
 pub type ParserResult<T> = Result<T, ParseError>;
@@ -230,13 +231,106 @@ impl<'a> Parser<'a> {
             ));
         }
 
-        let num = self.consume_while(|ch| ch.is_ascii_digit() || ch == '.');
-        let range = self.input().range_from(start);
+        let num = if self.peek() == Some('0') {
+            match self.input.peek_nth(1) {
+                Some('x') | Some('X') => {
+                    // Hexadecimal
+                    self.advance(); // consume '0'
+                    self.advance(); // consume 'x'
+                    let mut hex = String::from("0x");
+                    hex.push_str(&self.consume_while(|ch| ch.is_ascii_hexdigit()));
+                    if hex.len() == 2 {
+                        return Err(ParseError::new(
+                            ParseErrorKind::Custom(
+                                "hexadecimal literal must have at least one digit".to_string(),
+                            ),
+                            self.position(),
+                        ));
+                    }
+                    hex
+                }
+                Some('b') | Some('B') => {
+                    // Binary
+                    self.advance(); // consume '0'
+                    self.advance(); // consume 'b'
+                    let mut bin = String::from("0b");
+                    bin.push_str(&self.consume_while(|ch| ch == '0' || ch == '1'));
+                    if bin.len() == 2 {
+                        return Err(ParseError::new(
+                            ParseErrorKind::Custom(
+                                "binary literal must have at least one digit".to_string(),
+                            ),
+                            self.position(),
+                        ));
+                    }
+                    bin
+                }
+                Some('o') | Some('O') => {
+                    // Octal
+                    self.advance(); // consume '0'
+                    self.advance(); // consume 'o'
+                    let mut oct = String::from("0o");
+                    oct.push_str(&self.consume_while(|ch| ch >= '0' && ch <= '7'));
+                    if oct.len() == 2 {
+                        return Err(ParseError::new(
+                            ParseErrorKind::Custom(
+                                "octal literal must have at least one digit".to_string(),
+                            ),
+                            self.position(),
+                        ));
+                    }
+                    oct
+                }
+                _ => {
+                    // Regular decimal number starting with 0
+                    self.parse_decimal_number()
+                }
+            }
+        } else {
+            // Regular decimal number
+            self.parse_decimal_number()
+        };
 
+        let range = self.input().range_from(start);
         Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
             range,
             value: eterned::BaseCoword::new(num),
         }))
+    }
+
+    fn parse_decimal_number(&mut self) -> String {
+        let mut num = self.consume_while(|ch| ch.is_ascii_digit());
+
+        // Check for decimal point
+        if self.peek() == Some('.') && self.input.peek_nth(1).is_some_and(|ch| ch.is_ascii_digit())
+        {
+            num.push('.');
+            self.advance();
+            num.push_str(&self.consume_while(|ch| ch.is_ascii_digit()));
+        }
+
+        // Check for scientific notation
+        if matches!(self.peek(), Some('e') | Some('E')) {
+            num.push(self.peek().unwrap());
+            self.advance();
+
+            // Optional sign
+            if matches!(self.peek(), Some('+') | Some('-')) {
+                num.push(self.peek().unwrap());
+                self.advance();
+            }
+
+            // Exponent digits
+            let exp = self.consume_while(|ch| ch.is_ascii_digit());
+            if exp.is_empty() {
+                // This is actually an error, but we'll let the compiler catch
+                // it For now, we'll just return what we have
+            } else {
+                num.push_str(&exp);
+            }
+        }
+
+        num
     }
 
     pub fn string_literal(&mut self) -> ParserResult<Syntax> {
@@ -350,6 +444,197 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    pub fn raw_string_literal(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        // Consume 'r'
+        self.advance();
+
+        // Count the number of '#' symbols
+        let mut hash_count = 0;
+        while self.peek() == Some('#') {
+            self.advance();
+            hash_count += 1;
+        }
+
+        // Expect opening quote
+        self.expect_char('"')?;
+
+        let mut content = String::new();
+
+        // Read until we find the closing pattern
+        loop {
+            match self.peek() {
+                Some('"') => {
+                    // Check if this is followed by the right number of hashes
+                    let mut temp_pos = 1;
+                    let mut hash_match = true;
+
+                    for _ in 0..hash_count {
+                        if self.input.peek_nth(temp_pos) != Some('#') {
+                            hash_match = false;
+                            break;
+                        }
+                        temp_pos += 1;
+                    }
+
+                    if hash_match {
+                        // Consume the closing quote and hashes
+                        self.advance(); // consume '"'
+                        for _ in 0..hash_count {
+                            self.advance(); // consume '#'
+                        }
+                        break;
+                    } else {
+                        // Not the closing pattern, just a regular quote
+                        content.push('"');
+                        self.advance();
+                    }
+                }
+                Some(ch) => {
+                    content.push(ch);
+                    self.advance();
+                }
+                None => {
+                    return Err(ParseError::new(
+                        ParseErrorKind::Custom("unterminated raw string literal".to_string()),
+                        self.position(),
+                    ));
+                }
+            }
+        }
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+            range,
+            value: eterned::BaseCoword::new(content),
+        }))
+    }
+
+    pub fn interpolated_string_literal(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        // Consume 's!'
+        self.advance(); // 's'
+        self.advance(); // '!'
+
+        self.expect_char('"')?;
+
+        let mut parts = Vec::new();
+        let mut current_str = String::new();
+
+        while let Some(ch) = self.peek() {
+            match ch {
+                '"' => {
+                    self.advance();
+                    if !current_str.is_empty() {
+                        let range = self.input().range_from(start);
+                        parts.push(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                            range,
+                            value: eterned::BaseCoword::new(current_str),
+                        }));
+                    }
+                    break;
+                }
+                '{' => {
+                    // Save current string part if any
+                    if !current_str.is_empty() {
+                        let range = self.input().range_from(start);
+                        parts.push(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                            range,
+                            value: eterned::BaseCoword::new(current_str.clone()),
+                        }));
+                        current_str.clear();
+                    }
+
+                    self.advance(); // consume '{'
+                    self.skip_whitespace();
+
+                    // Parse the interpolated expression
+                    let expr = self.term()?;
+                    parts.push(expr);
+
+                    self.skip_whitespace();
+                    self.expect_char('}')?;
+                }
+                '\\' => {
+                    self.advance();
+                    match self.peek() {
+                        Some('n') => {
+                            self.advance();
+                            current_str.push('\n');
+                        }
+                        Some('t') => {
+                            self.advance();
+                            current_str.push('\t');
+                        }
+                        Some('r') => {
+                            self.advance();
+                            current_str.push('\r');
+                        }
+                        Some('\\') => {
+                            self.advance();
+                            current_str.push('\\');
+                        }
+                        Some('"') => {
+                            self.advance();
+                            current_str.push('"');
+                        }
+                        Some('{') => {
+                            self.advance();
+                            current_str.push('{');
+                        }
+                        Some('}') => {
+                            self.advance();
+                            current_str.push('}');
+                        }
+                        _ => {
+                            return Err(ParseError::new(
+                                ParseErrorKind::Custom("invalid escape sequence".to_string()),
+                                self.position(),
+                            ));
+                        }
+                    }
+                }
+                _ => {
+                    current_str.push(ch);
+                    self.advance();
+                }
+            }
+        }
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
+            kind: lean_syn_expr::SyntaxKind::StringInterpolation,
+            range,
+            children: parts.into(),
+        })))
+    }
+
+    pub fn peek_raw_string(&self) -> bool {
+        self.peek() == Some('r')
+            && (self.input.peek_nth(1) == Some('"') || self.input.peek_nth(1) == Some('#'))
+    }
+
+    pub fn peek_interpolated_string(&self) -> bool {
+        self.peek() == Some('s')
+            && self.input.peek_nth(1) == Some('!')
+            && self.input.peek_nth(2) == Some('"')
+    }
+
+    pub fn peek_special_number(&self) -> bool {
+        if self.peek() != Some('0') {
+            return false;
+        }
+
+        match self.input.peek_nth(1) {
+            Some('x') | Some('X') => true, // hex
+            Some('b') | Some('B') => true, // binary
+            Some('o') | Some('O') => true, // octal
+            _ => false,
+        }
+    }
+
     /// Parse a binder group: `(x y : α)` or `{α : Type}` or `[inst : Functor
     /// F]`
     pub fn binder_group(&mut self) -> ParserResult<Syntax> {
@@ -402,12 +687,4 @@ impl<'a> Parser<'a> {
             children: children.into(),
         })))
     }
-}
-
-fn is_id_start(ch: char) -> bool {
-    ch.is_alphabetic() || ch == '_'
-}
-
-fn is_id_continue(ch: char) -> bool {
-    ch.is_alphanumeric() || ch == '_' || ch == '\'' || ch == '?' || ch == '!'
 }

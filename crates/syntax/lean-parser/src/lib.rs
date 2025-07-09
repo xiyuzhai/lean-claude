@@ -4,6 +4,7 @@ pub mod combinators;
 pub mod command;
 pub mod error;
 pub mod input;
+pub mod lexical;
 pub mod module;
 pub mod parser;
 pub mod pattern;

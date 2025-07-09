@@ -4,6 +4,7 @@ use smallvec::smallvec;
 
 use crate::{
     error::{ParseError, ParseErrorKind},
+    lexical::is_id_start,
     parser::{Parser, ParserResult},
 };
 
@@ -27,11 +28,14 @@ impl<'a> Parser<'a> {
             // Try to parse a command
             match self.command() {
                 Ok(cmd) => commands.push(cmd),
-                Err(e) => {
-                    // Try to recover by skipping to next line
-                    self.skip_to_next_line();
-                    // For now, return the error
-                    return Err(e);
+                Err(_e) => {
+                    // If we're at the end of input after whitespace/comments, that's fine
+                    if self.input().is_at_end() {
+                        break;
+                    }
+                    // Otherwise, skip the current character and try again
+                    // This helps recover from standalone comments or other non-command content
+                    self.advance();
                 }
             }
 
@@ -521,8 +525,4 @@ impl<'a> Parser<'a> {
             }
         }
     }
-}
-
-fn is_id_start(ch: char) -> bool {
-    ch.is_alphabetic() || ch == '_'
 }

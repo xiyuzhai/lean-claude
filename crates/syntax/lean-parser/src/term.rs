@@ -3,6 +3,7 @@ use smallvec::smallvec;
 
 use crate::{
     error::{ParseError, ParseErrorKind},
+    lexical::is_id_start,
     parser::{Parser, ParserResult},
     precedence::{get_binary_operator, get_unary_operator, Associativity, Precedence},
 };
@@ -233,6 +234,9 @@ impl<'a> Parser<'a> {
             Some('f') if self.peek_keyword("fun") => self.lambda_term(),
             Some('f') if self.peek_keyword("forall") => self.forall_term(),
             Some('m') if self.peek_keyword("match") => self.match_expr(),
+            Some('r') if self.peek_raw_string() => self.raw_string_literal(),
+            Some('s') if self.peek_interpolated_string() => self.interpolated_string_literal(),
+            Some('0') if self.peek_special_number() => self.number(),
             Some(ch) if ch.is_ascii_digit() => self.number(),
             Some('"') => self.string_literal(),
             Some('\'') => self.char_literal(),
@@ -490,8 +494,4 @@ impl<'a> Parser<'a> {
             children: smallvec![ty, proof],
         })))
     }
-}
-
-fn is_id_start(ch: char) -> bool {
-    ch.is_alphabetic() || ch == '_'
 }
