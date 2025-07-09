@@ -98,14 +98,12 @@ fn test_parse_specific_mathlib4_file() {
 
 fn visit_lean_files(dir: &Path, callback: &mut dyn FnMut(&Path)) {
     if let Ok(entries) = fs::read_dir(dir) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_dir() {
-                    visit_lean_files(&path, callback);
-                } else if path.extension().map_or(false, |ext| ext == "lean") {
-                    callback(&path);
-                }
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                visit_lean_files(&path, callback);
+            } else if path.extension().map_or(false, |ext| ext == "lean") {
+                callback(&path);
             }
         }
     }

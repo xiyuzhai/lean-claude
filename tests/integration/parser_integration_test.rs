@@ -150,10 +150,7 @@ fn test_parse_tactics() {
 
 #[test]
 fn test_parse_basic_patterns() {
-    let test_cases = vec![
-        ("x", "variable pattern"),
-        ("_", "wildcard pattern"),
-    ];
+    let test_cases = vec![("x", "variable pattern"), ("_", "wildcard pattern")];
 
     for (pattern, description) in test_cases {
         let input = format!("match x with | {} => true", pattern);
@@ -217,10 +214,7 @@ fn test_error_recovery() {
 
 #[test]
 fn test_basic_unicode_support() {
-    let test_cases = vec![
-        ("α", "unicode identifier"),
-        ("α → β", "unicode arrow"),
-    ];
+    let test_cases = vec![("α", "unicode identifier"), ("α → β", "unicode arrow")];
 
     for (input, description) in test_cases {
         let mut parser = Parser::new(input);
@@ -300,9 +294,13 @@ fn test_match_expressions() {
     let input = "match x with | y => z";
     let mut parser = Parser::new(input);
     let result = parser.term();
-    
-    assert!(result.is_ok(), "Failed to parse match expression: {:?}", result.err());
-    
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse match expression: {:?}",
+        result.err()
+    );
+
     if let Ok(syntax) = result {
         assert_eq!(syntax.kind(), Some(SyntaxKind::Match));
     }
