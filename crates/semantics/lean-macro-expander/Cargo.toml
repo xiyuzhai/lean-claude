@@ -1,0 +1,16 @@
+[package]
+name = "lean-macro-expander"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lean-syn-expr = { path = "../../syntax/lean-syn-expr" }
+lean-kernel = { path = "../lean-kernel" }
+eterned = { path = "../../abstractions/eterned" }
+thiserror = "1.0"
+im = "15.1"
+smallvec = "1.13"
+
+[dev-dependencies]
+expect-test = "1.5"
+lean-parser = { path = "../../syntax/lean-parser" }

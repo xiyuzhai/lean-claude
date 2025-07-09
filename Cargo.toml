@@ -8,6 +8,7 @@ members = [
     "crates/semantics/lean-kernel",
     "crates/semantics/lean-elaborator",
     "crates/semantics/lean-meta",
+    "crates/semantics/lean-macro-expander",
     "crates/mir/lean-ir",
     "crates/mir/lean-codegen",
     "crates/utils/lean-driver",

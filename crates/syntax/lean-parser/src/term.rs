@@ -246,6 +246,7 @@ impl<'a> Parser<'a> {
             Some('i') if self.peek_keyword("if") => self.if_term(),
             Some('b') if self.peek_keyword("by") => self.by_tactic(),
             Some('`') if self.input().peek_nth(1) == Some('(') => self.parse_syntax_quotation(),
+            Some('$') => self.parse_antiquotation(),
             Some('r') if self.peek_raw_string() => self.raw_string_literal(),
             Some('s') if self.peek_interpolated_string() => self.interpolated_string_literal(),
             Some('0') if self.peek_special_number() => self.number(),
@@ -264,10 +265,22 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parse parenthesized term: `(term)`
+    /// Parse parenthesized term: `(term)` or unit `()`
     pub fn paren_term(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
         self.expect_char('(')?;
         self.skip_whitespace();
+
+        // Check for unit value ()
+        if self.peek() == Some(')') {
+            self.advance(); // consume ')'
+            let range = self.input().range_from(start);
+            return Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                range,
+                value: eterned::BaseCoword::new("Unit.unit"),
+            }));
+        }
+
         let term = self.term()?;
         self.skip_whitespace();
         self.expect_char(')')?;

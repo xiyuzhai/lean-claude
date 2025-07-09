@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 eterned = { path = "../../abstractions/eterned" }
 lean-syn-expr = { path = "../lean-syn-expr" }
+lean-macro-expander = { path = "../../semantics/lean-macro-expander" }
 
 thiserror = { workspace = true }
 smallvec = { workspace = true }

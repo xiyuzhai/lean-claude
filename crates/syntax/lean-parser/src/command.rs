@@ -36,8 +36,8 @@ impl<'a> Parser<'a> {
             self.skip_whitespace();
         }
 
-        // Parse type annotation
-        let ty = if self.peek() == Some(':') {
+        // Parse type annotation - but check it's not :=
+        let ty = if self.peek() == Some(':') && self.input().peek_nth(1) != Some('=') {
             self.advance(); // consume ':'
             self.skip_whitespace();
             Some(self.term()?)

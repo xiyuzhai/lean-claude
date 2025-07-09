@@ -50,6 +50,9 @@ pub enum ParseErrorKind {
     #[error("unterminated comment")]
     UnterminatedComment,
 
+    #[error("macro expansion error: {0}")]
+    MacroExpansionError(String),
+
     #[error("{0}")]
     Custom(String),
 }

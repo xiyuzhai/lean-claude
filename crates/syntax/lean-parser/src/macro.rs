@@ -46,15 +46,24 @@ impl<'a> Parser<'a> {
         };
         self.skip_whitespace();
 
-        // Parse pattern
-        let pattern = if name.is_some() && self.peek() == Some(':') {
-            // Category specification
-            self.advance(); // consume ':'
+        // Parse pattern and category
+        let (pattern, category) = if name.is_some() {
+            // After a named macro, we expect pattern parameters
+            let pat = self.parse_macro_pattern()?;
             self.skip_whitespace();
-            self.identifier()? // category name
+
+            // Then category after colon
+            let cat = if self.peek() == Some(':') {
+                self.advance(); // consume ':'
+                self.skip_whitespace();
+                Some(self.identifier()?)
+            } else {
+                None
+            };
+            (pat, cat)
         } else {
-            // Direct pattern
-            self.parse_macro_pattern()?
+            // Anonymous macro - parse pattern directly
+            (self.parse_macro_pattern()?, None)
         };
         self.skip_whitespace();
 
@@ -82,6 +91,9 @@ impl<'a> Parser<'a> {
             children.push(n);
         }
         children.push(pattern);
+        if let Some(cat) = category {
+            children.push(cat);
+        }
         children.push(body);
 
         Ok(Syntax::Node(Box::new(SyntaxNode {
@@ -322,10 +334,38 @@ impl<'a> Parser<'a> {
         })))
     }
 
-    /// Parse a macro pattern
+    /// Parse a macro pattern (e.g., x:term or just a pattern)
     fn parse_macro_pattern(&mut self) -> ParserResult<Syntax> {
-        // For now, parse as a term
-        // In a full implementation, this would handle special macro pattern syntax
+        let start = self.position();
+
+        // Check if this is a simple parameter like x:term
+        if self.peek().is_some_and(|c| c.is_alphabetic()) {
+            if let Ok(typed_param) = self.try_parse(|p| {
+                let ident = p.identifier()?;
+
+                if p.peek() == Some(':') {
+                    // This is a typed parameter
+                    p.advance(); // consume ':'
+                    let category = p.identifier()?;
+
+                    let range = p.input().range_from(start);
+                    Ok(Syntax::Node(Box::new(SyntaxNode {
+                        kind: SyntaxKind::App, // Use App for now to represent typed param
+                        range,
+                        children: smallvec![ident, category],
+                    })))
+                } else {
+                    Err(ParseError::boxed(
+                        ParseErrorKind::Expected(":".to_string()),
+                        p.position(),
+                    ))
+                }
+            }) {
+                return Ok(typed_param);
+            }
+        }
+
+        // Otherwise parse as a term pattern
         self.term()
     }
 
@@ -498,24 +538,10 @@ impl<'a> Parser<'a> {
             children.push(cat);
         }
 
-        // Parse the quoted syntax
-        while self.peek() != Some(')') {
-            if self.peek() == Some('$') {
-                // Antiquotation
-                children.push(self.parse_antiquotation()?);
-            } else {
-                // Regular syntax element - parse based on context
-                let elem = self.parse_quotation_element()?;
-                children.push(elem);
-            }
-            self.skip_whitespace();
-
-            // Handle comma-separated elements
-            if self.peek() == Some(',') {
-                self.advance();
-                self.skip_whitespace();
-            }
-        }
+        // Parse the quoted syntax as a single term
+        // (antiquotations will be handled during term parsing)
+        let quoted_term = self.parse_quotation_term()?;
+        children.push(quoted_term);
 
         self.expect_char(')')?;
 
@@ -527,33 +553,92 @@ impl<'a> Parser<'a> {
         })))
     }
 
-    /// Parse an element inside a quotation
-    fn parse_quotation_element(&mut self) -> ParserResult<Syntax> {
-        // Inside quotations, we need to be more careful about parsing
-        // to handle various syntax forms
-        match self.peek() {
-            Some('∀') | Some('λ') | Some('\\') => self.term(),
-            Some('(') | Some('{') | Some('[') => self.term(),
-            Some(ch) if ch.is_alphabetic() => {
-                // Could be a keyword or identifier
-                if self.peek_keyword("fun")
-                    || self.peek_keyword("match")
-                    || self.peek_keyword("let")
-                    || self.peek_keyword("have")
-                {
-                    self.term()
+    /// Parse a term inside a quotation (may contain antiquotations)
+    fn parse_quotation_term(&mut self) -> ParserResult<Syntax> {
+        // We need to parse a term, but with special handling for antiquotations
+        // For now, let's use a simple approach: collect all tokens until ')'
+        let start = self.position();
+        let mut children = Vec::new();
+
+        // Parse a term-like structure that may contain antiquotations
+        while self.peek() != Some(')') && !self.input().is_at_end() {
+            self.skip_whitespace();
+
+            if self.peek() == Some('$') {
+                // Parse antiquotation
+                children.push(self.parse_antiquotation()?);
+            } else if self.peek() == Some('+')
+                || self.peek() == Some('-')
+                || self.peek() == Some('*')
+                || self.peek() == Some('/')
+            {
+                // Parse operator
+                let op_start = self.position();
+                let op = self.advance().unwrap();
+                let op_range = self.input().range_from(op_start);
+                children.push(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                    range: op_range,
+                    value: eterned::BaseCoword::new(op.to_string()),
+                }));
+            } else if self
+                .peek()
+                .is_some_and(|c| c.is_alphabetic() || c.is_numeric())
+            {
+                // Parse identifier or number
+                if self.peek().unwrap().is_numeric() {
+                    children.push(self.number()?);
                 } else {
-                    // Parse as application or identifier
-                    self.term()
+                    children.push(self.identifier()?);
                 }
+            } else if self.peek() == Some('(') {
+                // Nested parentheses
+                children.push(self.paren_term()?);
+            } else {
+                // Skip unknown character
+                self.advance();
             }
-            _ => self.term(),
+
+            self.skip_whitespace();
+        }
+
+        // If we have multiple children, wrap them in an App node
+        if children.is_empty() {
+            Err(ParseError::boxed(
+                ParseErrorKind::Expected("quotation content".to_string()),
+                self.position(),
+            ))
+        } else if children.len() == 1 {
+            Ok(children.into_iter().next().unwrap())
+        } else {
+            // Create a syntax tree from the children
+            // For now, let's create a simple binary tree for operators
+            if children.len() == 3 && matches!(children[1].as_str(), "+" | "-" | "*" | "/") {
+                // Binary operation
+                let range = self.input().range_from(start);
+                Ok(Syntax::Node(Box::new(SyntaxNode {
+                    kind: SyntaxKind::BinOp,
+                    range,
+                    children: smallvec![
+                        children[0].clone(),
+                        children[1].clone(),
+                        children[2].clone()
+                    ],
+                })))
+            } else {
+                // General application
+                let range = self.input().range_from(start);
+                Ok(Syntax::Node(Box::new(SyntaxNode {
+                    kind: SyntaxKind::App,
+                    range,
+                    children: children.into(),
+                })))
+            }
         }
     }
 
     /// Parse antiquotation: `$name`, `$(expr)`, `$name:category`, or splice
     /// `$xs,*`
-    fn parse_antiquotation(&mut self) -> ParserResult<Syntax> {
+    pub fn parse_antiquotation(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 
         self.expect_char('$')?;
