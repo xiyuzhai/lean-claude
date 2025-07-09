@@ -272,38 +272,18 @@ impl<'a> Parser<'a> {
         Ok(term)
     }
 
-    /// Parse implicit term: `{term}`
+    /// Parse implicit term: `{term}` or implicit binder `{x : Type}`
     pub fn implicit_term(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-        self.expect_char('{')?;
-        self.skip_whitespace();
-        let term = self.term()?;
-        self.skip_whitespace();
-        self.expect_char('}')?;
-
-        let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::LeftBrace,
-            range,
-            children: smallvec![term],
-        })))
+        // This is actually parsing a binder group in implicit braces
+        // It's already handled by binder_group(), so just delegate to it
+        self.binder_group()
     }
 
-    /// Parse instance implicit term: `[term]`
+    /// Parse instance implicit term: `[term]` or instance implicit binder `[Monad m]`
     pub fn inst_implicit_term(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-        self.expect_char('[')?;
-        self.skip_whitespace();
-        let term = self.term()?;
-        self.skip_whitespace();
-        self.expect_char(']')?;
-
-        let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::LeftBracket,
-            range,
-            children: smallvec![term],
-        })))
+        // This is actually parsing a binder group in instance implicit brackets
+        // It's already handled by binder_group(), so just delegate to it
+        self.binder_group()
     }
 
     /// Parse lambda: `λ x => body` or `fun x => body`
@@ -413,7 +393,7 @@ impl<'a> Parser<'a> {
         self.skip_whitespace();
 
         // Optional type annotation
-        let ty = if self.peek() == Some(':') {
+        let ty = if self.peek() == Some(':') && self.input().peek_nth(1) != Some('=') {
             self.advance();
             self.skip_whitespace();
             Some(self.term()?)

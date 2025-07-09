@@ -511,10 +511,55 @@ impl<'a> Parser<'a> {
         let mut steps = Vec::new();
 
         // First step
-        let lhs = self.term()?;
+        let lhs = self.atom_term()?;  // Left side should be atomic
         self.skip_whitespace();
 
-        let rel = self.term()?; // relation operator
+        // Parse relation operator (=, <, ≤, etc.)
+        let rel_start = self.position();
+        let rel_op = match self.peek() {
+            Some('=') => {
+                self.advance();
+                "="
+            }
+            Some('<') => {
+                self.advance();
+                if self.peek() == Some('=') {
+                    self.advance();
+                    "<="
+                } else {
+                    "<"
+                }
+            }
+            Some('>') => {
+                self.advance();
+                if self.peek() == Some('=') {
+                    self.advance();
+                    ">="
+                } else {
+                    ">"
+                }
+            }
+            Some('≤') => {
+                self.advance();
+                "≤"
+            }
+            Some('≥') => {
+                self.advance();
+                "≥"
+            }
+            Some('≠') => {
+                self.advance();
+                "≠"
+            }
+            _ => return Err(ParseError::new(
+                ParseErrorKind::Expected("relation operator".to_string()),
+                self.position(),
+            ))
+        };
+        let rel = Syntax::Atom(SyntaxAtom {
+            range: self.input().range_from(rel_start),
+            value: eterned::BaseCoword::new(rel_op),
+        });
         self.skip_whitespace();
 
         let rhs = self.term()?;
@@ -536,13 +581,58 @@ impl<'a> Parser<'a> {
         })));
 
         // Additional steps
-        self.skip_whitespace();
+        self.skip_whitespace_and_comments();
         while self.peek() == Some('_') {
             let step_start = self.position();
             self.advance(); // consume _
             self.skip_whitespace();
 
-            let rel = self.term()?;
+            // Parse relation operator
+            let rel_start = self.position();
+            let rel_op = match self.peek() {
+                Some('=') => {
+                    self.advance();
+                    "="
+                }
+                Some('<') => {
+                    self.advance();
+                    if self.peek() == Some('=') {
+                        self.advance();
+                        "<="
+                    } else {
+                        "<"
+                    }
+                }
+                Some('>') => {
+                    self.advance();
+                    if self.peek() == Some('=') {
+                        self.advance();
+                        ">="
+                    } else {
+                        ">"
+                    }
+                }
+                Some('≤') => {
+                    self.advance();
+                    "≤"
+                }
+                Some('≥') => {
+                    self.advance();
+                    "≥"
+                }
+                Some('≠') => {
+                    self.advance();
+                    "≠"
+                }
+                _ => return Err(ParseError::new(
+                    ParseErrorKind::Expected("relation operator".to_string()),
+                    self.position(),
+                ))
+            };
+            let rel = Syntax::Atom(SyntaxAtom {
+                range: self.input().range_from(rel_start),
+                value: eterned::BaseCoword::new(rel_op),
+            });
             self.skip_whitespace();
 
             let rhs = self.term()?;
@@ -562,6 +652,8 @@ impl<'a> Parser<'a> {
                 range: self.input().range_from(step_start),
                 children: smallvec![rel, rhs, proof],
             })));
+            
+            self.skip_whitespace_and_comments();
         }
 
         let range = self.input().range_from(start);
