@@ -129,6 +129,9 @@ pub enum SyntaxKind {
     HashPrint,
     HashReduce,
 
+    // Elaboration
+    Elab,
+
     // Tactics
     Tactic,
     TacticSeq,
@@ -281,6 +284,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::HashEval => "#eval",
             SyntaxKind::HashPrint => "#print",
             SyntaxKind::HashReduce => "#reduce",
+            SyntaxKind::Elab => "elab",
             SyntaxKind::Tactic => "tactic",
             SyntaxKind::TacticSeq => "tactic sequence",
             SyntaxKind::TacticAlt => "tactic alternative",

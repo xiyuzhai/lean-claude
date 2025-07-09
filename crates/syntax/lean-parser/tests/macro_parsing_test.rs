@@ -52,7 +52,6 @@ fn test_parse_syntax_declarations() {
 }
 
 #[test]
-#[ignore = "Syntax quotations require more implementation"]
 fn test_parse_syntax_quotations() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../test-data/syntax/macros/syntax_quotations.lean");
@@ -70,7 +69,6 @@ fn test_parse_advanced_macros() {
 }
 
 #[test]
-#[ignore = "Elaboration macros require elaborator support"]
 fn test_parse_elab_macros() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../test-data/syntax/macros/elab_macros.lean");
@@ -94,10 +92,7 @@ fn test_all_macro_files() {
                     let path_str = path.to_str().unwrap();
 
                     // Skip known complex files
-                    if path_str.contains("syntax_quotations")
-                        || path_str.contains("advanced_macros")
-                        || path_str.contains("elab_macros")
-                    {
+                    if path_str.contains("advanced_macros") {
                         println!("⚠ Skipping complex file: {path_str}");
                         continue;
                     }
@@ -112,7 +107,7 @@ fn test_all_macro_files() {
 
     println!("\nMacro parsing test summary: {passed}/{total} files passed");
     assert!(
-        passed >= 4,
-        "Expected at least 4 macro files to parse successfully"
+        passed >= 6,
+        "Expected at least 6 macro files to parse successfully (got {passed})"
     );
 }

@@ -76,6 +76,7 @@ impl<'a> Parser<'a> {
                 'm' if self.peek_keyword("macro_rules") => self.macro_rules(),
                 's' if self.peek_keyword("syntax") => self.syntax_def(),
                 'n' if self.peek_keyword("notation") => self.notation_def(),
+                'e' if self.peek_keyword("elab") => self.elab_command(),
                 '#' => self.hash_command(),
                 '-' if self.input().peek_nth(1) == Some('-') => {
                     // Line comment, not a command
@@ -517,6 +518,80 @@ impl<'a> Parser<'a> {
             kind,
             range,
             children: smallvec![cmd_name, arg],
+        })))
+    }
+
+    /// Parse elab command: `elab "name" args : type => body`
+    pub fn elab_command(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.keyword("elab")?;
+        self.skip_whitespace();
+
+        let mut children = Vec::new();
+
+        // Parse optional attributes
+        if self.peek() == Some('[') {
+            children.push(self.parse_attributes()?);
+            self.skip_whitespace();
+        }
+
+        // Parse name (string literal or identifier)
+        let name = if self.peek() == Some('"') {
+            self.string_literal()?
+        } else {
+            self.identifier()?
+        };
+        children.push(name);
+        self.skip_whitespace();
+
+        // Parse parameters
+        while self.peek() == Some('{')
+            || self.peek() == Some('[')
+            || self.peek() == Some('(')
+            || (self.peek().is_some_and(is_id_start) && !self.peek_keyword(":"))
+        {
+            if self.peek().is_some_and(is_id_start) {
+                // Simple parameter like x:term
+                let param = self.identifier()?;
+                children.push(param);
+                self.skip_whitespace();
+
+                if self.peek() == Some(':') {
+                    self.advance();
+                    self.skip_whitespace();
+                    let cat = self.identifier()?;
+                    children.push(cat);
+                    self.skip_whitespace();
+                }
+            } else {
+                // Binder group
+                children.push(self.binder_group()?);
+                self.skip_whitespace();
+            }
+        }
+
+        // Parse result type
+        self.expect_char(':')?;
+        self.skip_whitespace();
+        let result_type = self.term()?;
+        children.push(result_type);
+        self.skip_whitespace();
+
+        // Parse arrow
+        self.expect_char('=')?;
+        self.expect_char('>')?;
+        self.skip_whitespace();
+
+        // Parse body
+        let body = self.term()?;
+        children.push(body);
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Elab,
+            range,
+            children: children.into(),
         })))
     }
 }

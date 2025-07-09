@@ -243,7 +243,9 @@ impl<'a> Parser<'a> {
             Some('f') if self.peek_keyword("fun") => self.lambda_term(),
             Some('f') if self.peek_keyword("forall") => self.forall_term(),
             Some('m') if self.peek_keyword("match") => self.match_expr(),
+            Some('i') if self.peek_keyword("if") => self.if_term(),
             Some('b') if self.peek_keyword("by") => self.by_tactic(),
+            Some('`') if self.input().peek_nth(1) == Some('(') => self.parse_syntax_quotation(),
             Some('r') if self.peek_raw_string() => self.raw_string_literal(),
             Some('s') if self.peek_interpolated_string() => self.interpolated_string_literal(),
             Some('0') if self.peek_special_number() => self.number(),
@@ -285,6 +287,35 @@ impl<'a> Parser<'a> {
         // This is actually parsing a binder group in instance implicit brackets
         // It's already handled by binder_group(), so just delegate to it
         self.binder_group()
+    }
+
+    /// Parse if-then-else expression
+    pub fn if_term(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.keyword("if")?;
+        self.skip_whitespace();
+
+        let cond = self.term()?;
+        self.skip_whitespace();
+
+        self.keyword("then")?;
+        self.skip_whitespace();
+
+        let then_branch = self.term()?;
+        self.skip_whitespace();
+
+        self.keyword("else")?;
+        self.skip_whitespace();
+
+        let else_branch = self.term()?;
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Match, // Reuse Match for if-then-else for now
+            range,
+            children: smallvec![cond, then_branch, else_branch],
+        })))
     }
 
     /// Parse lambda: `λ x => body` or `fun x => body`
