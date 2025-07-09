@@ -1,7 +1,8 @@
-use crate::level::Level;
-use crate::name::Name;
-use eterned::BaseCoword;
 use std::fmt;
+
+use eterned::BaseCoword;
+
+use crate::{level::Level, name::Name};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Expr {
@@ -46,27 +47,39 @@ pub enum BinderInfo {
 
 impl Expr {
     pub fn bvar(idx: u32) -> Self {
-        Expr { kind: ExprKind::BVar(idx) }
+        Expr {
+            kind: ExprKind::BVar(idx),
+        }
     }
 
     pub fn fvar(name: Name) -> Self {
-        Expr { kind: ExprKind::FVar(name) }
+        Expr {
+            kind: ExprKind::FVar(name),
+        }
     }
 
     pub fn mvar(name: Name) -> Self {
-        Expr { kind: ExprKind::MVar(name) }
+        Expr {
+            kind: ExprKind::MVar(name),
+        }
     }
 
     pub fn sort(level: Level) -> Self {
-        Expr { kind: ExprKind::Sort(level) }
+        Expr {
+            kind: ExprKind::Sort(level),
+        }
     }
 
     pub fn const_expr(name: Name, levels: Vec<Level>) -> Self {
-        Expr { kind: ExprKind::Const(name, levels) }
+        Expr {
+            kind: ExprKind::Const(name, levels),
+        }
     }
 
     pub fn app(f: Expr, arg: Expr) -> Self {
-        Expr { kind: ExprKind::App(Box::new(f), Box::new(arg)) }
+        Expr {
+            kind: ExprKind::App(Box::new(f), Box::new(arg)),
+        }
     }
 
     pub fn lam(name: Name, ty: Expr, body: Expr, binder_info: BinderInfo) -> Self {
@@ -88,15 +101,21 @@ impl Expr {
     }
 
     pub fn nat(n: u64) -> Self {
-        Expr { kind: ExprKind::Lit(Literal::Nat(n)) }
+        Expr {
+            kind: ExprKind::Lit(Literal::Nat(n)),
+        }
     }
 
     pub fn string(s: impl Into<BaseCoword>) -> Self {
-        Expr { kind: ExprKind::Lit(Literal::String(s.into())) }
+        Expr {
+            kind: ExprKind::Lit(Literal::String(s.into())),
+        }
     }
 
     pub fn proj(struct_name: Name, idx: u32, expr: Expr) -> Self {
-        Expr { kind: ExprKind::Proj(struct_name, idx, Box::new(expr)) }
+        Expr {
+            kind: ExprKind::Proj(struct_name, idx, Box::new(expr)),
+        }
     }
 
     pub fn is_bvar(&self) -> bool {
@@ -148,17 +167,16 @@ impl Expr {
                     0
                 }
             }
-            ExprKind::App(f, arg) => {
-                f.loose_bvar_range_aux(offset).max(arg.loose_bvar_range_aux(offset))
-            }
-            ExprKind::Lam(_, ty, body, _) | ExprKind::Forall(_, ty, body, _) => {
-                ty.loose_bvar_range_aux(offset).max(body.loose_bvar_range_aux(offset + 1))
-            }
-            ExprKind::Let(_, ty, value, body) => {
-                ty.loose_bvar_range_aux(offset)
-                    .max(value.loose_bvar_range_aux(offset))
-                    .max(body.loose_bvar_range_aux(offset + 1))
-            }
+            ExprKind::App(f, arg) => f
+                .loose_bvar_range_aux(offset)
+                .max(arg.loose_bvar_range_aux(offset)),
+            ExprKind::Lam(_, ty, body, _) | ExprKind::Forall(_, ty, body, _) => ty
+                .loose_bvar_range_aux(offset)
+                .max(body.loose_bvar_range_aux(offset + 1)),
+            ExprKind::Let(_, ty, value, body) => ty
+                .loose_bvar_range_aux(offset)
+                .max(value.loose_bvar_range_aux(offset))
+                .max(body.loose_bvar_range_aux(offset + 1)),
             ExprKind::MData(_, expr) | ExprKind::Proj(_, _, expr) => {
                 expr.loose_bvar_range_aux(offset)
             }

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 use once_cell::sync::Lazy;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -8,15 +9,15 @@ impl Precedence {
     pub const MIN: Precedence = Precedence(0);
     pub const MAX: Precedence = Precedence(1024);
     pub const DEFAULT: Precedence = Precedence(0);
-    
+
     // Standard precedences following Lean4
     pub const ARROW: Precedence = Precedence(25);
     pub const OR: Precedence = Precedence(30);
     pub const AND: Precedence = Precedence(35);
-    pub const CMP: Precedence = Precedence(50);  // ==, <, >, ≤, ≥
-    pub const ADD: Precedence = Precedence(65);  // +, -
-    pub const MUL: Precedence = Precedence(70);  // *, /
-    pub const POW: Precedence = Precedence(80);  // ^
+    pub const CMP: Precedence = Precedence(50); // ==, <, >, ≤, ≥
+    pub const ADD: Precedence = Precedence(65); // +, -
+    pub const MUL: Precedence = Precedence(70); // *, /
+    pub const POW: Precedence = Precedence(80); // ^
     pub const COMPOSE: Precedence = Precedence(90); // ∘
     pub const APP: Precedence = Precedence(1024); // function application
 }
@@ -36,7 +37,11 @@ pub struct OperatorInfo {
 }
 
 impl OperatorInfo {
-    pub fn new(symbol: impl Into<String>, precedence: Precedence, associativity: Associativity) -> Self {
+    pub fn new(
+        symbol: impl Into<String>,
+        precedence: Precedence,
+        associativity: Associativity,
+    ) -> Self {
         Self {
             symbol: symbol.into(),
             precedence,
@@ -47,55 +52,142 @@ impl OperatorInfo {
 
 pub static BINARY_OPERATORS: Lazy<HashMap<&'static str, OperatorInfo>> = Lazy::new(|| {
     let mut ops = HashMap::new();
-    
+
     // Arrow
-    ops.insert("->", OperatorInfo::new("->", Precedence::ARROW, Associativity::Right));
-    ops.insert("→", OperatorInfo::new("→", Precedence::ARROW, Associativity::Right));
-    
+    ops.insert(
+        "->",
+        OperatorInfo::new("->", Precedence::ARROW, Associativity::Right),
+    );
+    ops.insert(
+        "→",
+        OperatorInfo::new("→", Precedence::ARROW, Associativity::Right),
+    );
+
     // Logical
-    ops.insert("||", OperatorInfo::new("||", Precedence::OR, Associativity::Right));
-    ops.insert("∨", OperatorInfo::new("∨", Precedence::OR, Associativity::Right));
-    ops.insert("&&", OperatorInfo::new("&&", Precedence::AND, Associativity::Right));
-    ops.insert("∧", OperatorInfo::new("∧", Precedence::AND, Associativity::Right));
-    
+    ops.insert(
+        "||",
+        OperatorInfo::new("||", Precedence::OR, Associativity::Right),
+    );
+    ops.insert(
+        "∨",
+        OperatorInfo::new("∨", Precedence::OR, Associativity::Right),
+    );
+    ops.insert(
+        "&&",
+        OperatorInfo::new("&&", Precedence::AND, Associativity::Right),
+    );
+    ops.insert(
+        "∧",
+        OperatorInfo::new("∧", Precedence::AND, Associativity::Right),
+    );
+
     // Comparison
-    ops.insert("==", OperatorInfo::new("==", Precedence::CMP, Associativity::None));
-    ops.insert("=", OperatorInfo::new("=", Precedence::CMP, Associativity::None));
-    ops.insert("!=", OperatorInfo::new("!=", Precedence::CMP, Associativity::None));
-    ops.insert("≠", OperatorInfo::new("≠", Precedence::CMP, Associativity::None));
-    ops.insert("<", OperatorInfo::new("<", Precedence::CMP, Associativity::None));
-    ops.insert(">", OperatorInfo::new(">", Precedence::CMP, Associativity::None));
-    ops.insert("<=", OperatorInfo::new("<=", Precedence::CMP, Associativity::None));
-    ops.insert("≤", OperatorInfo::new("≤", Precedence::CMP, Associativity::None));
-    ops.insert(">=", OperatorInfo::new(">=", Precedence::CMP, Associativity::None));
-    ops.insert("≥", OperatorInfo::new("≥", Precedence::CMP, Associativity::None));
-    
+    ops.insert(
+        "==",
+        OperatorInfo::new("==", Precedence::CMP, Associativity::None),
+    );
+    ops.insert(
+        "=",
+        OperatorInfo::new("=", Precedence::CMP, Associativity::None),
+    );
+    ops.insert(
+        "!=",
+        OperatorInfo::new("!=", Precedence::CMP, Associativity::None),
+    );
+    ops.insert(
+        "≠",
+        OperatorInfo::new("≠", Precedence::CMP, Associativity::None),
+    );
+    ops.insert(
+        "<",
+        OperatorInfo::new("<", Precedence::CMP, Associativity::None),
+    );
+    ops.insert(
+        ">",
+        OperatorInfo::new(">", Precedence::CMP, Associativity::None),
+    );
+    ops.insert(
+        "<=",
+        OperatorInfo::new("<=", Precedence::CMP, Associativity::None),
+    );
+    ops.insert(
+        "≤",
+        OperatorInfo::new("≤", Precedence::CMP, Associativity::None),
+    );
+    ops.insert(
+        ">=",
+        OperatorInfo::new(">=", Precedence::CMP, Associativity::None),
+    );
+    ops.insert(
+        "≥",
+        OperatorInfo::new("≥", Precedence::CMP, Associativity::None),
+    );
+
     // Arithmetic
-    ops.insert("+", OperatorInfo::new("+", Precedence::ADD, Associativity::Left));
-    ops.insert("-", OperatorInfo::new("-", Precedence::ADD, Associativity::Left));
-    ops.insert("*", OperatorInfo::new("*", Precedence::MUL, Associativity::Left));
-    ops.insert("/", OperatorInfo::new("/", Precedence::MUL, Associativity::Left));
-    ops.insert("^", OperatorInfo::new("^", Precedence::POW, Associativity::Right));
-    
+    ops.insert(
+        "+",
+        OperatorInfo::new("+", Precedence::ADD, Associativity::Left),
+    );
+    ops.insert(
+        "-",
+        OperatorInfo::new("-", Precedence::ADD, Associativity::Left),
+    );
+    ops.insert(
+        "*",
+        OperatorInfo::new("*", Precedence::MUL, Associativity::Left),
+    );
+    ops.insert(
+        "/",
+        OperatorInfo::new("/", Precedence::MUL, Associativity::Left),
+    );
+    ops.insert(
+        "^",
+        OperatorInfo::new("^", Precedence::POW, Associativity::Right),
+    );
+
     // Function composition
-    ops.insert("∘", OperatorInfo::new("∘", Precedence::COMPOSE, Associativity::Right));
-    ops.insert(">>", OperatorInfo::new(">>", Precedence::COMPOSE, Associativity::Left));
-    ops.insert("<<", OperatorInfo::new("<<", Precedence::COMPOSE, Associativity::Right));
-    
+    ops.insert(
+        "∘",
+        OperatorInfo::new("∘", Precedence::COMPOSE, Associativity::Right),
+    );
+    ops.insert(
+        ">>",
+        OperatorInfo::new(">>", Precedence::COMPOSE, Associativity::Left),
+    );
+    ops.insert(
+        "<<",
+        OperatorInfo::new("<<", Precedence::COMPOSE, Associativity::Right),
+    );
+
     // List operations
-    ops.insert("::", OperatorInfo::new("::", Precedence(67), Associativity::Right));
-    ops.insert("++", OperatorInfo::new("++", Precedence(65), Associativity::Right));
-    
+    ops.insert(
+        "::",
+        OperatorInfo::new("::", Precedence(67), Associativity::Right),
+    );
+    ops.insert(
+        "++",
+        OperatorInfo::new("++", Precedence(65), Associativity::Right),
+    );
+
     ops
 });
 
 pub static UNARY_OPERATORS: Lazy<HashMap<&'static str, OperatorInfo>> = Lazy::new(|| {
     let mut ops = HashMap::new();
-    
-    ops.insert("!", OperatorInfo::new("!", Precedence(100), Associativity::None));
-    ops.insert("¬", OperatorInfo::new("¬", Precedence(100), Associativity::None));
-    ops.insert("-", OperatorInfo::new("-", Precedence(100), Associativity::None));
-    
+
+    ops.insert(
+        "!",
+        OperatorInfo::new("!", Precedence(100), Associativity::None),
+    );
+    ops.insert(
+        "¬",
+        OperatorInfo::new("¬", Precedence(100), Associativity::None),
+    );
+    ops.insert(
+        "-",
+        OperatorInfo::new("-", Precedence(100), Associativity::None),
+    );
+
     ops
 });
 

@@ -8,3 +8,9 @@ impl Elaborator {
         Self
     }
 }
+
+impl Default for Elaborator {
+    fn default() -> Self {
+        Self::new()
+    }
+}

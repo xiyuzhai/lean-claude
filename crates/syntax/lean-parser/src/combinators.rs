@@ -1,5 +1,7 @@
-use crate::parser::{Parser, ParserResult};
-use crate::error::{ParseError, ParseErrorKind};
+use crate::{
+    error::{ParseError, ParseErrorKind},
+    parser::{Parser, ParserResult},
+};
 
 impl<'a> Parser<'a> {
     pub fn delimited<T, F>(
@@ -14,13 +16,13 @@ impl<'a> Parser<'a> {
     {
         self.expect_char(open)?;
         self.skip_whitespace_and_comments();
-        
+
         let mut items = Vec::new();
-        
+
         while self.peek() != Some(close) {
             items.push(parse_item(self)?);
             self.skip_whitespace_and_comments();
-            
+
             if let Some(sep) = separator {
                 if self.peek() == Some(sep) {
                     self.advance();
@@ -33,7 +35,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        
+
         self.expect_char(close)?;
         Ok(items)
     }

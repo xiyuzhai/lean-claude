@@ -1,8 +1,9 @@
 #![feature(let_chains)]
 
+use std::fmt;
+
 use eterned::BaseCoword;
 use smallvec::SmallVec;
-use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SourcePos {
@@ -13,7 +14,11 @@ pub struct SourcePos {
 
 impl SourcePos {
     pub fn new(line: u32, column: u32, offset: usize) -> Self {
-        Self { line, column, offset }
+        Self {
+            line,
+            column,
+            offset,
+        }
     }
 }
 
@@ -52,7 +57,7 @@ pub enum SyntaxKind {
     CharLit,
     Whitespace,
     Comment,
-    
+
     // Delimiters
     LeftParen,
     RightParen,
@@ -60,23 +65,23 @@ pub enum SyntaxKind {
     RightBracket,
     LeftBrace,
     RightBrace,
-    
+
     // Operators
-    Arrow,      // →
-    DArrow,     // =>
+    Arrow,  // →
+    DArrow, // =>
     Colon,
-    ColonEq,    // :=
+    ColonEq, // :=
     Dot,
-    DotDot,     // ..
+    DotDot, // ..
     Comma,
     Semicolon,
-    At,         // @
-    Hash,       // #
-    Dollar,     // $
-    Backtick,   // `
-    Question,   // ?
-    Exclamation,// !
-    
+    At,          // @
+    Hash,        // #
+    Dollar,      // $
+    Backtick,    // `
+    Question,    // ?
+    Exclamation, // !
+
     // Keywords
     Def,
     Theorem,
@@ -97,7 +102,7 @@ pub enum SyntaxKind {
     Extends,
     With,
     Deriving,
-    
+
     // Terms
     App,
     Lambda,
@@ -110,11 +115,11 @@ pub enum SyntaxKind {
     UnaryOp,
     Match,
     MatchArm,
-    
+
     // Patterns
     ConstructorPattern,
     WildcardPattern,
-    
+
     // Commands
     Command,
     Declaration,
@@ -125,11 +130,11 @@ pub enum SyntaxKind {
     HashEval,
     HashPrint,
     HashReduce,
-    
+
     // Tactics
     Tactic,
     TacticSeq,
-    
+
     // Other
     Module,
     Error,
@@ -139,7 +144,7 @@ impl Syntax {
     pub fn is_missing(&self) -> bool {
         matches!(self, Syntax::Missing)
     }
-    
+
     pub fn range(&self) -> Option<&SourceRange> {
         match self {
             Syntax::Missing => None,
@@ -147,7 +152,7 @@ impl Syntax {
             Syntax::Atom(atom) => Some(&atom.range),
         }
     }
-    
+
     pub fn kind(&self) -> Option<SyntaxKind> {
         match self {
             Syntax::Missing => None,
@@ -155,7 +160,7 @@ impl Syntax {
             Syntax::Atom(_) => None,
         }
     }
-    
+
     pub fn as_str(&self) -> &str {
         match self {
             Syntax::Atom(atom) => atom.value.as_str(),

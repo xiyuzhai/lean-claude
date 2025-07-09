@@ -1,5 +1,6 @@
-use eterned::BaseCoword;
 use std::fmt;
+
+use eterned::BaseCoword;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Name {
@@ -39,7 +40,7 @@ impl Name {
     pub fn components(&self) -> Vec<String> {
         let mut components = Vec::new();
         let mut current = self;
-        
+
         loop {
             match current {
                 Name::Anonymous => break,
@@ -53,7 +54,7 @@ impl Name {
                 }
             }
         }
-        
+
         components.reverse();
         components
     }

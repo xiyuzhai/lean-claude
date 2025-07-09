@@ -1,5 +1,6 @@
-use lean_syn_expr::{SourcePos, SourceRange};
 use std::str::Chars;
+
+use lean_syn_expr::{SourcePos, SourceRange};
 
 #[derive(Clone)]
 pub struct Input<'a> {
@@ -59,18 +60,19 @@ impl<'a> Input<'a> {
     }
 
     pub fn position(&self) -> SourcePos {
-        self.position.clone()
+        self.position
     }
 
     pub fn range_from(&self, start: SourcePos) -> SourceRange {
         SourceRange {
             start,
-            end: self.position.clone(),
+            end: self.position,
         }
     }
 
     pub fn save_position(&mut self) {
-        self.saved_positions.push((self.chars.clone(), self.position.clone()));
+        self.saved_positions
+            .push((self.chars.clone(), self.position));
     }
 
     pub fn restore_position(&mut self) {

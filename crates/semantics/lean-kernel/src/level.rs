@@ -1,5 +1,6 @@
-use crate::name::Name;
 use std::fmt;
+
+use crate::name::Name;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Level {
@@ -18,27 +19,39 @@ pub enum LevelKind {
 
 impl Level {
     pub fn zero() -> Self {
-        Level { kind: LevelKind::Zero }
+        Level {
+            kind: LevelKind::Zero,
+        }
     }
 
     pub fn succ(l: Level) -> Self {
-        Level { kind: LevelKind::Succ(Box::new(l)) }
+        Level {
+            kind: LevelKind::Succ(Box::new(l)),
+        }
     }
 
     pub fn max(l1: Level, l2: Level) -> Self {
-        Level { kind: LevelKind::Max(Box::new(l1), Box::new(l2)) }
+        Level {
+            kind: LevelKind::Max(Box::new(l1), Box::new(l2)),
+        }
     }
 
     pub fn imax(l1: Level, l2: Level) -> Self {
-        Level { kind: LevelKind::IMax(Box::new(l1), Box::new(l2)) }
+        Level {
+            kind: LevelKind::IMax(Box::new(l1), Box::new(l2)),
+        }
     }
 
     pub fn param(name: Name) -> Self {
-        Level { kind: LevelKind::Param(name) }
+        Level {
+            kind: LevelKind::Param(name),
+        }
     }
 
     pub fn mvar(name: Name) -> Self {
-        Level { kind: LevelKind::MVar(name) }
+        Level {
+            kind: LevelKind::MVar(name),
+        }
     }
 
     pub fn is_zero(&self) -> bool {
@@ -70,12 +83,10 @@ impl Level {
             LevelKind::Max(l1, l2) => {
                 let l1 = l1.normalize();
                 let l2 = l2.normalize();
-                
+
                 if l1.is_zero() {
                     l2
-                } else if l2.is_zero() {
-                    l1
-                } else if l1 == l2 {
+                } else if l2.is_zero() || l1 == l2 {
                     l1
                 } else {
                     Level::max(l1, l2)
@@ -84,7 +95,7 @@ impl Level {
             LevelKind::IMax(l1, l2) => {
                 let l1 = l1.normalize();
                 let l2 = l2.normalize();
-                
+
                 if l2.is_zero() {
                     Level::zero()
                 } else if l1.is_zero() {

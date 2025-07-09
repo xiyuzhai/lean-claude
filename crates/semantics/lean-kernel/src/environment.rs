@@ -1,8 +1,8 @@
-use crate::expr::Expr;
-use crate::level::Level;
-use crate::name::Name;
-use indexmap::IndexMap;
 use std::collections::HashSet;
+
+use indexmap::IndexMap;
+
+use crate::{expr::Expr, name::Name};
 
 #[derive(Debug, Clone)]
 pub struct Environment {
@@ -39,14 +39,14 @@ impl Environment {
         if self.declarations.contains_key(&decl.name) {
             return Err(format!("declaration '{}' already exists", decl.name));
         }
-        
+
         // Verify universe parameters are declared
         for univ in &decl.universe_params {
             if !self.universe_names.contains(univ) {
                 return Err(format!("universe '{}' not declared", univ));
             }
         }
-        
+
         self.declarations.insert(decl.name.clone(), decl);
         Ok(())
     }

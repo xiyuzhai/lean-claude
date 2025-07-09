@@ -1,5 +1,6 @@
-use crate::parser::Parser;
 use expect_test::{expect, Expect};
+
+use crate::parser::Parser;
 
 fn check_module(input: &str, expected: Expect) {
     let mut parser = Parser::new(input);

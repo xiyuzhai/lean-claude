@@ -1,5 +1,5 @@
-use lean_parser::{Parser, ParseError};
 use expect_test::{expect, Expect};
+use lean_parser::{ParseError, Parser};
 
 fn check_parse(input: &str, expected: Expect) {
     let mut parser = Parser::new(input);

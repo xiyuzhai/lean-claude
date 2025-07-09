@@ -32,9 +32,9 @@ end Example
 
     let mut parser = Parser::new(input);
     let result = parser.module();
-    
+
     assert!(result.is_ok(), "Failed to parse module: {:?}", result.err());
-    
+
     let syntax = result.unwrap();
     assert!(!syntax.is_missing());
     assert_eq!(syntax.kind(), Some(SyntaxKind::Module));
@@ -54,11 +54,16 @@ fn test_parse_complex_expressions() {
         ("@id Nat", "explicit application"),
         ("x.1", "projection"),
     ];
-    
+
     for (input, description) in test_cases {
         let mut parser = Parser::new(input);
         let result = parser.term();
-        assert!(result.is_ok(), "Failed to parse {}: {:?}", description, result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse {}: {:?}",
+            description,
+            result.err()
+        );
     }
 }
 
@@ -76,11 +81,16 @@ fn test_parse_commands() {
         ("open List", "open command"),
         ("instance : Inhabited Nat := ⟨0⟩", "instance declaration"),
     ];
-    
+
     for (input, description) in test_cases {
         let mut parser = Parser::new(input);
         let result = parser.command();
-        assert!(result.is_ok(), "Failed to parse {}: {:?}", description, result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse {}: {:?}",
+            description,
+            result.err()
+        );
     }
 }
 
@@ -90,7 +100,10 @@ fn test_parse_tactics() {
         ("exact h", "exact tactic"),
         ("apply f", "apply tactic"),
         ("intro x y", "intro tactic"),
-        ("cases h with | inl h => sorry | inr h => sorry", "cases tactic"),
+        (
+            "cases h with | inl h => sorry | inr h => sorry",
+            "cases tactic",
+        ),
         ("simp [add_comm, mul_comm]", "simp tactic"),
         ("rw [← h1, h2]", "rewrite tactic"),
         ("induction n", "induction tactic"),
@@ -98,12 +111,17 @@ fn test_parse_tactics() {
         ("show q from proof", "show tactic"),
         ("calc a = b := by rfl\n     _ = c := by simp", "calc tactic"),
     ];
-    
+
     for (input, description) in test_cases {
         let input_with_by = format!("by {}", input);
         let mut parser = Parser::new(&input_with_by);
         let result = parser.term(); // Tactics are parsed as part of terms
-        assert!(result.is_ok(), "Failed to parse {}: {:?}", description, result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse {}: {:?}",
+            description,
+            result.err()
+        );
     }
 }
 
@@ -118,30 +136,39 @@ fn test_parse_patterns() {
         ("x@(Cons h t)", "as pattern"),
         (".1", "tuple pattern"),
     ];
-    
+
     for (pattern, description) in test_cases {
         let input = format!("match x with | {} => true", pattern);
         let mut parser = Parser::new(&input);
         let result = parser.term();
-        assert!(result.is_ok(), "Failed to parse {}: {:?}", description, result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse {}: {:?}",
+            description,
+            result.err()
+        );
     }
 }
 
 #[test]
 fn test_error_recovery() {
     let inputs_with_errors = vec![
-        "def foo := ", // Missing body
+        "def foo := ",   // Missing body
         "theorem bar :", // Missing type and proof
-        "match x with", // Missing match arms
-        "λ", // Incomplete lambda
-        "∀ x :", // Missing type and body
+        "match x with",  // Missing match arms
+        "λ",             // Incomplete lambda
+        "∀ x :",         // Missing type and body
     ];
-    
+
     for input in inputs_with_errors {
         let mut parser = Parser::new(input);
         let result = parser.module();
         // Even with errors, the parser should produce some syntax tree
-        assert!(result.is_ok(), "Parser should recover from error in: {}", input);
+        assert!(
+            result.is_ok(),
+            "Parser should recover from error in: {}",
+            input
+        );
     }
 }
 
@@ -155,11 +182,16 @@ fn test_unicode_support() {
         ("⟨x, y, z⟩", "angle brackets"),
         ("x ∈ ℕ", "unicode symbols"),
     ];
-    
+
     for (input, description) in test_cases {
         let mut parser = Parser::new(input);
         let result = parser.term();
-        assert!(result.is_ok(), "Failed to parse {}: {:?}", description, result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse {}: {:?}",
+            description,
+            result.err()
+        );
     }
 }
 
@@ -168,10 +200,10 @@ fn test_whitespace_preservation() {
     let input = "def foo   :=\n  let x := 1\n  let y := 2\n  x + y";
     let mut parser = Parser::new(input);
     let result = parser.command();
-    
+
     assert!(result.is_ok());
     let syntax = result.unwrap();
-    
+
     // The parser should preserve whitespace information in the syntax tree
     // This is important for IDE features like formatting
     assert!(syntax.range().is_some());

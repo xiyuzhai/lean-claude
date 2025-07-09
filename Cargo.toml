@@ -11,6 +11,7 @@ members = [
     "crates/mir/lean-ir",
     "crates/mir/lean-codegen",
     "crates/utils/lean-driver",
+    "crates/tests/integration-tests",
     "apps/leanc-rs",
 ]
 
@@ -67,6 +68,3 @@ opt-level = 0
 [profile.test]
 opt-level = 2
 
-[[test]]
-name = "mathlib4_parser_test"
-path = "tests/integration/mathlib4_parser_test.rs"

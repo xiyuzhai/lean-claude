@@ -1,19 +1,19 @@
 #![feature(let_chains)]
 #![feature(if_let_guard)]
 
-pub mod input;
-pub mod error;
-pub mod parser;
 pub mod combinators;
-pub mod precedence;
-pub mod pattern;
-pub mod term;
 pub mod command;
+pub mod error;
+pub mod input;
 pub mod module;
+pub mod parser;
+pub mod pattern;
+pub mod precedence;
+pub mod term;
 
+pub use error::{ParseError, ParseErrorKind};
 pub use input::{Input, ParserInput};
 pub use parser::{Parser, ParserResult};
-pub use error::{ParseError, ParseErrorKind};
 
 #[cfg(test)]
 mod tests;

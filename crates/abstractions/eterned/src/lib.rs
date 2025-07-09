@@ -1,11 +1,11 @@
 #![feature(let_chains)]
 
-use dashmap::DashMap;
-use once_cell::sync::Lazy;
-use sha2::{Digest, Sha512};
 use std::sync::Arc;
 
+use dashmap::DashMap;
 pub use eterned_macros::eterned;
+use once_cell::sync::Lazy;
+use sha2::{Digest, Sha512};
 
 pub static ETERNER_DB: Lazy<EternerDb> = Lazy::new(EternerDb::default);
 
@@ -70,8 +70,9 @@ impl std::fmt::Display for BaseCoword {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use expect_test::expect;
+
+    use super::*;
 
     #[test]
     fn test_interning() {

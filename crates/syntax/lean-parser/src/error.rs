@@ -13,28 +13,28 @@ pub struct ParseError {
 pub enum ParseErrorKind {
     #[error("unexpected end of input")]
     UnexpectedEof,
-    
+
     #[error("unexpected character '{0}'")]
     UnexpectedChar(char),
-    
+
     #[error("expected {0}")]
     Expected(String),
-    
+
     #[error("invalid number literal")]
     InvalidNumber,
-    
+
     #[error("invalid string literal")]
     InvalidString,
-    
+
     #[error("invalid character literal")]
     InvalidChar,
-    
+
     #[error("unterminated string")]
     UnterminatedString,
-    
+
     #[error("unterminated comment")]
     UnterminatedComment,
-    
+
     #[error("{0}")]
     Custom(String),
 }

@@ -31,8 +31,8 @@ fn main() -> Result<()> {
     }
 
     println!("Compiling: {}", args.input);
-    
+
     // TODO: Implement compilation pipeline
-    
+
     Ok(())
 }

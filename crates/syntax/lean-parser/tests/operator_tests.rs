@@ -1,5 +1,5 @@
-use lean_parser::{Parser};
 use expect_test::{expect, Expect};
+use lean_parser::Parser;
 
 fn check_term(input: &str, expected: Expect) {
     let mut parser = Parser::new(input);

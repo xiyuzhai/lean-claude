@@ -1,6 +1,7 @@
-use super::*;
 use expect_test::{expect, Expect};
-use smallvec::{SmallVec, smallvec};
+use smallvec::{smallvec, SmallVec};
+
+use super::*;
 
 fn check_syntax_debug(syntax: &Syntax, expected: Expect) {
     let output = format!("{:#?}", syntax);
@@ -18,11 +19,11 @@ fn test_source_pos() {
         column: 5,
         offset: 150,
     };
-    
+
     assert_eq!(pos.line, 10);
     assert_eq!(pos.column, 5);
     assert_eq!(pos.offset, 150);
-    
+
     // Test Copy trait
     let pos2 = pos;
     assert_eq!(pos, pos2);
@@ -41,7 +42,7 @@ fn test_source_range() {
         offset: 10,
     };
     let range = SourceRange { start, end };
-    
+
     assert_eq!(range.start, start);
     assert_eq!(range.end, end);
 }
@@ -52,7 +53,7 @@ fn test_syntax_missing() {
     assert!(syntax.is_missing());
     assert_eq!(syntax.kind(), None);
     assert_eq!(syntax.as_str(), "");
-    
+
     check_syntax_debug(
         &syntax,
         expect![[r#"
@@ -63,15 +64,23 @@ fn test_syntax_missing() {
 #[test]
 fn test_syntax_atom() {
     let range = SourceRange {
-        start: SourcePos { line: 1, column: 0, offset: 0 },
-        end: SourcePos { line: 1, column: 3, offset: 3 },
+        start: SourcePos {
+            line: 1,
+            column: 0,
+            offset: 0,
+        },
+        end: SourcePos {
+            line: 1,
+            column: 3,
+            offset: 3,
+        },
     };
     let atom = SyntaxAtom {
         range,
         value: "foo".into(),
     };
     let syntax = Syntax::Atom(atom);
-    
+
     assert!(!syntax.is_missing());
     assert_eq!(syntax.kind(), None);
     assert_eq!(syntax.as_str(), "foo");
@@ -81,8 +90,16 @@ fn test_syntax_atom() {
 #[test]
 fn test_syntax_node_empty() {
     let range = SourceRange {
-        start: SourcePos { line: 1, column: 0, offset: 0 },
-        end: SourcePos { line: 1, column: 0, offset: 0 },
+        start: SourcePos {
+            line: 1,
+            column: 0,
+            offset: 0,
+        },
+        end: SourcePos {
+            line: 1,
+            column: 0,
+            offset: 0,
+        },
     };
     let node = SyntaxNode {
         kind: SyntaxKind::Module,
@@ -90,7 +107,7 @@ fn test_syntax_node_empty() {
         children: SmallVec::new(),
     };
     let syntax = Syntax::Node(Box::new(node));
-    
+
     assert!(!syntax.is_missing());
     assert_eq!(syntax.kind(), Some(SyntaxKind::Module));
     assert_eq!(syntax.as_str(), "");
@@ -100,36 +117,60 @@ fn test_syntax_node_empty() {
 #[test]
 fn test_syntax_node_with_children() {
     let range = SourceRange {
-        start: SourcePos { line: 1, column: 0, offset: 0 },
-        end: SourcePos { line: 1, column: 10, offset: 10 },
+        start: SourcePos {
+            line: 1,
+            column: 0,
+            offset: 0,
+        },
+        end: SourcePos {
+            line: 1,
+            column: 10,
+            offset: 10,
+        },
     };
-    
+
     let child1 = Syntax::Atom(SyntaxAtom {
         range: SourceRange {
-            start: SourcePos { line: 1, column: 0, offset: 0 },
-            end: SourcePos { line: 1, column: 3, offset: 3 },
+            start: SourcePos {
+                line: 1,
+                column: 0,
+                offset: 0,
+            },
+            end: SourcePos {
+                line: 1,
+                column: 3,
+                offset: 3,
+            },
         },
         value: "def".into(),
     });
-    
+
     let child2 = Syntax::Atom(SyntaxAtom {
         range: SourceRange {
-            start: SourcePos { line: 1, column: 4, offset: 4 },
-            end: SourcePos { line: 1, column: 7, offset: 7 },
+            start: SourcePos {
+                line: 1,
+                column: 4,
+                offset: 4,
+            },
+            end: SourcePos {
+                line: 1,
+                column: 7,
+                offset: 7,
+            },
         },
         value: "foo".into(),
     });
-    
+
     let node = SyntaxNode {
         kind: SyntaxKind::Declaration,
         range,
         children: smallvec![child1, child2],
     };
     let syntax = Syntax::Node(Box::new(node));
-    
+
     assert!(!syntax.is_missing());
     assert_eq!(syntax.kind(), Some(SyntaxKind::Declaration));
-    
+
     if let Syntax::Node(n) = &syntax {
         assert_eq!(n.children.len(), 2);
         assert_eq!(n.children[0].as_str(), "def");
@@ -159,84 +200,148 @@ fn test_syntax_kind_display() {
 fn test_nested_syntax_tree() {
     // Build: def foo : Nat := 42
     let def_range = SourceRange {
-        start: SourcePos { line: 1, column: 0, offset: 0 },
-        end: SourcePos { line: 1, column: 20, offset: 20 },
+        start: SourcePos {
+            line: 1,
+            column: 0,
+            offset: 0,
+        },
+        end: SourcePos {
+            line: 1,
+            column: 20,
+            offset: 20,
+        },
     };
-    
+
     let def_keyword = Syntax::Atom(SyntaxAtom {
         range: SourceRange {
-            start: SourcePos { line: 1, column: 0, offset: 0 },
-            end: SourcePos { line: 1, column: 3, offset: 3 },
+            start: SourcePos {
+                line: 1,
+                column: 0,
+                offset: 0,
+            },
+            end: SourcePos {
+                line: 1,
+                column: 3,
+                offset: 3,
+            },
         },
         value: "def".into(),
     });
-    
+
     let ident = Syntax::Node(Box::new(SyntaxNode {
         kind: SyntaxKind::Identifier,
         range: SourceRange {
-            start: SourcePos { line: 1, column: 4, offset: 4 },
-            end: SourcePos { line: 1, column: 7, offset: 7 },
+            start: SourcePos {
+                line: 1,
+                column: 4,
+                offset: 4,
+            },
+            end: SourcePos {
+                line: 1,
+                column: 7,
+                offset: 7,
+            },
         },
         children: smallvec![Syntax::Atom(SyntaxAtom {
             range: SourceRange {
-                start: SourcePos { line: 1, column: 4, offset: 4 },
-                end: SourcePos { line: 1, column: 7, offset: 7 },
+                start: SourcePos {
+                    line: 1,
+                    column: 4,
+                    offset: 4
+                },
+                end: SourcePos {
+                    line: 1,
+                    column: 7,
+                    offset: 7
+                },
             },
             value: "foo".into(),
         })],
     }));
-    
+
     let type_part = Syntax::Node(Box::new(SyntaxNode {
         kind: SyntaxKind::App,
         range: SourceRange {
-            start: SourcePos { line: 1, column: 8, offset: 8 },
-            end: SourcePos { line: 1, column: 14, offset: 14 },
+            start: SourcePos {
+                line: 1,
+                column: 8,
+                offset: 8,
+            },
+            end: SourcePos {
+                line: 1,
+                column: 14,
+                offset: 14,
+            },
         },
         children: smallvec![
             Syntax::Atom(SyntaxAtom {
                 range: SourceRange {
-                    start: SourcePos { line: 1, column: 8, offset: 8 },
-                    end: SourcePos { line: 1, column: 9, offset: 9 },
+                    start: SourcePos {
+                        line: 1,
+                        column: 8,
+                        offset: 8
+                    },
+                    end: SourcePos {
+                        line: 1,
+                        column: 9,
+                        offset: 9
+                    },
                 },
                 value: ":".into(),
             }),
             Syntax::Node(Box::new(SyntaxNode {
                 kind: SyntaxKind::Identifier,
                 range: SourceRange {
-                    start: SourcePos { line: 1, column: 10, offset: 10 },
-                    end: SourcePos { line: 1, column: 13, offset: 13 },
+                    start: SourcePos {
+                        line: 1,
+                        column: 10,
+                        offset: 10
+                    },
+                    end: SourcePos {
+                        line: 1,
+                        column: 13,
+                        offset: 13
+                    },
                 },
                 children: smallvec![Syntax::Atom(SyntaxAtom {
                     range: SourceRange {
-                        start: SourcePos { line: 1, column: 10, offset: 10 },
-                        end: SourcePos { line: 1, column: 13, offset: 13 },
+                        start: SourcePos {
+                            line: 1,
+                            column: 10,
+                            offset: 10
+                        },
+                        end: SourcePos {
+                            line: 1,
+                            column: 13,
+                            offset: 13
+                        },
                     },
                     value: "Nat".into(),
                 })],
             })),
         ],
     }));
-    
+
     let def_node = SyntaxNode {
         kind: SyntaxKind::Declaration,
         range: def_range,
         children: smallvec![def_keyword, ident, type_part],
     };
-    
+
     let syntax = Syntax::Node(Box::new(def_node));
-    
+
     assert_eq!(syntax.kind(), Some(SyntaxKind::Declaration));
     assert_eq!(syntax.range(), Some(&def_range));
-    
+
     if let Syntax::Node(node) = &syntax {
         assert_eq!(node.children.len(), 3);
-        
+
         // Check first child is "def"
         assert_eq!(node.children[0].as_str(), "def");
-        
+
         // Check second child is identifier node
         assert_eq!(node.children[1].kind(), Some(SyntaxKind::Identifier));
-        
+
         // Check third child is app node
         assert_eq!(node.children[2].kind(), Some(SyntaxKind::App));
     } else {
@@ -246,25 +351,36 @@ fn test_nested_syntax_tree() {
 
 #[test]
 fn test_syntax_equality() {
-    let pos1 = SourcePos { line: 1, column: 0, offset: 0 };
-    let pos2 = SourcePos { line: 1, column: 3, offset: 3 };
-    let range = SourceRange { start: pos1, end: pos2 };
-    
+    let pos1 = SourcePos {
+        line: 1,
+        column: 0,
+        offset: 0,
+    };
+    let pos2 = SourcePos {
+        line: 1,
+        column: 3,
+        offset: 3,
+    };
+    let range = SourceRange {
+        start: pos1,
+        end: pos2,
+    };
+
     let atom1 = Syntax::Atom(SyntaxAtom {
         range,
         value: "foo".into(),
     });
-    
+
     let atom2 = Syntax::Atom(SyntaxAtom {
         range,
         value: "foo".into(),
     });
-    
+
     let atom3 = Syntax::Atom(SyntaxAtom {
         range,
         value: "bar".into(),
     });
-    
+
     assert_eq!(atom1, atom2);
     assert_ne!(atom1, atom3);
 }
@@ -280,7 +396,7 @@ fn test_complex_syntax_kinds() {
         (SyntaxKind::TacticSeq, "tactic sequence"),
         (SyntaxKind::HashCommand, "hash command"),
     ];
-    
+
     for (kind, expected) in kinds {
         check_syntax_kind_display(kind, expected);
     }
@@ -294,33 +410,41 @@ fn test_edge_cases() {
         column: u32::MAX,
         offset: usize::MAX,
     };
-    
+
     let range = SourceRange {
         start: large_pos,
         end: large_pos,
     };
-    
+
     let atom = Syntax::Atom(SyntaxAtom {
         range,
         value: "".into(), // Empty string
     });
-    
+
     assert_eq!(atom.as_str(), "");
     assert_eq!(atom.range(), Some(&range));
-    
+
     // Test deeply nested structure
     let mut current = Syntax::Missing;
     for i in 0..10 {
         current = Syntax::Node(Box::new(SyntaxNode {
             kind: SyntaxKind::LeftParen,
             range: SourceRange {
-                start: SourcePos { line: 1, column: i, offset: i as usize },
-                end: SourcePos { line: 1, column: i + 1, offset: (i + 1) as usize },
+                start: SourcePos {
+                    line: 1,
+                    column: i,
+                    offset: i as usize,
+                },
+                end: SourcePos {
+                    line: 1,
+                    column: i + 1,
+                    offset: (i + 1) as usize,
+                },
             },
             children: vec![current].into(),
         }));
     }
-    
+
     // Should have 10 levels of nesting
     let mut depth = 0;
     let mut node = &current;

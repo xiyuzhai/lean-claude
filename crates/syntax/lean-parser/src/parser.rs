@@ -1,9 +1,11 @@
-use crate::error::{ParseError, ParseErrorKind};
-use crate::input::Input;
-use lean_syn_expr::{Syntax, SourcePos};
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
+
+use lean_syn_expr::{SourcePos, Syntax};
+
+use crate::{
+    error::{ParseError, ParseErrorKind},
+    input::Input,
+};
 
 pub type ParserResult<T> = Result<T, ParseError>;
 
@@ -92,7 +94,7 @@ impl<'a> Parser<'a> {
         F: FnOnce(&mut Self) -> ParserResult<Syntax>,
     {
         let key = (self.input.position().offset, rule_name);
-        
+
         if let Some(entry) = self.memo_table.borrow().get(&key) {
             match entry {
                 MemoEntry::Success(syntax, new_offset) => {
@@ -110,17 +112,15 @@ impl<'a> Parser<'a> {
         match f(self) {
             Ok(syntax) => {
                 let end_offset = self.input.position().offset;
-                self.memo_table.borrow_mut().insert(
-                    key,
-                    MemoEntry::Success(syntax.clone(), end_offset),
-                );
+                self.memo_table
+                    .borrow_mut()
+                    .insert(key, MemoEntry::Success(syntax.clone(), end_offset));
                 Ok(syntax)
             }
             Err(err) => {
-                self.memo_table.borrow_mut().insert(
-                    key,
-                    MemoEntry::Failure(err.clone()),
-                );
+                self.memo_table
+                    .borrow_mut()
+                    .insert(key, MemoEntry::Failure(err.clone()));
                 Err(err)
             }
         }
@@ -171,17 +171,17 @@ impl<'a> Parser<'a> {
 
     pub fn identifier(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
-        
-        if !self.peek().map_or(false, |ch| is_id_start(ch)) {
+
+        if !self.peek().map_or(false, is_id_start) {
             return Err(ParseError::new(
                 ParseErrorKind::Expected("identifier".to_string()),
                 start,
             ));
         }
-        
-        let name = self.consume_while(|ch| is_id_continue(ch));
+
+        let name = self.consume_while(is_id_continue);
         let range = self.input().range_from(start);
-        
+
         Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
             range,
             value: eterned::BaseCoword::new(name),
@@ -190,52 +190,49 @@ impl<'a> Parser<'a> {
 
     pub fn keyword(&mut self, kw: &str) -> ParserResult<()> {
         let start = self.position();
-        
+
         if !self.peek_keyword(kw) {
             return Err(ParseError::new(
                 ParseErrorKind::Expected(format!("keyword '{}'", kw)),
                 start,
             ));
         }
-        
+
         // Consume the keyword
         for _ in kw.chars() {
             self.advance();
         }
-        
+
         Ok(())
     }
 
     pub fn peek_keyword(&self, keyword: &str) -> bool {
         let mut chars = self.input().remaining().chars();
-        
+
         for expected_ch in keyword.chars() {
             match chars.next() {
                 Some(ch) if ch == expected_ch => continue,
                 _ => return false,
             }
         }
-        
+
         // Ensure keyword is not part of a larger identifier
-        match chars.next() {
-            Some(ch) if is_id_continue(ch) => false,
-            _ => true,
-        }
+        !matches!(chars.next(), Some(ch) if is_id_continue(ch))
     }
 
     pub fn number(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
-        
+
         if !self.peek().map_or(false, |ch| ch.is_ascii_digit()) {
             return Err(ParseError::new(
                 ParseErrorKind::Expected("number".to_string()),
                 start,
             ));
         }
-        
+
         let num = self.consume_while(|ch| ch.is_ascii_digit() || ch == '.');
         let range = self.input().range_from(start);
-        
+
         Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
             range,
             value: eterned::BaseCoword::new(num),
@@ -244,10 +241,10 @@ impl<'a> Parser<'a> {
 
     pub fn string_literal(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
-        
+
         self.expect_char('"')?;
         let mut content = String::new();
-        
+
         while let Some(ch) = self.peek() {
             if ch == '"' {
                 self.advance();
@@ -287,7 +284,7 @@ impl<'a> Parser<'a> {
                 self.advance();
             }
         }
-        
+
         let range = self.input().range_from(start);
         Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
             range,
@@ -297,9 +294,9 @@ impl<'a> Parser<'a> {
 
     pub fn char_literal(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
-        
+
         self.expect_char('\'')?;
-        
+
         let ch = match self.peek() {
             Some('\\') => {
                 self.advance();
@@ -343,9 +340,9 @@ impl<'a> Parser<'a> {
                 ));
             }
         };
-        
+
         self.expect_char('\'')?;
-        
+
         let range = self.input().range_from(start);
         Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
             range,
@@ -353,31 +350,34 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    /// Parse a binder group: `(x y : α)` or `{α : Type}` or `[inst : Functor F]`
+    /// Parse a binder group: `(x y : α)` or `{α : Type}` or `[inst : Functor
+    /// F]`
     pub fn binder_group(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
-        
+
         let (_open_delim, close_delim, binder_kind) = match self.peek() {
             Some('(') => ('(', ')', lean_syn_expr::SyntaxKind::LeftParen),
             Some('{') => ('{', '}', lean_syn_expr::SyntaxKind::LeftBrace),
             Some('[') => ('[', ']', lean_syn_expr::SyntaxKind::LeftBracket),
-            _ => return Err(ParseError::new(
-                ParseErrorKind::Expected("binder".to_string()),
-                start,
-            )),
+            _ => {
+                return Err(ParseError::new(
+                    ParseErrorKind::Expected("binder".to_string()),
+                    start,
+                ))
+            }
         };
-        
+
         self.advance(); // consume opening delimiter
         self.skip_whitespace();
-        
+
         let mut names = Vec::new();
-        
+
         // Parse names
-        while self.peek().map_or(false, |ch| is_id_start(ch)) {
+        while self.peek().map_or(false, is_id_start) {
             names.push(self.identifier()?);
             self.skip_whitespace();
         }
-        
+
         // Parse type annotation
         let ty = if self.peek() == Some(':') {
             self.advance(); // consume ':'
@@ -386,16 +386,16 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        
+
         self.skip_whitespace();
         self.expect_char(close_delim)?;
-        
+
         let range = self.input().range_from(start);
         let mut children = names;
         if let Some(t) = ty {
             children.push(t);
         }
-        
+
         Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
             kind: binder_kind,
             range,

@@ -1,0 +1,17 @@
+[package]
+name = "integration-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[test]]
+name = "mathlib4_parser_test"
+path = "../../../tests/integration/mathlib4_parser_test.rs"
+
+[[test]]
+name = "parser_integration_test"
+path = "../../../tests/integration/parser_integration_test.rs"
+
+[dependencies]
+lean-parser = { path = "../../syntax/lean-parser" }
+lean-syn-expr = { path = "../../syntax/lean-syn-expr" }
