@@ -5,8 +5,8 @@ use crate::parser::Parser;
 fn check_module(input: &str, expected: Expect) {
     let mut parser = Parser::new(input);
     match parser.module() {
-        Ok(syntax) => expected.assert_eq(&format!("{:#?}", syntax)),
-        Err(e) => expected.assert_eq(&format!("Error: {}", e)),
+        Ok(syntax) => expected.assert_eq(&format!("{syntax:#?}")),
+        Err(e) => expected.assert_eq(&format!("Error: {e}")),
     }
 }
 

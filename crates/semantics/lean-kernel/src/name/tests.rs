@@ -7,7 +7,7 @@ fn check_name_display(name: &Name, expected: &str) {
 }
 
 fn check_name_debug(name: &Name, expected: Expect) {
-    let output = format!("{:#?}", name);
+    let output = format!("{name:#?}");
     expected.assert_eq(&output);
 }
 

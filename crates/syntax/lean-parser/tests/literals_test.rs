@@ -27,19 +27,17 @@ fn test_number_literals() {
     ];
 
     for (input, expected) in test_cases {
-        let module_input = format!("#check {}", input);
+        let module_input = format!("#check {input}");
         let result = parse_module(&module_input);
-        assert!(result.is_ok(), "Failed to parse: {}", input);
+        assert!(result.is_ok(), "Failed to parse: {input}");
 
         let module = result.unwrap();
 
         // Extract the number from the parsed command
-        let cmd_str = format!("{:?}", module);
+        let cmd_str = format!("{module:?}");
         assert!(
             cmd_str.contains(expected),
-            "Expected {} in parsed output, got: {}",
-            expected,
-            cmd_str
+            "Expected {expected} in parsed output, got: {cmd_str}"
         );
     }
 }
@@ -56,7 +54,7 @@ fn test_invalid_number_literals() {
     ];
 
     for input in invalid_cases {
-        let module_input = format!("#check {}", input);
+        let module_input = format!("#check {input}");
         let result = parse_module(&module_input);
         if result.is_ok() {
             // Parser might have parsed it differently than expected
@@ -64,8 +62,7 @@ fn test_invalid_number_literals() {
             let parsed = format!("{:?}", result.unwrap());
             assert!(
                 !parsed.contains(input),
-                "Parser should not have accepted invalid literal: {}",
-                input
+                "Parser should not have accepted invalid literal: {input}"
             );
         }
     }
@@ -87,9 +84,9 @@ fn test_string_literals() {
     ];
 
     for (input, _expected) in test_cases {
-        let module_input = format!("#check {}", input);
+        let module_input = format!("#check {input}");
         let result = parse_module(&module_input);
-        assert!(result.is_ok(), "Failed to parse: {}", input);
+        assert!(result.is_ok(), "Failed to parse: {input}");
     }
 }
 
@@ -103,12 +100,11 @@ fn test_interpolated_strings() {
     ];
 
     for input in test_cases {
-        let module_input = format!("#check {}", input);
+        let module_input = format!("#check {input}");
         let result = parse_module(&module_input);
         assert!(
             result.is_ok(),
-            "Failed to parse interpolated string: {}",
-            input
+            "Failed to parse interpolated string: {input}"
         );
     }
 }
@@ -118,9 +114,9 @@ fn test_char_literals() {
     let test_cases = vec!["'a'", r"'\n'", r"'\t'", r"'\r'", r"'\\'", r"'\''"];
 
     for input in test_cases {
-        let module_input = format!("#check {}", input);
+        let module_input = format!("#check {input}");
         let result = parse_module(&module_input);
-        assert!(result.is_ok(), "Failed to parse char literal: {}", input);
+        assert!(result.is_ok(), "Failed to parse char literal: {input}");
     }
 }
 
@@ -135,8 +131,8 @@ fn test_literals_in_expressions() {
     ];
 
     for expr in expressions {
-        let module_input = format!("#check {}", expr);
+        let module_input = format!("#check {expr}");
         let result = parse_module(&module_input);
-        assert!(result.is_ok(), "Failed to parse expression: {}", expr);
+        assert!(result.is_ok(), "Failed to parse expression: {expr}");
     }
 }

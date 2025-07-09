@@ -26,7 +26,7 @@ fn test_parse_mathlib4_files() {
                     Ok(_) => {
                         parsed_files += 1;
                         if total_files % 100 == 0 {
-                            println!("Parsed {} files...", total_files);
+                            println!("Parsed {total_files} files...");
                         }
                     }
                     Err(e) => {
@@ -35,7 +35,7 @@ fn test_parse_mathlib4_files() {
                 }
             }
             Err(e) => {
-                failed_files.push((path.to_path_buf(), format!("Failed to read file: {}", e)));
+                failed_files.push((path.to_path_buf(), format!("Failed to read file: {e}")));
             }
         }
     });
@@ -43,10 +43,10 @@ fn test_parse_mathlib4_files() {
     let duration = start.elapsed();
 
     println!("\n=== Mathlib4 Parser Test Results ===");
-    println!("Total files: {}", total_files);
-    println!("Successfully parsed: {}", parsed_files);
+    println!("Total files: {total_files}");
+    println!("Successfully parsed: {parsed_files}");
     println!("Failed: {}", failed_files.len());
-    println!("Time elapsed: {:.2?}", duration);
+    println!("Time elapsed: {duration:.2?}");
     println!(
         "Average time per file: {:.2?}",
         duration / total_files as u32
@@ -62,7 +62,7 @@ fn test_parse_mathlib4_files() {
     // For now, we don't fail the test even if some files fail to parse
     // This allows us to track progress incrementally
     let success_rate = (parsed_files as f64 / total_files as f64) * 100.0;
-    println!("\nSuccess rate: {:.2}%", success_rate);
+    println!("\nSuccess rate: {success_rate:.2}%");
 
     // Set a minimum success rate threshold
     assert!(
@@ -91,7 +91,7 @@ fn test_parse_specific_mathlib4_file() {
             // Could add more specific assertions about the parsed structure
         }
         Err(e) => {
-            panic!("Failed to parse Mathlib/Data/Nat/Basic.lean: {}", e);
+            panic!("Failed to parse Mathlib/Data/Nat/Basic.lean: {e}");
         }
     }
 }
@@ -102,7 +102,7 @@ fn visit_lean_files(dir: &Path, callback: &mut dyn FnMut(&Path)) {
             let path = entry.path();
             if path.is_dir() {
                 visit_lean_files(&path, callback);
-            } else if path.extension().map_or(false, |ext| ext == "lean") {
+            } else if path.extension().is_some_and(|ext| ext == "lean") {
                 callback(&path);
             }
         }

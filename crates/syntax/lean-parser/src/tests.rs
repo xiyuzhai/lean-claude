@@ -7,8 +7,8 @@ mod module_tests;
 fn check_parse(input: &str, expected: Expect) {
     let mut parser = Parser::new(input);
     match parser.identifier() {
-        Ok(syntax) => expected.assert_eq(&format!("{:?}", syntax)),
-        Err(e) => expected.assert_eq(&format!("Error: {}", e)),
+        Ok(syntax) => expected.assert_eq(&format!("{syntax:?}")),
+        Err(e) => expected.assert_eq(&format!("Error: {e}")),
     }
 }
 
@@ -41,12 +41,12 @@ fn test_number() {
     let mut parser = Parser::new("42");
     let result = parser.number();
     expect![[r#"Ok(Atom(SyntaxAtom { range: SourceRange { start: SourcePos { line: 1, column: 1, offset: 0 }, end: SourcePos { line: 1, column: 3, offset: 2 } }, value: BaseCoword { data: "42" } }))"#]]
-        .assert_eq(&format!("{:?}", result));
+        .assert_eq(&format!("{result:?}"));
 
     let mut parser = Parser::new("3.14");
     let result = parser.number();
     expect![[r#"Ok(Atom(SyntaxAtom { range: SourceRange { start: SourcePos { line: 1, column: 1, offset: 0 }, end: SourcePos { line: 1, column: 5, offset: 4 } }, value: BaseCoword { data: "3.14" } }))"#]]
-        .assert_eq(&format!("{:?}", result));
+        .assert_eq(&format!("{result:?}"));
 }
 
 #[test]
@@ -54,12 +54,12 @@ fn test_string_literal() {
     let mut parser = Parser::new(r#""hello world""#);
     let result = parser.string_literal();
     expect![[r#"Ok(Atom(SyntaxAtom { range: SourceRange { start: SourcePos { line: 1, column: 1, offset: 0 }, end: SourcePos { line: 1, column: 14, offset: 13 } }, value: BaseCoword { data: "hello world" } }))"#]]
-        .assert_eq(&format!("{:?}", result));
+        .assert_eq(&format!("{result:?}"));
 
     let mut parser = Parser::new(r#""hello\nworld""#);
     let result = parser.string_literal();
     expect![[r#"Ok(Atom(SyntaxAtom { range: SourceRange { start: SourcePos { line: 1, column: 1, offset: 0 }, end: SourcePos { line: 1, column: 15, offset: 14 } }, value: BaseCoword { data: "hello\nworld" } }))"#]]
-        .assert_eq(&format!("{:?}", result));
+        .assert_eq(&format!("{result:?}"));
 }
 
 #[test]

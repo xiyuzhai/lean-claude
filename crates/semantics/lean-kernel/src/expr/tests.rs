@@ -3,7 +3,7 @@ use expect_test::{expect, Expect};
 use super::*;
 
 fn check_expr_debug(expr: &Expr, expected: Expect) {
-    let output = format!("{:#?}", expr);
+    let output = format!("{expr:#?}");
     expected.assert_eq(&output);
 }
 

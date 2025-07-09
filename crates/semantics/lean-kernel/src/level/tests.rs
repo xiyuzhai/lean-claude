@@ -7,7 +7,7 @@ fn check_level_display(level: &Level, expected: &str) {
 }
 
 fn check_level_debug(level: &Level, expected: Expect) {
-    let output = format!("{:#?}", level);
+    let output = format!("{level:#?}");
     expected.assert_eq(&output);
 }
 

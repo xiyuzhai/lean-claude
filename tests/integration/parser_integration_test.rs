@@ -136,7 +136,7 @@ fn test_parse_tactics() {
     ];
 
     for (input, description) in test_cases {
-        let input_with_by = format!("by {}", input);
+        let input_with_by = format!("by {input}");
         let mut parser = Parser::new(&input_with_by);
         let result = parser.term(); // Tactics are parsed as part of terms
         assert!(
@@ -153,7 +153,7 @@ fn test_parse_basic_patterns() {
     let test_cases = vec![("x", "variable pattern"), ("_", "wildcard pattern")];
 
     for (pattern, description) in test_cases {
-        let input = format!("match x with | {} => true", pattern);
+        let input = format!("match x with | {pattern} => true");
         let mut parser = Parser::new(&input);
         let result = parser.pattern();
         assert!(
@@ -177,7 +177,7 @@ fn test_parse_complex_patterns() {
     ];
 
     for (pattern, description) in test_cases {
-        let input = format!("match x with | {} => true", pattern);
+        let input = format!("match x with | {pattern} => true");
         let mut parser = Parser::new(&input);
         let result = parser.term();
         assert!(
@@ -206,8 +206,7 @@ fn test_error_recovery() {
         // Even with errors, the parser should produce some syntax tree
         assert!(
             result.is_ok(),
-            "Parser should recover from error in: {}",
-            input
+            "Parser should recover from error in: {input}"
         );
     }
 }

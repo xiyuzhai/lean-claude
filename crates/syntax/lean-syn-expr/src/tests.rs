@@ -4,7 +4,7 @@ use smallvec::{smallvec, SmallVec};
 use super::*;
 
 fn check_syntax_debug(syntax: &Syntax, expected: Expect) {
-    let output = format!("{:#?}", syntax);
+    let output = format!("{syntax:#?}");
     expected.assert_eq(&output);
 }
 

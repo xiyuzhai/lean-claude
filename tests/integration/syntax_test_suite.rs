@@ -41,7 +41,7 @@ fn test_all_syntax_files() {
 
 fn test_category(dir: &Path, results: &mut TestResults) {
     let category = dir.file_name().unwrap().to_string_lossy();
-    println!("\n=== Testing {} ===", category);
+    println!("\n=== Testing {category} ===");
 
     let entries = fs::read_dir(dir).expect("Failed to read directory");
 
@@ -49,7 +49,7 @@ fn test_category(dir: &Path, results: &mut TestResults) {
         let entry = entry.expect("Failed to read entry");
         let path = entry.path();
 
-        if path.extension().map_or(false, |ext| ext == "lean") {
+        if path.extension().is_some_and(|ext| ext == "lean") {
             test_file(&path, results);
         }
     }
@@ -57,7 +57,7 @@ fn test_category(dir: &Path, results: &mut TestResults) {
 
 fn test_file(path: &Path, results: &mut TestResults) {
     let filename = path.file_name().unwrap().to_string_lossy();
-    print!("  {} ... ", filename);
+    print!("  {filename} ... ");
 
     let content = fs::read_to_string(path).expect("Failed to read file");
     let mut parser = Parser::new(&content);
@@ -68,7 +68,7 @@ fn test_file(path: &Path, results: &mut TestResults) {
             results.passed += 1;
         }
         Err(e) => {
-            println!("❌ FAILED: {}", e);
+            println!("❌ FAILED: {e}");
             results.failed.push(FailedTest {
                 file: path.to_path_buf(),
                 error: e.to_string(),
@@ -86,9 +86,9 @@ fn test_errors(dir: &Path, results: &mut TestResults) {
         let entry = entry.expect("Failed to read entry");
         let path = entry.path();
 
-        if path.extension().map_or(false, |ext| ext == "lean") {
+        if path.extension().is_some_and(|ext| ext == "lean") {
             let filename = path.file_name().unwrap().to_string_lossy();
-            print!("  {} ... ", filename);
+            print!("  {filename} ... ");
 
             let content = fs::read_to_string(&path).expect("Failed to read file");
             let mut parser = Parser::new(&content);

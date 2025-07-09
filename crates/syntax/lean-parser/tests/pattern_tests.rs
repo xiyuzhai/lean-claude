@@ -5,11 +5,11 @@ fn check_term(input: &str, expected: Expect) {
     let mut parser = Parser::new(input);
     match parser.term() {
         Ok(syntax) => {
-            let output = format!("{:#?}", syntax);
+            let output = format!("{syntax:#?}");
             expected.assert_eq(&output);
         }
         Err(err) => {
-            let output = format!("Error: {:?}", err);
+            let output = format!("Error: {err:?}");
             expected.assert_eq(&output);
         }
     }
