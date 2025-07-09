@@ -72,6 +72,10 @@ impl<'a> Parser<'a> {
                 'c' if self.peek_keyword("class") => self.class_command(),
                 's' if self.peek_keyword("structure") => self.structure_command(),
                 'i' if self.peek_keyword("inductive") => self.inductive_command(),
+                'm' if self.peek_keyword("macro") => self.macro_def(),
+                'm' if self.peek_keyword("macro_rules") => self.macro_rules(),
+                's' if self.peek_keyword("syntax") => self.syntax_def(),
+                'n' if self.peek_keyword("notation") => self.notation_def(),
                 '#' => self.hash_command(),
                 '-' if self.input().peek_nth(1) == Some('-') => {
                     // Line comment, not a command

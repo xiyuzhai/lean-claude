@@ -298,6 +298,29 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    pub fn peek_attribute_list(&self) -> bool {
+        // Check if we're at the start of an attribute list
+        // This is a heuristic to distinguish between regular brackets and attribute lists
+        if self.peek() == Some('[') {
+            // Look ahead to see if this looks like an attribute
+            let mut offset = 1;
+            
+            // Skip whitespace after [
+            while self.input().peek_nth(offset) == Some(' ') || self.input().peek_nth(offset) == Some('\t') {
+                offset += 1;
+            }
+            
+            // Check if we have an identifier (attribute name)
+            if let Some(ch) = self.input().peek_nth(offset) {
+                ch.is_alphabetic() || ch == '_'
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
     pub fn peek_keyword(&self, keyword: &str) -> bool {
         let mut chars = self.input().remaining().chars();
 

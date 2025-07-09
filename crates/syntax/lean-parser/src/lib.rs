@@ -7,6 +7,7 @@ pub mod diagnostic;
 pub mod error;
 pub mod input;
 pub mod lexical;
+pub mod r#macro;
 pub mod module;
 pub mod parser;
 pub mod pattern;

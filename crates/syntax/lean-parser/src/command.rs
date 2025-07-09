@@ -11,6 +11,15 @@ impl<'a> Parser<'a> {
     /// Parse def command: `def name [params] : type := value`
     pub fn def_command(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
+        
+        // Check for attributes before the command
+        let has_attrs = self.peek() == Some('@') || (self.peek() == Some('[') && self.peek_attribute_list());
+        let attrs = if has_attrs {
+            Some(self.parse_attributes()?)
+        } else {
+            None
+        };
+        self.skip_whitespace();
 
         self.keyword("def")?;
         self.skip_whitespace();
@@ -44,7 +53,11 @@ impl<'a> Parser<'a> {
         let value = self.term()?;
 
         let range = self.input().range_from(start);
-        let mut children = smallvec![name];
+        let mut children = smallvec![];
+        if let Some(attrs) = attrs {
+            children.push(attrs);
+        }
+        children.push(name);
         children.extend(params);
         if let Some(ty) = ty {
             children.push(ty);

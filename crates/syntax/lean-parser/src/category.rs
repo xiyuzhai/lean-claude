@@ -516,6 +516,22 @@ pub fn init_standard_categories() -> CategoryRegistry {
         help: Some("Instance arguments resolved by type class inference".to_string()),
     });
     
+    // Syntax quotations
+    term_category.tables.add_leading("`", ParserEntry {
+        parser: Rc::new(|p| {
+            if p.input().peek_nth(1) == Some('(') {
+                p.parse_syntax_quotation()
+            } else {
+                // Regular identifier with backticks
+                p.atom_term()
+            }
+        }),
+        precedence: Precedence::MAX,
+        name: "syntax quotation".to_string(),
+        example: Some("`(x + 1)".to_string()),
+        help: Some("Quote syntax for use in macros".to_string()),
+    });
+    
     // Prefix/unary operators
     term_category.tables.add_leading("-", ParserEntry {
         parser: Rc::new(|p| {
@@ -1120,6 +1136,39 @@ pub fn init_standard_categories() -> CategoryRegistry {
         name: "reduce command".to_string(),
         example: Some("#reduce 2 + 2".to_string()),
         help: Some("Reduce an expression".to_string()),
+    });
+    
+    // Macro and notation commands
+    command_category.tables.add_leading("macro", ParserEntry {
+        parser: Rc::new(|p| p.macro_def()),
+        precedence: Precedence::MAX,
+        name: "macro definition".to_string(),
+        example: Some("macro \"test\" : term => `(42)".to_string()),
+        help: Some("Define a macro".to_string()),
+    });
+    
+    command_category.tables.add_leading("macro_rules", ParserEntry {
+        parser: Rc::new(|p| p.macro_rules()),
+        precedence: Precedence::MAX,
+        name: "macro rules".to_string(),
+        example: Some("macro_rules | x => `($x + 1)".to_string()),
+        help: Some("Define macro expansion rules".to_string()),
+    });
+    
+    command_category.tables.add_leading("syntax", ParserEntry {
+        parser: Rc::new(|p| p.syntax_def()),
+        precedence: Precedence::MAX,
+        name: "syntax declaration".to_string(),
+        example: Some("syntax \"test\" : term".to_string()),
+        help: Some("Declare new syntax".to_string()),
+    });
+    
+    command_category.tables.add_leading("notation", ParserEntry {
+        parser: Rc::new(|p| p.notation_def()),
+        precedence: Precedence::MAX,
+        name: "notation definition".to_string(),
+        example: Some("notation \"x ∈ S\" => Membership.mem x S".to_string()),
+        help: Some("Define notation".to_string()),
     });
     
     // Add recovery hints for common mistakes
