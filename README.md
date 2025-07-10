@@ -10,156 +10,6 @@ A complete reimplementation of the Lean4 compiler in Rust, following Lean4's arc
 
 This project aims to rewrite the entire Lean4 compiler toolchain in Rust while maintaining compatibility with existing Lean4 code and libraries like mathlib4. We follow Lean4's architectural decisions including its lexer-less parser, elaboration system, and code generation pipeline.
 
-## Architecture Overview
-
-The compiler follows Lean4's pipeline:
-1. **Parsing**: Character stream → Syntax tree (no separate lexer)
-2. **Elaboration**: Syntax → Expr with macro expansion and type inference
-3. **Type Checking**: Validate expressions in the kernel
-4. **IR Generation**: Expr → Intermediate Representation
-5. **Code Generation**: IR → C code → Native binary
-
-## Implementation Phases
-
-### Phase 0: Project Setup
-- [x] Create project structure
-- [ ] Set up Cargo workspace with multiple crates
-- [ ] Configure testing framework
-- [ ] Set up CI/CD pipeline
-
-### Phase 1: Lexer-less Parser
-**Goal**: Implement a combinatoric, recursive-descent parser that directly consumes character streams
-
-#### Core Components:
-- [ ] Parser monad and combinator framework
-- [ ] Input stream with position tracking and backtracking
-- [ ] Memoization for packrat parsing
-- [ ] Error recovery and reporting
-
-#### Parser Categories:
-- [ ] **Basic parsers**: whitespace, identifiers, literals
-- [ ] **Command parsers**: definitions, imports, namespace management
-- [ ] **Term parsers**: expressions, applications, lambda abstractions
-- [ ] **Tactic parsers**: tactic sequences and combinators
-- [ ] **Do-notation parsers**: monadic syntax support
-
-#### Testing:
-- [ ] Unit tests for each parser combinator
-- [ ] Property-based testing with QuickCheck
-- [ ] Parse test suite from Lean4 repository
-- [ ] Roundtrip tests (parse → pretty-print → parse)
-
-### Phase 2: Core Data Structures
-**Goal**: Implement Lean's AST and core types
-
-#### Syntax Tree:
-- [ ] `Syntax` enum with all node types
-- [ ] Source position information
-- [ ] Pretty-printing infrastructure
-
-#### Expression AST:
-- [ ] `Expr` enum with constructors:
-  - [ ] Variables: `bvar`, `fvar`, `mvar`
-  - [ ] Types: `sort`, `const`
-  - [ ] Terms: `app`, `lam`, `forallE`, `letE`
-  - [ ] Literals and metadata: `lit`, `mdata`, `proj`
-- [ ] `Level` for universe levels
-- [ ] `Name` for hierarchical names
-- [ ] `BinderInfo` for implicit/explicit arguments
-
-#### Environment:
-- [ ] Declaration storage
-- [ ] Constant management
-- [ ] Module system
-
-#### Testing:
-- [ ] Serialization/deserialization tests
-- [ ] Memory layout optimization benchmarks
-- [ ] Property tests for AST invariants
-
-### Phase 3: Elaborator
-**Goal**: Transform syntax trees into fully elaborated expressions
-
-#### Core Features:
-- [ ] Macro expansion system
-- [ ] Syntax → Expr transformation
-- [ ] Implicit argument inference
-- [ ] Type class resolution
-- [ ] Unification algorithm
-- [ ] Local context management
-
-#### Elaboration Strategies:
-- [ ] Term elaboration
-- [ ] Command elaboration
-- [ ] Tactic elaboration
-- [ ] Do-notation desugaring
-
-#### Testing:
-- [ ] Elaborate simple terms from mathlib4
-- [ ] Test implicit argument resolution
-- [ ] Verify type class instance selection
-- [ ] Macro expansion tests
-
-### Phase 4: Type Checker and Meta Operations
-**Goal**: Implement the trusted kernel and metaprogramming infrastructure
-
-#### Kernel:
-- [ ] Type checking algorithm
-- [ ] Definitional equality
-- [ ] Reduction and normalization
-- [ ] Inductive type support
-- [ ] Universe constraint checking
-
-#### Meta Framework:
-- [ ] Meta-variable management
-- [ ] Tactic state representation
-- [ ] Goal management
-- [ ] Proof term construction
-
-#### Testing:
-- [ ] Verify core type theory axioms
-- [ ] Test against Lean4's kernel
-- [ ] Proof checking for mathlib4 theorems
-- [ ] Performance benchmarks
-
-### Phase 5: IR and Code Generation
-**Goal**: Compile elaborated terms to executable code
-
-#### IR Design:
-- [ ] Intermediate representation types
-- [ ] Optimization passes
-- [ ] Closure conversion
-- [ ] Case compilation
-- [ ] RC (reference counting) insertion
-
-#### Code Generation:
-- [ ] C code emission
-- [ ] FFI support
-- [ ] Runtime system interface
-- [ ] Memory management
-
-#### Testing:
-- [ ] Compile and run Lean4 test suite
-- [ ] Benchmark against Lean4 compiler
-- [ ] Memory leak detection
-- [ ] Performance profiling
-
-### Phase 6: Integration and Advanced Features
-**Goal**: Full compatibility with Lean4 ecosystem
-
-#### Features:
-- [ ] Lake build system integration
-- [ ] Plugin system support
-- [ ] Server mode for IDE support
-- [ ] Incremental compilation
-- [ ] Module system and imports
-
-#### Compatibility Testing:
-- [ ] Build and check mathlib4
-- [ ] Run Lean4 test suite
-- [ ] Performance comparison
-- [ ] Memory usage analysis
-
 ## Quick Start
 
 ```bash
@@ -182,61 +32,149 @@ make help
 
 For detailed development instructions, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
-## Development Guidelines
+## Current Status
 
-### Code Organization
+### ✅ Completed
+- **Project Setup**: Workspace structure, CI/CD, development tooling
+- **Basic Parser**: Lexer-less parser with core functionality
+  - All major command parsers (def, theorem, class, structure, inductive, etc.)
+  - Term parsers (lambda, forall, let, have, show, match, if-then-else)
+  - Operator precedence parsing with Pratt parser
+  - Pattern matching syntax
+  - Unicode support
+  - Comment handling
+- **Macro System**: Basic macro expansion infrastructure
+  - Simple `macro` definitions with parameters
+  - Syntax quotations `` `(...) `` and antiquotations `$x`
+  - Pattern matching and template substitution
+  - Hygienic name generation
+  - Recursive macro expansion
+- **Core Data Structures**: Foundation types
+  - `Syntax` tree with source positions
+  - `Expr` AST (bvar, fvar, app, lambda, forall, let, literals)
+  - `Level` for universe levels
+  - `Name` for hierarchical names
+  - String interning with `eterned`
+
+### 🚧 In Progress
+- **Parser Enhancements**
+  - [ ] `macro_rules` with multiple patterns
+  - [ ] Built-in macros (panic!, assert!, etc.)
+  - [ ] Macro splices `$xs,*`
+  - [ ] Full tactic mode parsing
+  - [ ] Attribute parsing
+  - [ ] Notation and custom operators
+- **Testing Infrastructure**
+  - [ ] mathlib4 parsing tests
+  - [ ] Performance benchmarks
+  - [ ] Fuzzing framework
+
+### 📋 Next Steps
+
+1. **Complete Macro System** (High Priority)
+   - Implement `macro_rules` for pattern-based macros
+   - Add built-in macros (panic!, assert!, unreachable!)
+   - Support macro splices for list handling
+   - Custom syntax categories
+
+2. **Parser Robustness**
+   - Error recovery mechanisms
+   - Better error messages with suggestions
+   - Incremental parsing support
+   - Performance optimization
+
+3. **Begin Elaboration Phase**
+   - Type inference infrastructure
+   - Implicit argument resolution
+   - Type class instance search
+   - Metavariable management
+
+## Architecture
+
 ```
-lean-rs/
-├── parser/          # Lexer-less parser implementation
-├── syntax/          # Syntax tree definitions
-├── kernel/          # Type checker and core
-├── elaborator/      # Elaboration and macro expansion
-├── meta/            # Metaprogramming framework
-├── ir/              # Intermediate representation
-├── codegen/         # C code generation
-├── tests/           # Test suites
-└── benches/         # Performance benchmarks
+lean-claude/
+├── crates/
+│   ├── abstractions/
+│   │   └── eterned/          # String interning
+│   ├── syntax/
+│   │   ├── lean-parser/      # Lexer-less parser
+│   │   └── lean-syn-expr/    # Syntax tree types
+│   ├── semantics/
+│   │   ├── lean-kernel/      # Core types (Expr, Level, Name)
+│   │   ├── lean-macro-expander/ # Macro expansion
+│   │   ├── lean-elaborator/  # Type elaboration (WIP)
+│   │   └── lean-meta/        # Metaprogramming (WIP)
+│   └── mir/
+│       ├── lean-ir/          # Intermediate representation
+│       └── lean-codegen/     # Code generation
+├── test-data/                # Test files and examples
+└── Makefile                  # Development commands
 ```
 
-### Testing Strategy
-1. **Unit tests**: Test individual components in isolation
-2. **Integration tests**: Test component interactions
-3. **Compatibility tests**: Compare output with Lean4
-4. **Performance tests**: Ensure competitive performance
-5. **Fuzzing**: Property-based testing for parsers and type checker
+## Development Roadmap
 
-### Performance Goals
+### Phase 1: Parser & Macros ✅ (90% Complete)
+- [x] Lexer-less parser architecture
+- [x] Command and term parsing
+- [x] Basic macro expansion
+- [ ] Complete macro system
+- [ ] Full Lean4 syntax support
+
+### Phase 2: Elaboration 🚧 (Starting Soon)
+- [ ] Syntax to Expr transformation
+- [ ] Type inference algorithm
+- [ ] Implicit argument synthesis
+- [ ] Type class resolution
+- [ ] Unification
+
+### Phase 3: Type Checking 📅
+- [ ] Kernel implementation
+- [ ] Definitional equality
+- [ ] Inductive types
+- [ ] Universe constraints
+- [ ] Proof checking
+
+### Phase 4: Code Generation 📅
+- [ ] IR design
+- [ ] Optimization passes
+- [ ] C code emission
+- [ ] Runtime integration
+
+### Phase 5: Ecosystem Integration 📅
+- [ ] Lake build system
+- [ ] LSP server
+- [ ] mathlib4 compatibility
+- [ ] Performance optimization
+
+## Key Features
+
+- **Lexer-less Parser**: Direct character stream parsing without tokenization
+- **Hygienic Macros**: Macro system with automatic name generation to prevent capture
+- **String Interning**: Efficient string handling with SHA512-based interning
+- **Comprehensive Testing**: expect-test, property-based testing, and real-world test cases
+- **Development Tooling**: Makefile, pre-commit hooks, and CI/CD integration
+
+## Contributing
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for development guidelines. Key requirements:
+- Understanding of type theory and compilers
+- Rust systems programming experience
+- Familiarity with Lean4 helpful but not required
+
+## Performance Goals
+
 - Parser: < 2x slower than Lean4
 - Type checker: Comparable to Lean4
 - Code generation: Within 20% of Lean4
 - Memory usage: Comparable or better
-
-## Current Status
-
-- [x] Phase 0: Project Setup
-- [x] Phase 1: Lexer-less Parser (Basic implementation complete)
-- [ ] Phase 2: Core Data Structures (In progress)
-- [ ] Phase 3: Elaborator
-- [ ] Phase 4: Type Checker
-- [ ] Phase 5: Code Generation
-- [ ] Phase 6: Integration
-
-### Recent Progress
-- ✅ Implemented lexer-less parser with all major commands
-- ✅ Added support for terms, applications, and binders
-- ✅ Created test framework with expect-test
-- ✅ Set up CI/CD with GitHub Actions
-
-## Contributing
-
-This is a complex project requiring deep understanding of:
-- Type theory and dependent types
-- Compiler construction
-- Rust systems programming
-- Lean4 internals
 
 ## References
 
 - [Lean4 Repository](https://github.com/leanprover/lean4)
 - [Lean4 Documentation](https://leanprover.github.io/lean4/doc/)
 - [mathlib4](https://github.com/leanprover-community/mathlib4)
+- [The Lean 4 Theorem Prover and Programming Language](https://leanprover.github.io/papers/lean4.pdf)
+
+## License
+
+This project is dual-licensed under MIT and Apache 2.0 licenses.
