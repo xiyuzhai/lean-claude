@@ -1,3 +1,6 @@
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::single_match)]
+
 use std::{fs, path::Path, time::Instant};
 
 use lean_parser::Parser;
@@ -362,7 +365,7 @@ fn test_mathlib4_style_performance() {
     println!("File size: {} bytes", content.len());
 
     match result {
-        Ok(syntax) => {
+        Ok(_syntax) => {
             let bytes_per_second = (content.len() as f64) / duration.as_secs_f64();
             println!("Parsing speed: {:.0} bytes/second", bytes_per_second);
 

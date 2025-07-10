@@ -36,6 +36,30 @@ path = "../../../tests/integration/elaborator_test.rs"
 name = "typeck_test"
 path = "../../../tests/integration/typeck_test.rs"
 
+[[test]]
+name = "type_definitions_test"
+path = "../../../tests/integration/type_definitions_test.rs"
+
+[[test]]
+name = "debug_commands"
+path = "../../../tests/debug_commands.rs"
+
+[[test]]
+name = "debug_parse_sequence"
+path = "../../../tests/debug_parse_sequence.rs"
+
+[[test]]
+name = "test_abbrev_simple"
+path = "../../../tests/test_abbrev_simple.rs"
+
+[[test]]
+name = "test_mutual"
+path = "../../../tests/test_mutual.rs"
+
+[[test]]
+name = "test_deriving"
+path = "../../../tests/test_deriving.rs"
+
 [dependencies]
 lean-parser = { path = "../../syntax/lean-parser" }
 lean-syn-expr = { path = "../../syntax/lean-syn-expr" }

@@ -42,8 +42,8 @@ fn test_notation() {
                         },
                         end: SourcePos {
                             line: 1,
-                            column: 31,
-                            offset: 32,
+                            column: 39,
+                            offset: 40,
                         },
                     },
                     children: [
@@ -66,8 +66,9 @@ fn test_notation() {
                                 },
                             },
                         ),
-                        Atom(
-                            SyntaxAtom {
+                        Node(
+                            SyntaxNode {
+                                kind: App,
                                 range: SourceRange {
                                     start: SourcePos {
                                         line: 1,
@@ -76,13 +77,107 @@ fn test_notation() {
                                     },
                                     end: SourcePos {
                                         line: 1,
-                                        column: 31,
-                                        offset: 32,
+                                        column: 39,
+                                        offset: 40,
                                     },
                                 },
-                                value: BaseCoword {
-                                    data: "Membership",
-                                },
+                                children: [
+                                    Node(
+                                        SyntaxNode {
+                                            kind: Projection,
+                                            range: SourceRange {
+                                                start: SourcePos {
+                                                    line: 1,
+                                                    column: 31,
+                                                    offset: 32,
+                                                },
+                                                end: SourcePos {
+                                                    line: 1,
+                                                    column: 35,
+                                                    offset: 36,
+                                                },
+                                            },
+                                            children: [
+                                                Atom(
+                                                    SyntaxAtom {
+                                                        range: SourceRange {
+                                                            start: SourcePos {
+                                                                line: 1,
+                                                                column: 21,
+                                                                offset: 22,
+                                                            },
+                                                            end: SourcePos {
+                                                                line: 1,
+                                                                column: 31,
+                                                                offset: 32,
+                                                            },
+                                                        },
+                                                        value: BaseCoword {
+                                                            data: "Membership",
+                                                        },
+                                                    },
+                                                ),
+                                                Atom(
+                                                    SyntaxAtom {
+                                                        range: SourceRange {
+                                                            start: SourcePos {
+                                                                line: 1,
+                                                                column: 32,
+                                                                offset: 33,
+                                                            },
+                                                            end: SourcePos {
+                                                                line: 1,
+                                                                column: 35,
+                                                                offset: 36,
+                                                            },
+                                                        },
+                                                        value: BaseCoword {
+                                                            data: "mem",
+                                                        },
+                                                    },
+                                                ),
+                                            ],
+                                        },
+                                    ),
+                                    Atom(
+                                        SyntaxAtom {
+                                            range: SourceRange {
+                                                start: SourcePos {
+                                                    line: 1,
+                                                    column: 36,
+                                                    offset: 37,
+                                                },
+                                                end: SourcePos {
+                                                    line: 1,
+                                                    column: 37,
+                                                    offset: 38,
+                                                },
+                                            },
+                                            value: BaseCoword {
+                                                data: "x",
+                                            },
+                                        },
+                                    ),
+                                    Atom(
+                                        SyntaxAtom {
+                                            range: SourceRange {
+                                                start: SourcePos {
+                                                    line: 1,
+                                                    column: 38,
+                                                    offset: 39,
+                                                },
+                                                end: SourcePos {
+                                                    line: 1,
+                                                    column: 39,
+                                                    offset: 40,
+                                                },
+                                            },
+                                            value: BaseCoword {
+                                                data: "S",
+                                            },
+                                        },
+                                    ),
+                                ],
                             },
                         ),
                     ],

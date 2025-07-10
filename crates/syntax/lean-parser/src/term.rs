@@ -192,6 +192,7 @@ impl<'a> Parser<'a> {
                 || self.peek_keyword("else")
                 || self.peek_keyword("in")
                 || self.peek_keyword("from")
+                || self.peek_keyword("deriving")
                 // Stop at command keywords
                 || self.peek_keyword("def")
                 || self.peek_keyword("theorem")

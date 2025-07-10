@@ -72,30 +72,116 @@ impl<'a> Parser<'a> {
     pub fn command(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 
-        // Check for keywords
+        // Check for keywords - must check longer keywords first to avoid prefix
+        // conflicts
         if let Some(ch) = self.peek() {
             match ch {
-                'i' if self.peek_keyword("import") => self.import_command(),
+                'a' => {
+                    if self.peek_keyword("abbrev") {
+                        self.abbrev_command()
+                    } else if self.peek_keyword("axiom") {
+                        self.axiom_command()
+                    } else {
+                        Err(ParseError::boxed(
+                            ParseErrorKind::Expected("command".to_string()),
+                            start,
+                        ))
+                    }
+                }
+                'c' => {
+                    if self.peek_keyword("class") {
+                        self.class_command()
+                    } else if self.peek_keyword("constant") {
+                        self.constant_command()
+                    } else {
+                        Err(ParseError::boxed(
+                            ParseErrorKind::Expected("command".to_string()),
+                            start,
+                        ))
+                    }
+                }
+                'd' => {
+                    if self.peek_keyword("declare_syntax_cat") {
+                        self.declare_syntax_cat()
+                    } else if self.peek_keyword("def") {
+                        self.def_command()
+                    } else {
+                        Err(ParseError::boxed(
+                            ParseErrorKind::Expected("command".to_string()),
+                            start,
+                        ))
+                    }
+                }
+                'e' => {
+                    if self.peek_keyword("elab") {
+                        self.elab_command()
+                    } else if self.peek_keyword("end") {
+                        self.end_command()
+                    } else {
+                        Err(ParseError::boxed(
+                            ParseErrorKind::Expected("command".to_string()),
+                            start,
+                        ))
+                    }
+                }
+                'i' => {
+                    if self.peek_keyword("inductive") {
+                        self.inductive_command()
+                    } else if self.peek_keyword("instance") {
+                        self.instance_command()
+                    } else if self.peek_keyword("import") {
+                        self.import_command()
+                    } else {
+                        Err(ParseError::boxed(
+                            ParseErrorKind::Expected("command".to_string()),
+                            start,
+                        ))
+                    }
+                }
+                'm' => {
+                    if self.peek_keyword("macro_rules") {
+                        self.macro_rules()
+                    } else if self.peek_keyword("macro") {
+                        self.macro_def()
+                    } else if self.peek_keyword("mutual") {
+                        self.mutual_command()
+                    } else {
+                        Err(ParseError::boxed(
+                            ParseErrorKind::Expected("command".to_string()),
+                            start,
+                        ))
+                    }
+                }
+                'n' => {
+                    if self.peek_keyword("notation") {
+                        self.notation_def()
+                    } else if self.peek_keyword("namespace") {
+                        self.namespace_command()
+                    } else {
+                        Err(ParseError::boxed(
+                            ParseErrorKind::Expected("command".to_string()),
+                            start,
+                        ))
+                    }
+                }
                 'o' if self.peek_keyword("open") => self.open_command(),
-                'n' if self.peek_keyword("namespace") => self.namespace_command(),
-                'd' if self.peek_keyword("def") => self.def_command(),
+                's' => {
+                    if self.peek_keyword("structure") {
+                        self.structure_command()
+                    } else if self.peek_keyword("syntax") {
+                        self.syntax_def()
+                    } else if self.peek_keyword("section") {
+                        self.section_command()
+                    } else {
+                        Err(ParseError::boxed(
+                            ParseErrorKind::Expected("command".to_string()),
+                            start,
+                        ))
+                    }
+                }
                 't' if self.peek_keyword("theorem") => self.theorem_command(),
-                'a' if self.peek_keyword("axiom") => self.axiom_command(),
-                'c' if self.peek_keyword("constant") => self.constant_command(),
-                'v' if self.peek_keyword("variable") => self.variable_command(),
                 'u' if self.peek_keyword("universe") => self.universe_command(),
-                's' if self.peek_keyword("section") => self.section_command(),
-                'e' if self.peek_keyword("end") => self.end_command(),
-                'i' if self.peek_keyword("instance") => self.instance_command(),
-                'c' if self.peek_keyword("class") => self.class_command(),
-                's' if self.peek_keyword("structure") => self.structure_command(),
-                'i' if self.peek_keyword("inductive") => self.inductive_command(),
-                'm' if self.peek_keyword("macro") => self.macro_def(),
-                'm' if self.peek_keyword("macro_rules") => self.macro_rules(),
-                's' if self.peek_keyword("syntax") => self.syntax_def(),
-                'n' if self.peek_keyword("notation") => self.notation_def(),
-                'e' if self.peek_keyword("elab") => self.elab_command(),
-                'd' if self.peek_keyword("declare_syntax_cat") => self.declare_syntax_cat(),
+                'v' if self.peek_keyword("variable") => self.variable_command(),
                 '#' => self.hash_command(),
                 '-' if self.input().peek_nth(1) == Some('-') => {
                     // Line comment, not a command
@@ -243,272 +329,6 @@ impl<'a> Parser<'a> {
             range,
             value: BaseCoword::new(path),
         }))
-    }
-
-    pub fn class_command(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-
-        self.keyword("class")?;
-        self.skip_whitespace();
-
-        // Parse class name
-        let name = self.identifier()?;
-        self.skip_whitespace();
-
-        // Parse type parameters
-        let mut params = Vec::new();
-        while self.peek() == Some('{') || self.peek() == Some('[') || self.peek() == Some('(') {
-            params.push(self.binder_group()?);
-            self.skip_whitespace();
-        }
-
-        // Parse extends clause (optional)
-        let mut extends = Vec::new();
-        if self.peek_keyword("extends") {
-            self.keyword("extends")?;
-            self.skip_whitespace();
-
-            // Parse parent classes
-            loop {
-                extends.push(self.term()?);
-                self.skip_whitespace();
-
-                if self.peek() == Some(',') {
-                    self.advance();
-                    self.skip_whitespace();
-                } else {
-                    break;
-                }
-            }
-        }
-
-        // Parse where clause for class body
-        if self.peek_keyword("where") {
-            self.keyword("where")?;
-            self.skip_whitespace();
-        }
-
-        // Parse class fields
-        let mut fields = Vec::new();
-        while self.peek().is_some_and(is_id_start)
-            && !self.peek_keyword("def")
-            && !self.peek_keyword("theorem")
-        {
-            let field_name = self.identifier()?;
-            self.skip_whitespace();
-
-            self.expect_char(':')?;
-            self.skip_whitespace();
-
-            let field_type = self.term()?;
-            self.skip_whitespace();
-
-            let field_start = field_name
-                .range()
-                .map(|r| r.start)
-                .unwrap_or(self.position());
-            fields.push(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::Field,
-                range: self.input().range_from(field_start),
-                children: smallvec![field_name, field_type],
-            })));
-        }
-
-        let range = self.input().range_from(start);
-        let mut children = smallvec![name];
-        children.extend(params);
-        children.extend(extends);
-        children.extend(fields);
-
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Class,
-            range,
-            children,
-        })))
-    }
-
-    pub fn structure_command(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-
-        self.keyword("structure")?;
-        self.skip_whitespace();
-
-        // Parse structure name
-        let name = self.identifier()?;
-        self.skip_whitespace();
-
-        // Parse type parameters
-        let mut params = Vec::new();
-        while self.peek() == Some('{') || self.peek() == Some('[') || self.peek() == Some('(') {
-            params.push(self.binder_group()?);
-            self.skip_whitespace();
-        }
-
-        // Parse extends clause (optional)
-        let mut extends = Vec::new();
-        if self.peek_keyword("extends") {
-            self.keyword("extends")?;
-            self.skip_whitespace();
-
-            // Parse parent structures
-            loop {
-                extends.push(self.term()?);
-                self.skip_whitespace();
-
-                if self.peek() == Some(',') {
-                    self.advance();
-                    self.skip_whitespace();
-                } else {
-                    break;
-                }
-            }
-        }
-
-        // Parse where clause for structure body
-        if self.peek_keyword("where") {
-            self.keyword("where")?;
-            self.skip_whitespace();
-        }
-
-        // Parse structure fields
-        let mut fields = Vec::new();
-        while self.peek().is_some_and(is_id_start) {
-            let field_name = self.identifier()?;
-            self.skip_whitespace();
-
-            self.expect_char(':')?;
-            self.skip_whitespace();
-
-            let field_type = self.term()?;
-            self.skip_whitespace();
-
-            // Optional default value
-            let default = if self.peek() == Some(':') && self.input().peek_nth(1) == Some('=') {
-                self.advance(); // consume ':'
-                self.advance(); // consume '='
-                self.skip_whitespace();
-                Some(self.term()?)
-            } else {
-                None
-            };
-
-            let field_start = field_name
-                .range()
-                .map(|r| r.start)
-                .unwrap_or(self.position());
-            let field_range = self.input().range_from(field_start);
-            let mut field_children = smallvec![field_name, field_type];
-            if let Some(def) = default {
-                field_children.push(def);
-            }
-
-            fields.push(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::Field,
-                range: field_range,
-                children: field_children,
-            })));
-
-            self.skip_whitespace();
-        }
-
-        let range = self.input().range_from(start);
-        let mut children = smallvec![name];
-        children.extend(params);
-        children.extend(extends);
-        children.extend(fields);
-
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Structure,
-            range,
-            children,
-        })))
-    }
-
-    pub fn inductive_command(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-
-        self.keyword("inductive")?;
-        self.skip_whitespace();
-
-        // Parse inductive name
-        let name = self.identifier()?;
-        self.skip_whitespace();
-
-        // Parse type parameters
-        let mut params = Vec::new();
-        while self.peek() == Some('{') || self.peek() == Some('[') || self.peek() == Some('(') {
-            params.push(self.binder_group()?);
-            self.skip_whitespace();
-        }
-
-        // Parse type annotation (optional)
-        let ty = if self.peek() == Some(':') {
-            self.advance(); // consume ':'
-            self.skip_whitespace();
-            Some(self.term()?)
-        } else {
-            None
-        };
-
-        self.skip_whitespace();
-
-        // Parse where clause or pipe for constructors
-        if self.peek_keyword("where") {
-            self.keyword("where")?;
-            self.skip_whitespace();
-        }
-
-        // Parse constructors
-        let mut constructors = Vec::new();
-
-        // First constructor might not have a pipe
-        if self.peek() != Some('|') && self.peek().is_some_and(is_id_start) {
-            constructors.push(self.constructor()?);
-            self.skip_whitespace();
-        }
-
-        // Remaining constructors with pipes
-        while self.peek() == Some('|') {
-            self.advance(); // consume '|'
-            self.skip_whitespace();
-            constructors.push(self.constructor()?);
-            self.skip_whitespace();
-        }
-
-        let range = self.input().range_from(start);
-        let mut children = smallvec![name];
-        children.extend(params);
-        if let Some(t) = ty {
-            children.push(t);
-        }
-        children.extend(constructors);
-
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Inductive,
-            range,
-            children,
-        })))
-    }
-
-    /// Parse a constructor: `name : type`
-    fn constructor(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-
-        // Parse constructor name
-        let name = self.identifier()?;
-        self.skip_whitespace();
-
-        // Parse type
-        self.expect_char(':')?;
-        self.skip_whitespace();
-        let ty = self.term()?;
-
-        let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Constructor,
-            range,
-            children: smallvec![name, ty],
-        })))
     }
 
     pub fn hash_command(&mut self) -> ParserResult<Syntax> {

@@ -51,20 +51,51 @@ fn test_elaborate_application() {
     let syntax = parser.term().unwrap();
 
     let mut elab = Elaborator::new();
+
+    // Add the identifiers to the local context so they can be resolved
+    use lean_kernel::{expr::BinderInfo, Expr, Name};
+    let nat_type = Expr::const_expr("Nat".into(), vec![]);
+
+    // f : Nat → Nat → Nat (a function that takes two Nats and returns a Nat)
+    let f_type = Expr::forall(
+        Name::mk_simple("_"),
+        nat_type.clone(),
+        Expr::forall(
+            Name::mk_simple("_"),
+            nat_type.clone(),
+            nat_type.clone(),
+            BinderInfo::Default,
+        ),
+        BinderInfo::Default,
+    );
+
+    let f_id = elab
+        .state_mut()
+        .lctx
+        .push_local_decl(Name::mk_simple("f"), f_type);
+    let x_id = elab
+        .state_mut()
+        .lctx
+        .push_local_decl(Name::mk_simple("x"), nat_type.clone());
+    let y_id = elab
+        .state_mut()
+        .lctx
+        .push_local_decl(Name::mk_simple("y"), nat_type);
+
     let expr = elab.elaborate(&syntax).unwrap();
 
-    // Should be App(App(f, x), y)
+    // Should be App(App(f, x), y) with FVars
     match &expr.kind {
         ExprKind::App(f_x, y) => {
             match &f_x.kind {
                 ExprKind::App(f, x) => {
-                    // Check we have the right constants
-                    assert!(matches!(&f.kind, ExprKind::Const(name, _) if name.to_string() == "f"));
-                    assert!(matches!(&x.kind, ExprKind::Const(name, _) if name.to_string() == "x"));
+                    // Check we have the right free variables
+                    assert!(matches!(&f.kind, ExprKind::FVar(name) if name == &f_id));
+                    assert!(matches!(&x.kind, ExprKind::FVar(name) if name == &x_id));
                 }
                 _ => panic!("Expected nested application"),
             }
-            assert!(matches!(&y.kind, ExprKind::Const(name, _) if name.to_string() == "y"));
+            assert!(matches!(&y.kind, ExprKind::FVar(name) if name == &y_id));
         }
         _ => panic!("Expected application"),
     }
@@ -129,4 +160,116 @@ fn test_elaborate_with_metavars() {
         }
         _ => panic!("Expected lambda"),
     }
+}
+
+#[test]
+fn test_implicit_args_synthesis_integration() {
+    use lean_kernel::{expr::BinderInfo, Expr, Level, Name};
+
+    // Test implicit argument synthesis more directly by just parsing "id"
+    // and checking that synthesis works
+    let mut elab = Elaborator::new();
+
+    // Create an identity function type: {α : Type} → α → α
+    let type_sort = Expr::sort(Level::zero());
+    let alpha_var = Expr::bvar(0);
+    let arrow_type = Expr::forall(
+        Name::mk_simple("_"),
+        alpha_var.clone(),
+        alpha_var.clone(),
+        BinderInfo::Default,
+    );
+    let id_type = Expr::forall(
+        Name::mk_simple("α"),
+        type_sort,
+        arrow_type,
+        BinderInfo::Implicit,
+    );
+
+    // Add the identity function to the local context
+    let id_name = Name::mk_simple("id");
+    let id_fvar_id = elab
+        .state_mut()
+        .lctx
+        .push_local_decl(id_name.clone(), id_type);
+
+    // Parse just "id" and verify synthesis works directly
+    let mut parser = Parser::new("id");
+    let syntax = parser.term().expect("Failed to parse");
+
+    // Elaborate the syntax - but don't expect synthesis since we're not applying
+    let result = elab.elaborate(&syntax).expect("Failed to elaborate");
+
+    // The result should just be the function itself, no implicit args synthesized
+    // yet
+    match &result.kind {
+        ExprKind::FVar(name) => {
+            assert_eq!(name, &id_fvar_id);
+        }
+        _ => panic!("Expected simple FVar for id function"),
+    }
+
+    // Now test that synthesis_implicit_args works on this function
+    let synthesized = elab
+        .synthesize_implicit_args(result)
+        .expect("Failed to synthesize");
+
+    // Now we should have an application: App(id, ?mvar)
+    match &synthesized.kind {
+        ExprKind::App(id_f, impl_arg) => {
+            // id_f should be the identity function
+            match &id_f.kind {
+                ExprKind::FVar(name) => {
+                    assert_eq!(name, &id_fvar_id);
+                }
+                _ => panic!("Expected FVar for id function"),
+            }
+
+            // impl_arg should be a metavariable
+            match &impl_arg.kind {
+                ExprKind::MVar(_) => {
+                    // This is what we expect - implicit argument was
+                    // synthesized
+                }
+                _ => panic!("Expected metavariable for implicit argument"),
+            }
+        }
+        _ => panic!("Expected application with synthesized implicit arg"),
+    }
+}
+
+#[test]
+fn test_instance_resolution_with_elaboration() {
+    use lean_elaborator::Instance;
+    use lean_kernel::{Expr, Name};
+
+    // Test that instance resolution integrates properly with elaboration
+    let mut elab = Elaborator::new();
+
+    // Set up an Add Nat instance
+    let add_nat_ty = Expr::app(
+        Expr::const_expr("Add".into(), vec![]),
+        Expr::const_expr("Nat".into(), vec![]),
+    );
+    let add_nat_instance = Instance {
+        name: Name::mk_simple("AddNat"),
+        ty: add_nat_ty.clone(),
+        priority: 100,
+    };
+
+    // Add to instance context
+    elab.state_mut().inst_ctx.add_instance(add_nat_instance);
+
+    // Verify the instance was added
+    let instances = elab.state().inst_ctx.find_instances(&add_nat_ty);
+    assert_eq!(instances.len(), 1);
+    assert_eq!(instances[0].name.to_string(), "AddNat");
+    assert_eq!(instances[0].priority, 100);
+
+    // Test that the instance context is properly integrated
+    assert!(elab
+        .state()
+        .inst_ctx
+        .find_instances(&Expr::const_expr("Nonexistent".into(), vec![]))
+        .is_empty());
 }

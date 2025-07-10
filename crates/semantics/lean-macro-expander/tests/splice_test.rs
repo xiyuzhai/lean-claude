@@ -1,3 +1,5 @@
+#![allow(clippy::uninlined_format_args)]
+
 use lean_macro_expander::{MacroEnvironment, MacroExpander};
 use lean_parser::Parser;
 use lean_syn_expr::{Syntax, SyntaxKind};

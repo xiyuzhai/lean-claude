@@ -5,11 +5,7 @@ use lean_kernel::{
     Expr, Level, Name,
 };
 
-use crate::{
-    context::LocalContext,
-    error::ElabError,
-    metavar::MetavarContext,
-};
+use crate::{context::LocalContext, error::ElabError, metavar::MetavarContext};
 
 /// Type checker state
 pub struct TypeChecker<'a> {
@@ -58,23 +54,23 @@ impl<'a> TypeChecker<'a> {
             ExprKind::App(f, a) => {
                 // Infer type of function
                 let f_type = self.infer_type(f)?;
-                
+
                 // Normalize the function type
                 let f_type_norm = self.whnf(&f_type)?;
-                
+
                 // Function type must be a forall
                 match &f_type_norm.kind {
                     ExprKind::Forall(_, domain, codomain, _) => {
                         // Check that argument has the right type
                         let a_type = self.infer_type(a)?;
                         self.ensure_def_eq(&a_type, domain)?;
-                        
+
                         // Substitute argument in codomain
                         Ok(self.instantiate(codomain, a))
                     }
                     _ => Err(ElabError::TypeMismatch {
                         expected: "function type".to_string(),
-                        got: format!("{:?}", f_type_norm),
+                        got: format!("{f_type_norm:?}"),
                     }),
                 }
             }
@@ -91,9 +87,9 @@ impl<'a> TypeChecker<'a> {
                 // Check that ty is a type
                 let ty_type = self.infer_type(ty)?;
                 self.ensure_is_type(&ty_type)?;
-                
+
                 // TODO: Check body in extended context
-                
+
                 // Type of forall is a sort
                 Ok(Expr::sort(Level::zero())) // TODO: Universe polymorphism
             }
@@ -102,7 +98,7 @@ impl<'a> TypeChecker<'a> {
                 // let val_type = self.infer_type(val)?;
                 // For now, don't check type equality since we're using metavariables
                 // self.ensure_def_eq(&val_type, ty)?;
-                
+
                 // Type of let is type of body with substitution
                 // For now, just infer the body type directly
                 // TODO: Properly handle let bindings in context
@@ -118,8 +114,7 @@ impl<'a> TypeChecker<'a> {
             ExprKind::Proj(struct_name, idx, _e) => {
                 // TODO: Look up structure and field types
                 Err(ElabError::InvalidProjection(format!(
-                    "Projection {}.{} not implemented",
-                    struct_name, idx
+                    "Projection {struct_name}.{idx} not implemented"
                 )))
             }
             ExprKind::MData(_, e) => {
@@ -142,7 +137,7 @@ impl<'a> TypeChecker<'a> {
             ExprKind::Sort(_) => Ok(()),
             _ => Err(ElabError::TypeMismatch {
                 expected: "Sort".to_string(),
-                got: format!("{:?}", ty_whnf),
+                got: format!("{ty_whnf:?}"),
             }),
         }
     }
@@ -153,8 +148,8 @@ impl<'a> TypeChecker<'a> {
             Ok(())
         } else {
             Err(ElabError::TypeMismatch {
-                expected: format!("{:?}", e2),
-                got: format!("{:?}", e1),
+                expected: format!("{e2:?}"),
+                got: format!("{e1:?}"),
             })
         }
     }
@@ -176,7 +171,7 @@ impl<'a> TypeChecker<'a> {
     /// Core definitional equality check
     fn is_def_eq_core(&mut self, e1: &Expr, e2: &Expr) -> Result<bool, ElabError> {
         use ExprKind::*;
-        
+
         match (&e1.kind, &e2.kind) {
             (BVar(i1), BVar(i2)) => Ok(i1 == i2),
             (FVar(n1), FVar(n2)) => Ok(n1 == n2),
@@ -184,29 +179,25 @@ impl<'a> TypeChecker<'a> {
             (Sort(l1), Sort(l2)) => Ok(l1 == l2),
             (Const(n1, ls1), Const(n2, ls2)) => Ok(n1 == n2 && ls1 == ls2),
             (Lit(l1), Lit(l2)) => Ok(l1 == l2),
-            
-            (App(f1, a1), App(f2, a2)) => {
-                Ok(self.is_def_eq(f1, f2)? && self.is_def_eq(a1, a2)?)
-            }
-            
+
+            (App(f1, a1), App(f2, a2)) => Ok(self.is_def_eq(f1, f2)? && self.is_def_eq(a1, a2)?),
+
             (Lam(_, ty1, body1, _), Lam(_, ty2, body2, _)) => {
                 Ok(self.is_def_eq(ty1, ty2)? && self.is_def_eq(body1, body2)?)
             }
-            
+
             (Forall(_, ty1, body1, _), Forall(_, ty2, body2, _)) => {
                 Ok(self.is_def_eq(ty1, ty2)? && self.is_def_eq(body1, body2)?)
             }
-            
-            (Let(_, ty1, val1, body1), Let(_, ty2, val2, body2)) => {
-                Ok(self.is_def_eq(ty1, ty2)?
-                    && self.is_def_eq(val1, val2)?
-                    && self.is_def_eq(body1, body2)?)
-            }
-            
+
+            (Let(_, ty1, val1, body1), Let(_, ty2, val2, body2)) => Ok(self.is_def_eq(ty1, ty2)?
+                && self.is_def_eq(val1, val2)?
+                && self.is_def_eq(body1, body2)?),
+
             (Proj(s1, i1, e1), Proj(s2, i2, e2)) => {
                 Ok(s1 == s2 && i1 == i2 && self.is_def_eq(e1, e2)?)
             }
-            
+
             _ => Ok(false),
         }
     }
@@ -289,6 +280,7 @@ impl<'a> TypeChecker<'a> {
         self.lift_bvars_core(expr, amount, 0)
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn lift_bvars_core(&self, expr: &Expr, amount: u32, depth: u32) -> Expr {
         match &expr.kind {
             ExprKind::BVar(idx) => {
@@ -365,12 +357,12 @@ impl<'a> Unifier<'a> {
                 self.unify(f1, f2)?;
                 self.unify(a1, a2)
             }
-            
+
             (Lam(_, ty1, body1, _), Lam(_, ty2, body2, _)) => {
                 self.unify(ty1, ty2)?;
                 self.unify(body1, body2)
             }
-            
+
             (Forall(_, ty1, body1, _), Forall(_, ty2, body2, _)) => {
                 self.unify(ty1, ty2)?;
                 self.unify(body1, body2)
@@ -382,8 +374,8 @@ impl<'a> Unifier<'a> {
                     Ok(())
                 } else {
                     Err(ElabError::TypeMismatch {
-                        expected: format!("{:?}", e2),
-                        got: format!("{:?}", e1),
+                        expected: format!("{e2:?}"),
+                        got: format!("{e1:?}"),
                     })
                 }
             }
@@ -392,8 +384,10 @@ impl<'a> Unifier<'a> {
 
     fn assign_mvar(&mut self, mvar: Name, value: Expr) -> Result<(), ElabError> {
         // TODO: Occurs check
-        self.tc.mctx.assign(mvar, value)
-            .map_err(|e| ElabError::ElaborationFailed(e))
+        self.tc
+            .mctx
+            .assign(mvar, value)
+            .map_err(ElabError::ElaborationFailed)
     }
 }
 
@@ -410,7 +404,7 @@ mod tests {
         // Type of Sort 0 is Sort 1
         let expr = Expr::sort(Level::zero());
         let ty = tc.infer_type(&expr).unwrap();
-        
+
         match &ty.kind {
             ExprKind::Sort(level) => {
                 assert_eq!(*level, Level::succ(Level::zero()));
@@ -435,7 +429,7 @@ mod tests {
         let app = Expr::app(lam, Expr::fvar(Name::mk_simple("y")));
 
         let reduced = tc.whnf(&app).unwrap();
-        
+
         match &reduced.kind {
             ExprKind::FVar(name) => {
                 assert_eq!(name.to_string(), "y");
@@ -451,10 +445,10 @@ mod tests {
 
         // Create a metavariable
         let mvar = mctx.mk_metavar(Expr::sort(Level::zero()), lctx.clone());
-        
+
         // Unify it with a constant
         let const_expr = Expr::const_expr("Nat".into(), vec![]);
-        
+
         let mut unifier = Unifier::new(&lctx, &mut mctx);
         unifier.unify(&mvar, &const_expr).unwrap();
 

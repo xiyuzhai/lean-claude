@@ -1,0 +1,8 @@
+# Clippy configuration for tests
+# These warnings are not critical for test code quality
+
+# Allow uninlined format args in tests
+uninlined-format-args = "allow"
+
+# Allow single match patterns in tests
+single-match = "allow"

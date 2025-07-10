@@ -1,3 +1,6 @@
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::single_match)]
+
 use lean_parser::Parser;
 use lean_syn_expr::{Syntax, SyntaxKind};
 
