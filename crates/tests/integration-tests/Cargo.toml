@@ -28,6 +28,12 @@ path = "../../../tests/integration/custom_syntax_test.rs"
 name = "projection_test"
 path = "../../../tests/integration/projection_test.rs"
 
+[[test]]
+name = "elaborator_test"
+path = "../../../tests/integration/elaborator_test.rs"
+
 [dependencies]
 lean-parser = { path = "../../syntax/lean-parser" }
 lean-syn-expr = { path = "../../syntax/lean-syn-expr" }
+lean-kernel = { path = "../../semantics/lean-kernel" }
+lean-elaborator = { path = "../../semantics/lean-elaborator" }

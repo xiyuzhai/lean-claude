@@ -338,6 +338,8 @@ dependencies = [
 name = "integration-tests"
 version = "0.1.0"
 dependencies = [
+ "lean-elaborator",
+ "lean-kernel",
  "lean-parser",
  "lean-syn-expr",
 ]
@@ -380,6 +382,7 @@ dependencies = [
  "expect-test",
  "indexmap",
  "lean-kernel",
+ "lean-parser",
  "lean-syn-expr",
  "thiserror",
 ]

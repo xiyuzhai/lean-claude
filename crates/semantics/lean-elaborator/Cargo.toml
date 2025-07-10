@@ -15,3 +15,4 @@ indexmap = { workspace = true }
 
 [dev-dependencies]
 expect-test = { workspace = true }
+lean-parser = { path = "../../syntax/lean-parser" }
