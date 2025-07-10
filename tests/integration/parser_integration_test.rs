@@ -151,8 +151,7 @@ fn test_parse_tactics() {
         assert_eq!(
             syntax.kind(),
             Some(SyntaxKind::By),
-            "Expected By node for {}",
-            description
+            "Expected By node for {description}"
         );
     }
 }
@@ -235,17 +234,12 @@ fn test_error_reporting() {
         // Parser should return meaningful errors
         assert!(
             result.is_err(),
-            "Parser should report error for {}: {}",
-            description,
-            input
+            "Parser should report error for {description}: {input}"
         );
 
         if let Err(e) = result {
             // Check that we get a proper error message
-            assert!(
-                !format!("{:?}", e).is_empty(),
-                "Error should have a message"
-            );
+            assert!(!format!("{e:?}").is_empty(), "Error should have a message");
         }
     }
 }

@@ -28,7 +28,7 @@ fn test_individual_commands() {
     ];
 
     for (input, desc) in commands {
-        println!("\n=== Testing: {} ===", desc);
+        println!("\n=== Testing: {desc} ===");
         println!("Input: {}", input.replace('\n', "\\n"));
 
         let mut parser = Parser::new(input);
@@ -43,7 +43,7 @@ fn test_individual_commands() {
                 }
             }
             Err(e) => {
-                println!("✗ Parse error: {:?}", e);
+                println!("✗ Parse error: {e:?}");
                 // Debug: Show position in input
                 let offset = e.position.offset;
                 if offset < input.len() {
@@ -153,7 +153,7 @@ abbrev Origin := ColoredPoint.mk 0 0 Color.red
                                     println!("      Error node range: {:?}", n.range);
                                 }
                             }
-                            _ => println!("    Command {}: Not a node", i),
+                            _ => println!("    Command {i}: Not a node"),
                         }
                     }
                 }
@@ -161,7 +161,7 @@ abbrev Origin := ColoredPoint.mk 0 0 Color.red
             }
         }
         Err(e) => {
-            println!("✗ Module parse error: {:?}", e);
+            println!("✗ Module parse error: {e:?}");
         }
     }
 }

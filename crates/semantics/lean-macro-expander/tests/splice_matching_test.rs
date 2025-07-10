@@ -1,0 +1,103 @@
+use eterned::BaseCoword;
+use im::HashMap;
+use lean_macro_expander::pattern::{substitute_template, PatternMatcher};
+use lean_parser::Parser;
+use lean_syn_expr::Syntax;
+
+#[test]
+#[ignore] // TODO: Implement splice pattern matching in pattern matcher
+fn test_splice_pattern_matching() {
+    // Test that splice patterns match correctly
+    let pattern_str = "`(wrap $xs,*)";
+    let syntax_str = "wrap a b c";
+
+    let mut pattern_parser = Parser::new(pattern_str);
+    let pattern = pattern_parser
+        .parse_syntax_quotation()
+        .expect("Failed to parse pattern");
+
+    let mut syntax_parser = Parser::new(syntax_str);
+    let syntax = syntax_parser.term().expect("Failed to parse syntax");
+
+    println!("Pattern: {pattern:?}");
+    println!("Syntax: {syntax:?}");
+
+    // Extract the inner pattern (unwrap the quotation)
+    let inner_pattern = if let Syntax::Node(node) = &pattern {
+        node.children.first().cloned().unwrap_or(pattern.clone())
+    } else {
+        pattern.clone()
+    };
+
+    let match_result =
+        PatternMatcher::match_pattern(&inner_pattern, &syntax).expect("Pattern matching failed");
+
+    println!("Match result: {match_result:?}");
+
+    assert!(match_result.is_some(), "Pattern should match");
+
+    if let Some(pattern_match) = match_result {
+        println!("Bindings: {:?}", pattern_match.bindings);
+        assert!(
+            pattern_match
+                .bindings
+                .contains_key(&BaseCoword::new("xs".to_string())),
+            "Should bind xs"
+        );
+    }
+}
+
+#[test]
+fn test_splice_template_substitution() {
+    // Test that splice templates substitute correctly
+    let template_str = "`(outer $xs,* inner)";
+
+    let mut template_parser = Parser::new(template_str);
+    let template = template_parser
+        .parse_syntax_quotation()
+        .expect("Failed to parse template");
+
+    // Extract inner template
+    let inner_template = if let Syntax::Node(node) = &template {
+        node.children.first().cloned().unwrap_or(template.clone())
+    } else {
+        template.clone()
+    };
+
+    // Create bindings - xs should bind to a sequence
+    let mut bindings = HashMap::new();
+
+    // Parse "a b c" as a sequence
+    let mut seq_parser = Parser::new("a b c");
+    let a = seq_parser.identifier().unwrap();
+    seq_parser.skip_whitespace();
+    let b = seq_parser.identifier().unwrap();
+    seq_parser.skip_whitespace();
+    let c = seq_parser.identifier().unwrap();
+
+    // Create an App node to hold the sequence
+    let seq = Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
+        kind: lean_syn_expr::SyntaxKind::App,
+        range: lean_syn_expr::SourceRange {
+            start: lean_syn_expr::SourcePos::new(0, 0, 0),
+            end: lean_syn_expr::SourcePos::new(0, 0, 0),
+        },
+        children: vec![a, b, c].into(),
+    }));
+
+    bindings.insert(BaseCoword::new("xs".to_string()), seq);
+
+    let result =
+        substitute_template(&inner_template, &bindings).expect("Template substitution failed");
+
+    println!("Template: {inner_template:?}");
+    println!("Result: {result:?}");
+
+    // Check that the result contains the expected structure
+    let result_str = format!("{result:?}");
+    assert!(result_str.contains("outer"), "Should contain outer");
+    assert!(result_str.contains("inner"), "Should contain inner");
+    assert!(result_str.contains("a"), "Should contain a");
+    assert!(result_str.contains("b"), "Should contain b");
+    assert!(result_str.contains("c"), "Should contain c");
+}

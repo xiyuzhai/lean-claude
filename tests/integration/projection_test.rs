@@ -7,7 +7,7 @@ fn test_numeric_projection() {
     let mut parser = Parser::new(input);
     let result = parser.term();
 
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
     let syntax = result.unwrap();
 
     if let Syntax::Node(node) = &syntax {
@@ -32,7 +32,7 @@ fn test_field_projection() {
     let mut parser = Parser::new(input);
     let result = parser.term();
 
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
     let syntax = result.unwrap();
 
     if let Syntax::Node(node) = &syntax {
@@ -49,7 +49,7 @@ fn test_nested_projection() {
     let mut parser = Parser::new(input);
     let result = parser.term();
 
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
     let syntax = result.unwrap();
 
     // Should be projection(projection(x, field), subfield)
@@ -72,7 +72,7 @@ fn test_projection_with_application() {
     let mut parser = Parser::new(input);
     let result = parser.term();
 
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
     let syntax = result.unwrap();
 
     // Should be App(f, projection(x, 1), projection(y, field))
@@ -100,7 +100,7 @@ fn test_projection_with_parentheses() {
     let mut parser = Parser::new(input);
     let result = parser.term();
 
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
     let syntax = result.unwrap();
 
     // Should be projection(binop(+, x, y), field)
@@ -127,14 +127,13 @@ fn test_tuple_projections() {
     for (input, desc) in cases {
         let mut parser = Parser::new(input);
         let result = parser.term();
-        assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
+        assert!(result.is_ok(), "Failed to parse {desc}: {result:?}");
 
         if let Ok(Syntax::Node(node)) = result {
             assert_eq!(
                 node.kind,
                 SyntaxKind::Projection,
-                "Expected projection for {}",
-                desc
+                "Expected projection for {desc}"
             );
         }
     }

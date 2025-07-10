@@ -7,7 +7,7 @@ fn test_declare_syntax_category() {
     let mut parser = Parser::new(input);
 
     let result = parser.module();
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
 
     let module = result.unwrap();
     if let Syntax::Node(node) = &module {
@@ -29,7 +29,7 @@ declare_syntax_cat mytactic (parent: tactic) (behavior: keyword)
 
     let mut parser = Parser::new(input);
     let result = parser.module();
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
 }
 
 #[test]
@@ -41,7 +41,7 @@ syntax "⟨" term "⟩" : term
 
     let mut parser = Parser::new(input);
     let result = parser.module();
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
 }
 
 #[test]
@@ -53,7 +53,7 @@ syntax (precedence := 70) term "⊗" term : term
 
     let mut parser = Parser::new(input);
     let result = parser.module();
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
 }
 
 #[test]
@@ -65,7 +65,7 @@ syntax "repeat" tactic "until" term : tactic
 
     let mut parser = Parser::new(input);
     let result = parser.module();
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
 }
 
 #[test]
@@ -80,7 +80,7 @@ syntax term : array_comp
 
     let mut parser = Parser::new(input);
     let result = parser.module();
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
 }
 
 #[test]
@@ -93,7 +93,7 @@ declare_syntax_cat mymixed (behavior: both)
 
     let mut parser = Parser::new(input);
     let result = parser.module();
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
 }
 
 #[test]
@@ -105,7 +105,7 @@ syntax "when" term "do" tactic : tactic
 
     let mut parser = Parser::new(input);
     let result = parser.module();
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
 }
 
 #[test]
@@ -132,7 +132,7 @@ def test := ⦃42⦄
         }
         Err(e) => {
             // Expected for now - custom syntax usage not yet integrated
-            println!("Expected error for now: {:?}", e);
+            println!("Expected error for now: {e:?}");
         }
     }
 }
@@ -166,7 +166,7 @@ syntax "test3" : cat3
 
     let mut parser = Parser::new(input);
     let result = parser.module();
-    assert!(result.is_ok(), "Failed to parse: {:?}", result);
+    assert!(result.is_ok(), "Failed to parse: {result:?}");
 
     let module = result.unwrap();
     assert!(contains_syntax_kind(&module, SyntaxKind::DeclareSyntaxCat));

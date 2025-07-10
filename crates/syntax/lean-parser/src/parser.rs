@@ -801,36 +801,84 @@ impl<'a> Parser<'a> {
         self.advance(); // consume opening delimiter
         self.skip_whitespace();
 
-        let mut names = Vec::new();
+        // Special handling for instance implicit binders [Monad m] or [inst : Class A]
+        if binder_kind == lean_syn_expr::SyntaxKind::LeftBracket {
+            // Check if this is a direct term (like [Monad m]) or has an identifier
+            if self.peek().is_some_and(is_id_start) {
+                self.input.save_position();
+                let first_id = self.identifier()?;
+                self.skip_whitespace();
 
-        // Parse names
-        while self.peek().is_some_and(is_id_start) {
-            names.push(self.identifier()?);
-            self.skip_whitespace();
-        }
+                if self.peek() == Some(':') {
+                    // This is [inst : Type] format
+                    self.input.commit_position(); // commit the save
+                    self.advance(); // consume ':'
+                    self.skip_whitespace();
+                    let ty = self.term()?;
+                    self.skip_whitespace();
+                    self.expect_char(close_delim)?;
 
-        // Parse type annotation
-        let ty = if self.peek() == Some(':') {
-            self.advance(); // consume ':'
-            self.skip_whitespace();
-            Some(self.term()?)
+                    let range = self.input().range_from(start);
+                    Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
+                        kind: binder_kind,
+                        range,
+                        children: vec![first_id, ty].into(),
+                    })))
+                } else {
+                    // This might be [Monad m] where "Monad m" is the full term
+                    // Restore and parse as a term
+                    self.input.restore_position();
+                    let term = self.term()?;
+                    self.skip_whitespace();
+                    self.expect_char(close_delim)?;
+
+                    let range = self.input().range_from(start);
+                    Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
+                        kind: binder_kind,
+                        range,
+                        children: vec![term].into(),
+                    })))
+                }
+            } else {
+                // Empty brackets or starts with non-identifier
+                Err(ParseError::boxed(
+                    ParseErrorKind::Expected("instance implicit term".to_string()),
+                    self.position(),
+                ))
+            }
         } else {
-            None
-        };
+            // Regular binder groups: (x y : T) or {x : T}
+            let mut names = Vec::new();
 
-        self.skip_whitespace();
-        self.expect_char(close_delim)?;
+            // Parse names
+            while self.peek().is_some_and(is_id_start) {
+                names.push(self.identifier()?);
+                self.skip_whitespace();
+            }
 
-        let range = self.input().range_from(start);
-        let mut children = names;
-        if let Some(t) = ty {
-            children.push(t);
+            // Parse type annotation
+            let ty = if self.peek() == Some(':') {
+                self.advance(); // consume ':'
+                self.skip_whitespace();
+                Some(self.term()?)
+            } else {
+                None
+            };
+
+            self.skip_whitespace();
+            self.expect_char(close_delim)?;
+
+            let range = self.input().range_from(start);
+            let mut children = names;
+            if let Some(t) = ty {
+                children.push(t);
+            }
+
+            Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
+                kind: binder_kind,
+                range,
+                children: children.into(),
+            })))
         }
-
-        Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-            kind: binder_kind,
-            range,
-            children: children.into(),
-        })))
     }
 }

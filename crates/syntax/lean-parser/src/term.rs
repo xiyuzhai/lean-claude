@@ -243,7 +243,7 @@ impl<'a> Parser<'a> {
         match self.peek() {
             Some('(') => self.paren_term(),
             Some('{') => self.implicit_term(),
-            Some('[') => self.inst_implicit_term(),
+            Some('[') => self.bracket_term(),
             Some('λ') | Some('\\') => self.lambda_term(),
             Some('∀') => self.forall_term(),
             Some('l') if self.peek_keyword("let") => self.let_term(),
@@ -318,6 +318,111 @@ impl<'a> Parser<'a> {
     pub fn inst_implicit_term(&mut self) -> ParserResult<Syntax> {
         // This is actually parsing a binder group in instance implicit brackets
         // It's already handled by binder_group(), so just delegate to it
+        self.binder_group()
+    }
+
+    /// Parse bracket term: could be list literal `[a, b, c]` or instance
+    /// implicit `[Monad m]`
+    pub fn bracket_term(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        self.expect_char('[')?;
+        self.skip_whitespace();
+
+        // Empty list
+        if self.peek() == Some(']') {
+            self.advance(); // consume ']'
+            let range = self.input().range_from(start);
+            return Ok(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::List,
+                range,
+                children: smallvec![],
+            })));
+        }
+
+        // Try to parse as a list literal first
+        // We need to look ahead to determine if this is a list or instance implicit
+        self.input_mut().save_position();
+
+        // Try parsing as list elements
+        let mut elements = Vec::new();
+        let mut is_list = true;
+        let mut saw_comma = false;
+
+        loop {
+            // Try to parse an element
+            match self.try_parse(|p| p.term()) {
+                Ok(elem) => {
+                    // Check if this looks like a type application (e.g., Monad m)
+                    // If the first element is an identifier followed by another identifier,
+                    // it's likely an instance implicit like [Monad m]
+                    if elements.is_empty() && !saw_comma {
+                        if let Syntax::Atom(_atom) = &elem {
+                            // This is a single identifier
+                            self.skip_whitespace();
+                            if self.peek().is_some_and(|c| c.is_alphabetic()) {
+                                // Followed by another identifier - likely instance implicit
+                                is_list = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    elements.push(elem);
+                    self.skip_whitespace();
+
+                    if self.peek() == Some(',') {
+                        // Definitely a list
+                        saw_comma = true;
+                        self.advance(); // consume ','
+                        self.skip_whitespace();
+                    } else if self.peek() == Some(']') {
+                        // End of bracket expression
+                        break;
+                    } else {
+                        // Not a comma or closing bracket - probably instance implicit
+                        is_list = false;
+                        break;
+                    }
+                }
+                Err(_) => {
+                    is_list = false;
+                    break;
+                }
+            }
+        }
+
+        // Only treat as list if we saw a comma OR it's empty OR it's a single element
+        // that looks like a literal
+        if is_list
+            && self.peek() == Some(']')
+            && (saw_comma
+                || elements.is_empty()
+                || (elements.len() == 1
+                    && match &elements[0] {
+                        // Numbers are parsed as atoms
+                        Syntax::Atom(atom) => atom
+                            .value
+                            .as_str()
+                            .chars()
+                            .next()
+                            .is_some_and(|c| c.is_numeric()),
+                        // String literals would be nodes
+                        Syntax::Node(node) => matches!(node.kind, SyntaxKind::StringLit),
+                        _ => false,
+                    }))
+        {
+            self.advance(); // consume ']'
+            self.input_mut().commit_position(); // Commit the saved position
+            let range = self.input().range_from(start);
+            return Ok(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::List,
+                range,
+                children: elements.into(),
+            })));
+        }
+
+        // Not a list, restore and parse as instance implicit
+        self.input_mut().restore_position();
         self.binder_group()
     }
 

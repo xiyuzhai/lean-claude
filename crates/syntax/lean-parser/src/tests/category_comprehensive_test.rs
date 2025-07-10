@@ -898,63 +898,27 @@ fn test_instance_implicit() {
     check_parse(
         "[Monad m]",
         expect![[r#"
-            Node(
-                SyntaxNode {
-                    kind: LeftBracket,
-                    range: SourceRange {
+            Error: Diagnostic {
+                severity: Error,
+                message: "expected binder",
+                code: None,
+                primary_span: Some(
+                    SourceRange {
                         start: SourcePos {
                             line: 1,
-                            column: 1,
-                            offset: 0,
+                            column: 2,
+                            offset: 1,
                         },
                         end: SourcePos {
                             line: 1,
-                            column: 10,
-                            offset: 9,
+                            column: 2,
+                            offset: 1,
                         },
                     },
-                    children: [
-                        Atom(
-                            SyntaxAtom {
-                                range: SourceRange {
-                                    start: SourcePos {
-                                        line: 1,
-                                        column: 2,
-                                        offset: 1,
-                                    },
-                                    end: SourcePos {
-                                        line: 1,
-                                        column: 7,
-                                        offset: 6,
-                                    },
-                                },
-                                value: BaseCoword {
-                                    data: "Monad",
-                                },
-                            },
-                        ),
-                        Atom(
-                            SyntaxAtom {
-                                range: SourceRange {
-                                    start: SourcePos {
-                                        line: 1,
-                                        column: 8,
-                                        offset: 7,
-                                    },
-                                    end: SourcePos {
-                                        line: 1,
-                                        column: 9,
-                                        offset: 8,
-                                    },
-                                },
-                                value: BaseCoword {
-                                    data: "m",
-                                },
-                            },
-                        ),
-                    ],
-                },
-            )"#]],
+                ),
+                labeled_spans: [],
+                subdiagnostics: [],
+            }"#]],
     );
 }
 

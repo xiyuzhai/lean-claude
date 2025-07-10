@@ -60,9 +60,59 @@ impl MacroExpander {
                     self.expand_node(node, &new_ctx)
                 }
             }
-            // Atoms and missing are returned as-is
+            Syntax::Atom(atom) => {
+                // Check if this atom is a parameterless macro
+                if let Some(expanded) = self.try_expand_atom_macro(atom, &new_ctx)? {
+                    // Recursively expand the result
+                    self.expand_with_context(&expanded, &new_ctx)
+                } else {
+                    Ok(syntax.clone())
+                }
+            }
+            // Missing is returned as-is
             _ => Ok(syntax.clone()),
         }
+    }
+
+    /// Try to expand an atom as a parameterless macro
+    fn try_expand_atom_macro(
+        &self,
+        atom: &lean_syn_expr::SyntaxAtom,
+        _ctx: &HygieneContext,
+    ) -> ExpansionResult<Option<Syntax>> {
+        let macro_name = atom.value.as_str();
+
+        // Look up macro definitions
+        let macros = match self.env.get_macros(macro_name) {
+            Some(macros) => macros,
+            None => return Ok(None),
+        };
+
+        // Try each macro definition in order
+        for macro_def in macros {
+            // Check if this macro accepts no parameters
+            if matches!(&macro_def.pattern, Syntax::Missing) {
+                // Match succeeded, substitute into template
+                let bindings = im::HashMap::new();
+                let expanded = substitute_template(&macro_def.template, &bindings)?;
+
+                // If the template result is a SyntaxQuotation, unwrap it
+                let final_expansion = match &expanded {
+                    Syntax::Node(exp_node) if exp_node.kind == SyntaxKind::SyntaxQuotation => {
+                        if let Some(content) = exp_node.children.first() {
+                            content.clone()
+                        } else {
+                            expanded
+                        }
+                    }
+                    _ => expanded,
+                };
+
+                return Ok(Some(final_expansion));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Try to expand a node as a macro application
@@ -132,10 +182,21 @@ impl MacroExpander {
 
     /// Expand children of a node
     fn expand_node(&mut self, node: &SyntaxNode, ctx: &HygieneContext) -> ExpansionResult<Syntax> {
+        // Special handling for macro definition nodes - don't expand their contents
+        match node.kind {
+            SyntaxKind::MacroRules | SyntaxKind::MacroDef => {
+                // Don't expand the contents of macro definitions, just return them as-is
+                // They will be filtered out by the module expansion logic
+                return Ok(Syntax::Node(Box::new(node.clone())));
+            }
+            _ => {}
+        }
+
         let mut new_children = Vec::with_capacity(node.children.len());
 
         for child in &node.children {
-            new_children.push(self.expand_with_context(child, ctx)?);
+            let expanded = self.expand_with_context(child, ctx)?;
+            new_children.push(expanded);
         }
 
         Ok(Syntax::Node(Box::new(SyntaxNode {
@@ -428,5 +489,47 @@ impl MacroExpander {
         };
 
         self.env.register_macro(assert_macro);
+
+        // dbg! macro: dbg! expr => let tmp := expr; trace! tmp; tmp
+        // The dbg! macro prints the expression and returns its value
+        let dbg_pattern = Syntax::Node(Box::new(SyntaxNode {
+            kind: lean_syn_expr::SyntaxKind::App,
+            range: dummy_range,
+            children: smallvec![
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: BaseCoword::new("expr")
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: BaseCoword::new("term")
+                }),
+            ],
+        }));
+
+        // For now, just return the expression itself since we don't have trace! yet
+        // In a full implementation, this would: let tmp := expr; trace! tmp; tmp
+        let dbg_template = Syntax::Node(Box::new(SyntaxNode {
+            kind: lean_syn_expr::SyntaxKind::SyntaxQuotation,
+            range: dummy_range,
+            children: smallvec![Syntax::Node(Box::new(SyntaxNode {
+                kind: lean_syn_expr::SyntaxKind::SyntaxAntiquotation,
+                range: dummy_range,
+                children: smallvec![Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: BaseCoword::new("expr")
+                }),],
+            })),],
+        }));
+
+        let dbg_macro = crate::environment::MacroDefinition {
+            name: BaseCoword::new("dbg!"),
+            pattern: dbg_pattern,
+            template: dbg_template,
+            category: BaseCoword::new("term"),
+            priority: 0,
+        };
+
+        self.env.register_macro(dbg_macro);
     }
 }

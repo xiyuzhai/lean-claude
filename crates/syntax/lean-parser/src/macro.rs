@@ -597,84 +597,180 @@ impl<'a> Parser<'a> {
 
     /// Parse a term inside a quotation (may contain antiquotations)
     fn parse_quotation_term(&mut self) -> ParserResult<Syntax> {
-        // We need to parse a term, but with special handling for antiquotations
-        // For now, let's use a simple approach: collect all tokens until ')'
-        let start = self.position();
-        let mut children = Vec::new();
+        // Parse a proper term that may contain antiquotations
+        // This should handle applications, operators, etc. properly
+        self.parse_quotation_term_with_app()
+    }
 
-        // Parse a term-like structure that may contain antiquotations
-        while self.peek() != Some(')') && !self.input().is_at_end() {
+    /// Parse a term inside quotation with proper application handling
+    fn parse_quotation_term_with_app(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        // Parse the first element (could be function or atom)
+        let mut result = self.parse_quotation_atom()?;
+
+        // Keep parsing arguments while we have them
+        loop {
             self.skip_whitespace();
 
-            if self.peek() == Some('$') {
-                // Parse antiquotation
-                children.push(self.parse_antiquotation()?);
-            } else if self.peek() == Some('+')
-                || self.peek() == Some('-')
-                || self.peek() == Some('*')
-                || self.peek() == Some('/')
+            // Check if we have another argument
+            if self.peek() == Some(')')  // End of quotation
+                || self.peek() == Some(',')  // List separator
+                || self.peek() == Some(']')  // End of list
+                || self.input().is_at_end()
             {
-                // Parse operator
-                let op_start = self.position();
-                let op = self.advance().unwrap();
-                let op_range = self.input().range_from(op_start);
-                children.push(Syntax::Atom(lean_syn_expr::SyntaxAtom {
-                    range: op_range,
-                    value: eterned::BaseCoword::new(op.to_string()),
-                }));
-            } else if self
-                .peek()
-                .is_some_and(|c| c.is_alphabetic() || c.is_numeric())
-            {
-                // Parse identifier or number
-                if self.peek().unwrap().is_numeric() {
-                    children.push(self.number()?);
-                } else {
-                    children.push(self.identifier()?);
-                }
-            } else if self.peek() == Some('(') {
-                // Nested parentheses
-                children.push(self.paren_term()?);
-            } else {
-                // Skip unknown character
-                self.advance();
+                break;
             }
 
-            self.skip_whitespace();
-        }
+            // Check for operators
+            if let Some(ch) = self.peek() {
+                // Check for ++ operator first
+                if ch == '+' && self.input().peek_nth(1) == Some('+') {
+                    // ++ operator
+                    let op_start = self.position();
+                    self.advance(); // consume first +
+                    self.advance(); // consume second +
+                    let op_range = self.input().range_from(op_start);
+                    let op_syntax = Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                        range: op_range,
+                        value: eterned::BaseCoword::new("++".to_string()),
+                    });
 
-        // If we have multiple children, wrap them in an App node
-        if children.is_empty() {
-            Err(ParseError::boxed(
-                ParseErrorKind::Expected("quotation content".to_string()),
-                self.position(),
-            ))
-        } else if children.len() == 1 {
-            Ok(children.into_iter().next().unwrap())
-        } else {
-            // Create a syntax tree from the children
-            // For now, let's create a simple binary tree for operators
-            if children.len() == 3 && matches!(children[1].as_str(), "+" | "-" | "*" | "/") {
-                // Binary operation
+                    self.skip_whitespace();
+                    let right = self.parse_quotation_term_with_app()?;
+
+                    let range = self.input().range_from(start);
+                    result = Syntax::Node(Box::new(SyntaxNode {
+                        kind: SyntaxKind::BinOp,
+                        range,
+                        children: smallvec![result, op_syntax, right],
+                    }));
+                    break;
+                } else if "+-*/".contains(ch) {
+                    // Single character binary operator
+                    let op_start = self.position();
+                    let op = self.advance().unwrap();
+                    let op_range = self.input().range_from(op_start);
+                    let op_syntax = Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                        range: op_range,
+                        value: eterned::BaseCoword::new(op.to_string()),
+                    });
+
+                    self.skip_whitespace();
+                    let right = self.parse_quotation_term_with_app()?;
+
+                    let range = self.input().range_from(start);
+                    result = Syntax::Node(Box::new(SyntaxNode {
+                        kind: SyntaxKind::BinOp,
+                        range,
+                        children: smallvec![result, op_syntax, right],
+                    }));
+                    break;
+                }
+            }
+
+            // Try to parse another argument
+            if let Ok(arg) = self.try_parse(|p| p.parse_quotation_atom()) {
+                // Create application node
                 let range = self.input().range_from(start);
-                Ok(Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::BinOp,
-                    range,
-                    children: smallvec![
-                        children[0].clone(),
-                        children[1].clone(),
-                        children[2].clone()
-                    ],
-                })))
-            } else {
-                // General application
-                let range = self.input().range_from(start);
-                Ok(Syntax::Node(Box::new(SyntaxNode {
+                result = Syntax::Node(Box::new(SyntaxNode {
                     kind: SyntaxKind::App,
                     range,
-                    children: children.into(),
-                })))
+                    children: smallvec![result, arg],
+                }));
+            } else {
+                break;
             }
+        }
+
+        Ok(result)
+    }
+
+    /// Parse an atomic term in a quotation
+    fn parse_quotation_atom(&mut self) -> ParserResult<Syntax> {
+        self.skip_whitespace();
+
+        if self.peek() == Some('$') {
+            // Antiquotation
+            self.parse_antiquotation()
+        } else if self.peek() == Some('(') {
+            // Parenthesized term in quotation context
+            self.parse_quotation_paren()
+        } else if self.peek() == Some('[') {
+            // List pattern
+            self.parse_list_pattern()
+        } else if self.peek().is_some_and(|c| c.is_numeric()) {
+            // Number
+            self.number()
+        } else if self.peek().is_some_and(|c| c.is_alphabetic() || c == '_') {
+            // Check for keywords first
+            if self.peek_keyword("fun") || self.peek_keyword("λ") {
+                // Parse lambda inside quotation
+                self.parse_quotation_lambda()
+            } else if self.peek_keyword("if") {
+                // Parse if-then-else
+                self.parse_quotation_if()
+            } else if self.peek_keyword("let") {
+                // Parse let expression
+                self.parse_quotation_let()
+            } else {
+                // Identifier (could be qualified like List.nil)
+                self.parse_qualified_identifier()
+            }
+        } else {
+            Err(ParseError::boxed(
+                ParseErrorKind::Expected("quotation term".to_string()),
+                self.position(),
+            ))
+        }
+    }
+
+    /// Parse parenthesized term in quotation context
+    fn parse_quotation_paren(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        self.expect_char('(')?;
+        self.skip_whitespace();
+
+        // Check for unit value ()
+        if self.peek() == Some(')') {
+            self.advance(); // consume ')'
+            let range = self.input().range_from(start);
+            return Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                range,
+                value: eterned::BaseCoword::new("Unit.unit"),
+            }));
+        }
+
+        // Parse the content using quotation parser
+        let term = self.parse_quotation_term_with_app()?;
+        self.skip_whitespace();
+        self.expect_char(')')?;
+        Ok(term)
+    }
+
+    /// Parse a potentially qualified identifier (e.g., List.nil)
+    fn parse_qualified_identifier(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        let mut parts = vec![self.identifier()?];
+
+        // Check for qualification dots
+        while self.peek() == Some('.')
+            && self.input().peek_nth(1).is_some_and(|c| c.is_alphabetic())
+        {
+            self.advance(); // consume '.'
+            parts.push(self.identifier()?);
+        }
+
+        if parts.len() == 1 {
+            Ok(parts.into_iter().next().unwrap())
+        } else {
+            // Create a qualified name node using App
+            let range = self.input().range_from(start);
+            Ok(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::App,
+                range,
+                children: parts.into(),
+            })))
         }
     }
 
@@ -739,6 +835,216 @@ impl<'a> Parser<'a> {
             kind: SyntaxKind::SyntaxAntiquotation,
             range,
             children: children.into(),
+        })))
+    }
+
+    /// Parse lambda inside quotation: fun x => body
+    fn parse_quotation_lambda(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        // Consume 'fun' or 'λ'
+        if self.peek_keyword("fun") {
+            self.keyword("fun")?;
+        } else {
+            self.advance(); // consume λ
+        }
+
+        self.skip_whitespace();
+
+        // Parse binder
+        let binder = self.identifier()?;
+
+        self.skip_whitespace();
+
+        // Expect =>
+        self.expect_char('=')?;
+        self.expect_char('>')?;
+
+        self.skip_whitespace();
+
+        // Parse body
+        let body = self.parse_quotation_term_with_app()?;
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Lambda,
+            range,
+            children: smallvec![binder, body],
+        })))
+    }
+
+    /// Parse let expression inside quotation: let x := val; body
+    fn parse_quotation_let(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.keyword("let")?;
+        self.skip_whitespace();
+
+        // Parse binder
+        let binder = self.identifier()?;
+        self.skip_whitespace();
+
+        // Expect :=
+        self.expect_char(':')?;
+        self.expect_char('=')?;
+        self.skip_whitespace();
+
+        // Parse value
+        let value = self.parse_quotation_term_with_app()?;
+        self.skip_whitespace();
+
+        // Expect semicolon
+        self.expect_char(';')?;
+        self.skip_whitespace();
+
+        // Parse body
+        let body = self.parse_quotation_term_with_app()?;
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Let,
+            range,
+            children: smallvec![binder, value, body],
+        })))
+    }
+
+    /// Parse if-then-else inside quotation
+    fn parse_quotation_if(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.keyword("if")?;
+        self.skip_whitespace();
+
+        // Parse condition
+        let cond = self.parse_quotation_term_with_app()?;
+
+        self.skip_whitespace();
+        self.keyword("then")?;
+        self.skip_whitespace();
+
+        // Parse then branch
+        let then_branch = self.parse_quotation_term_with_app()?;
+
+        self.skip_whitespace();
+        self.keyword("else")?;
+        self.skip_whitespace();
+
+        // Parse else branch
+        let else_branch = self.parse_quotation_term_with_app()?;
+
+        let range = self.input().range_from(start);
+
+        // Create an if-then-else as a function application
+        // if c then t else e => (((if c) then t) else e)
+        let if_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom {
+            range: self.input().range_from(start),
+            value: eterned::BaseCoword::new("if".to_string()),
+        });
+
+        let then_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom {
+            range: self.input().range_from(start),
+            value: eterned::BaseCoword::new("then".to_string()),
+        });
+
+        let else_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom {
+            range: self.input().range_from(start),
+            value: eterned::BaseCoword::new("else".to_string()),
+        });
+
+        // Build nested applications
+        let if_cond = Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::App,
+            range,
+            children: smallvec![if_atom, cond],
+        }));
+
+        let if_cond_then = Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::App,
+            range,
+            children: smallvec![if_cond, then_atom],
+        }));
+
+        let if_cond_then_branch = Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::App,
+            range,
+            children: smallvec![if_cond_then, then_branch],
+        }));
+
+        let if_cond_then_branch_else = Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::App,
+            range,
+            children: smallvec![if_cond_then_branch, else_atom],
+        }));
+
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::App,
+            range,
+            children: smallvec![if_cond_then_branch_else, else_branch],
+        })))
+    }
+
+    /// Parse a list pattern: [elem1, elem2, ..., $xs,*]
+    fn parse_list_pattern(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.expect_char('[')?;
+        self.skip_whitespace();
+
+        let mut elements = Vec::new();
+
+        // Parse list elements
+        while self.peek() != Some(']') && !self.input().is_at_end() {
+            // Parse element (could be antiquotation or regular term)
+            if self.peek() == Some('$') {
+                elements.push(self.parse_antiquotation()?);
+            } else {
+                // Parse a simple term element
+
+                // For now, just parse identifiers and numbers as list elements
+                if self.peek().is_some_and(|c| c.is_numeric()) {
+                    elements.push(self.number()?);
+                } else if self.peek().is_some_and(|c| c.is_alphabetic()) {
+                    elements.push(self.identifier()?);
+                } else if self.peek() == Some('(') {
+                    elements.push(self.paren_term()?);
+                } else if self.peek() == Some('[') {
+                    // Nested list
+                    elements.push(self.parse_list_pattern()?);
+                } else {
+                    return Err(ParseError::boxed(
+                        ParseErrorKind::Expected("list element".to_string()),
+                        self.position(),
+                    ));
+                }
+            }
+
+            self.skip_whitespace();
+
+            // Check for comma separator
+            if self.peek() == Some(',') {
+                self.advance();
+                self.skip_whitespace();
+
+                // If we see ']' after comma, it's a trailing comma
+                if self.peek() == Some(']') {
+                    break;
+                }
+            } else if self.peek() != Some(']') {
+                // No comma and not at end - error
+                return Err(ParseError::boxed(
+                    ParseErrorKind::Expected("',' or ']'".to_string()),
+                    self.position(),
+                ));
+            }
+        }
+
+        self.expect_char(']')?;
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::List,
+            range,
+            children: elements.into(),
         })))
     }
 }

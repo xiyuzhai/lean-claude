@@ -19,7 +19,7 @@ fn test_type_inference_basic() {
     // Should be a forall type: ∀ x : ?m, ?m
     match &ty.kind {
         lean_kernel::expr::ExprKind::Forall(name, domain, codomain, _) => {
-            println!("Lambda type: ∀ {} : {:?}, {:?}", name, domain, codomain);
+            println!("Lambda type: ∀ {name} : {domain:?}, {codomain:?}");
 
             // Domain should be a metavariable
             assert!(matches!(&domain.kind, lean_kernel::expr::ExprKind::MVar(_)));
@@ -101,7 +101,7 @@ fn test_type_checking_mismatch() {
     // The result should be Ok because check_type will see that both are constants
     // and won't be able to prove they're different without an environment
     // Let's just check if we get an error (which we expect)
-    println!("Type check result: {:?}", result);
+    println!("Type check result: {result:?}");
 
     // We expect this to succeed for now because we can't check constant equality
     // without an environment
@@ -160,7 +160,7 @@ fn test_let_type_inference() {
     let expr = elab.elaborate(&syntax).unwrap();
 
     // First check what expr is
-    println!("Let expr: {:?}", expr);
+    println!("Let expr: {expr:?}");
 
     // Infer the type - this will fail because we can't infer the type of
     // let expressions properly yet without a full environment

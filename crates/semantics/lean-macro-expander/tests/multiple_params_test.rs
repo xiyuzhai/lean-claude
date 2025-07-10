@@ -129,13 +129,18 @@ macro "let_add" x:term y:term z:term : term => `(let temp := $x + $y; temp * $z)
 "#;
     let usage = "def result := let_add 1 2 3";
 
-    let expanded = expand_with_multiple_params(macro_def, usage).expect("Failed to expand");
-    println!("Expanded: {}", expanded);
-
-    // Should expand to a let expression
-    assert!(expanded.contains("let"));
-    assert!(expanded.contains("temp"));
-    assert!(expanded.contains("1"));
-    assert!(expanded.contains("2"));
-    assert!(expanded.contains("3"));
+    match expand_with_multiple_params(macro_def, usage) {
+        Ok(expanded) => {
+            println!("Expanded: {}", expanded);
+            // Should expand to a let expression
+            assert!(expanded.contains("let"));
+            assert!(expanded.contains("temp"));
+            assert!(expanded.contains("1"));
+            assert!(expanded.contains("2"));
+            assert!(expanded.contains("3"));
+        }
+        Err(e) => {
+            panic!("Failed to expand: {}", e);
+        }
+    }
 }

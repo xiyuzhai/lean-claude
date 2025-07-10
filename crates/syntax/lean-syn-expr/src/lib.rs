@@ -171,6 +171,7 @@ pub enum SyntaxKind {
     AnonymousConstructor,
     ExplicitApp,
     Projection,
+    List,
 
     // Macros and Notation
     Macro,
@@ -339,6 +340,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::AnonymousConstructor => "anonymous constructor",
             SyntaxKind::ExplicitApp => "explicit application",
             SyntaxKind::Projection => "projection",
+            SyntaxKind::List => "list",
             SyntaxKind::Macro => "macro",
             SyntaxKind::MacroDef => "macro definition",
             SyntaxKind::MacroRules => "macro rules",
