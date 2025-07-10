@@ -6,9 +6,7 @@ use lean_syn_expr::{Syntax, SyntaxKind};
 
 fn expand_and_format(input: &str) -> Result<String, String> {
     let mut parser = Parser::new(input);
-    let module = parser
-        .module()
-        .map_err(|e| format!("Parse error: {:?}", e))?;
+    let module = parser.module().map_err(|e| format!("Parse error: {e:?}"))?;
 
     let mut env = MacroEnvironment::new();
 
@@ -16,18 +14,18 @@ fn expand_and_format(input: &str) -> Result<String, String> {
     if let Syntax::Node(module_node) = &module {
         println!("Module has {} children", module_node.children.len());
         for (i, child) in module_node.children.iter().enumerate() {
-            println!("Child {}: {:?}", i, child.kind());
+            println!("Child {i}: {:?}", child.kind());
             if let Syntax::Node(node) = child {
                 if node.kind == SyntaxKind::MacroDef {
-                    println!("Found macro def: {:?}", node);
+                    println!("Found macro def: {node:?}");
                     match MacroEnvironment::create_macro_from_syntax(child) {
                         Ok(macro_def) => {
                             println!("Registering macro: {}", macro_def.name);
                             env.register_macro(macro_def);
                         }
                         Err(e) => {
-                            println!("Failed to create macro: {:?}", e);
-                            return Err(format!("Failed to create macro: {:?}", e));
+                            println!("Failed to create macro: {e:?}");
+                            return Err(format!("Failed to create macro: {e:?}"));
                         }
                     }
                 }
@@ -43,9 +41,9 @@ fn expand_and_format(input: &str) -> Result<String, String> {
     let mut expander = MacroExpander::new(env);
     let expanded = expander
         .expand(&module)
-        .map_err(|e| format!("Expansion error: {:?}", e))?;
+        .map_err(|e| format!("Expansion error: {e:?}"))?;
 
-    Ok(format!("{:#?}", expanded))
+    Ok(format!("{expanded:#?}"))
 }
 
 #[test]
@@ -58,7 +56,7 @@ def test := dbg_trace "hello"; 42
 "#;
 
     let result = expand_and_format(input);
-    println!("Result: {:?}", result);
+    println!("Result: {result:?}");
 
     // For now, this will fail because we don't support the "; " syntax
     assert!(result.is_err() || result.unwrap().contains("dbg_trace"));
@@ -74,7 +72,7 @@ def test := if true then 1 else unreachable!
 "#;
 
     let result = expand_and_format(input);
-    println!("Result: {:?}", result);
+    println!("Result: {result:?}");
 
     // This should work once we support macros without parameters
     assert!(result.is_ok() || result.unwrap().contains("unreachable!"));
@@ -91,7 +89,7 @@ def test := assert! (1 < 2)
 
     match expand_and_format(input) {
         Ok(expanded) => {
-            println!("Expanded assert!: {}", expanded);
+            println!("Expanded assert!: {expanded}");
             // The expansion should contain an if-then-else structure
             // Check that the macro was expanded (we should see "if" and the condition)
             assert!(expanded.contains("if"));
@@ -99,7 +97,7 @@ def test := assert! (1 < 2)
             assert!(expanded.contains("panic!"));
         }
         Err(e) => {
-            println!("Error expanding assert!: {}", e);
+            println!("Error expanding assert!: {e}");
             // Expected for now since we're still building features
         }
     }
@@ -116,10 +114,10 @@ def unimplemented := todo! "implement this function"
 
     match expand_and_format(input) {
         Ok(expanded) => {
-            println!("Expanded: {}", expanded);
+            println!("Expanded: {expanded}");
             assert!(expanded.contains("panic!") || expanded.contains("TODO"));
         }
-        Err(e) => println!("Error: {}", e),
+        Err(e) => println!("Error: {e}"),
     }
 }
 
@@ -136,10 +134,10 @@ def y := none
 
     match expand_and_format(input) {
         Ok(expanded) => {
-            println!("Expanded: {}", expanded);
+            println!("Expanded: {expanded}");
             // These should fail because we need to handle parameterless macros
         }
-        Err(e) => println!("Error: {}", e),
+        Err(e) => println!("Error: {e}"),
     }
 }
 
@@ -155,11 +153,11 @@ def result := [1, 2, 3] |> List.map (· + 1) |> List.filter (· > 2)
 
     match expand_and_format(input) {
         Ok(expanded) => {
-            println!("Expanded: {}", expanded);
+            println!("Expanded: {expanded}");
             // Should expand to nested function applications
             assert!(expanded.contains("List.filter") && expanded.contains("List.map"));
         }
-        Err(e) => println!("Error: {}", e),
+        Err(e) => println!("Error: {e}"),
     }
 }
 
@@ -177,9 +175,9 @@ def evens := [x * 2 | x <- [1, 2, 3, 4, 5], x % 2 = 0]
 
     match expand_and_format(input) {
         Ok(expanded) => {
-            println!("Expanded: {}", expanded);
+            println!("Expanded: {expanded}");
             assert!(expanded.contains("List.map") && expanded.contains("List.filter"));
         }
-        Err(e) => println!("Error: {}", e),
+        Err(e) => println!("Error: {e}"),
     }
 }

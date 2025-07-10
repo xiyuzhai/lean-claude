@@ -4,9 +4,7 @@ use lean_syn_expr::{Syntax, SyntaxKind};
 
 fn expand_module(input: &str) -> Result<String, String> {
     let mut parser = Parser::new(input);
-    let module = parser
-        .module()
-        .map_err(|e| format!("Parse error: {:?}", e))?;
+    let module = parser.module().map_err(|e| format!("Parse error: {e:?}"))?;
 
     let mut env = MacroEnvironment::new();
 
@@ -16,7 +14,7 @@ fn expand_module(input: &str) -> Result<String, String> {
             if let Syntax::Node(node) = child {
                 if node.kind == SyntaxKind::MacroDef {
                     let macro_def = MacroEnvironment::create_macro_from_syntax(child)
-                        .map_err(|e| format!("Failed to create macro: {:?}", e))?;
+                        .map_err(|e| format!("Failed to create macro: {e:?}"))?;
                     env.register_macro(macro_def);
                 }
             }
@@ -26,7 +24,7 @@ fn expand_module(input: &str) -> Result<String, String> {
     let mut expander = MacroExpander::new(env);
     let expanded = expander
         .expand(&module)
-        .map_err(|e| format!("Expansion error: {:?}", e))?;
+        .map_err(|e| format!("Expansion error: {e:?}"))?;
 
     Ok(format_syntax(&expanded))
 }
@@ -41,7 +39,7 @@ fn format_syntax(syntax: &Syntax) -> String {
                 format!("({kind})")
             } else {
                 let children: Vec<String> = node.children.iter().map(format_syntax).collect();
-                format!("({} {})", kind, children.join(" "))
+                format!("({kind} {})", children.join(" "))
             }
         }
     }
@@ -60,7 +58,7 @@ def result := myif true then 1 else 2
 "#;
 
     let expanded = expand_module(input).expect("Failed to expand");
-    println!("Expanded: {}", expanded);
+    println!("Expanded: {expanded}");
 
     // Should expand to just 1
     assert!(expanded.contains("(Def result 1)"));
@@ -81,7 +79,7 @@ def multiple := mylist [1, 2, 3]
 "#;
 
     let expanded = expand_module(input).expect("Failed to expand");
-    println!("Expanded: {}", expanded);
+    println!("Expanded: {expanded}");
 
     // Check expansions
     assert!(expanded.contains("List.nil"));
@@ -97,7 +95,7 @@ def result := mydo (pure 42)
 "#;
 
     let expanded = expand_module(input).expect("Failed to expand");
-    println!("Expanded: {}", expanded);
+    println!("Expanded: {expanded}");
 
     // Should expand to bind (pure 42) (fun y => y)
     // Check the structure rather than exact string matching
@@ -116,7 +114,7 @@ def result := quote2 (1 + 1)
 "#;
 
     let expanded = expand_module(input).expect("Failed to expand");
-    println!("Expanded: {}", expanded);
+    println!("Expanded: {expanded}");
 
     // Should produce nested quotation
     assert!(expanded.contains("SyntaxQuotation"));

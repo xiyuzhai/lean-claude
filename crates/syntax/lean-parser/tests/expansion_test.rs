@@ -11,7 +11,7 @@ fn format_syntax(syntax: &Syntax) -> String {
                 format!("({kind})")
             } else {
                 let children: Vec<String> = node.children.iter().map(format_syntax).collect();
-                format!("({} {})", kind, children.join(" "))
+                format!("({kind} {})", children.join(" "))
             }
         }
     }
@@ -28,7 +28,7 @@ def result := twice 42
     let expanded = parser.parse_module().expect("Failed to parse and expand");
 
     let output = format_syntax(&expanded);
-    println!("Expanded output: {}", output);
+    println!("Expanded output: {output}");
 
     // Check that the macro was expanded
     assert!(output.contains("(BinOp 42 + 42)"));
@@ -49,7 +49,7 @@ def c := double (triple 2)
     let expanded = parser.parse_module().expect("Failed to parse and expand");
 
     let output = format_syntax(&expanded);
-    println!("Expanded output: {}", output);
+    println!("Expanded output: {output}");
 
     // Check that all macros were expanded
     assert!(output.contains("(BinOp 5 * 2)"));

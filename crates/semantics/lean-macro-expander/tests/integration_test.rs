@@ -6,9 +6,7 @@ use lean_syn_expr::{Syntax, SyntaxKind};
 fn expand_module(input: &str) -> Result<String, String> {
     // Parse the module
     let mut parser = Parser::new(input);
-    let module = parser
-        .module()
-        .map_err(|e| format!("Parse error: {:?}", e))?;
+    let module = parser.module().map_err(|e| format!("Parse error: {e:?}"))?;
 
     // Create environment and register macros
     let mut env = MacroEnvironment::new();
@@ -19,7 +17,7 @@ fn expand_module(input: &str) -> Result<String, String> {
             if let Syntax::Node(node) = child {
                 if node.kind == SyntaxKind::MacroDef {
                     let macro_def = MacroEnvironment::create_macro_from_syntax(child)
-                        .map_err(|e| format!("Failed to create macro: {:?}", e))?;
+                        .map_err(|e| format!("Failed to create macro: {e:?}"))?;
                     env.register_macro(macro_def);
                 }
             }
@@ -30,7 +28,7 @@ fn expand_module(input: &str) -> Result<String, String> {
     let mut expander = MacroExpander::new(env);
     let expanded = expander
         .expand(&module)
-        .map_err(|e| format!("Expansion error: {:?}", e))?;
+        .map_err(|e| format!("Expansion error: {e:?}"))?;
 
     Ok(format_syntax(&expanded))
 }
@@ -45,7 +43,7 @@ fn format_syntax(syntax: &Syntax) -> String {
                 format!("({kind})")
             } else {
                 let children: Vec<String> = node.children.iter().map(format_syntax).collect();
-                format!("({} {})", kind, children.join(" "))
+                format!("({kind} {})", children.join(" "))
             }
         }
     }
@@ -59,7 +57,7 @@ def result := twice 42
 "#;
 
     let expanded = expand_module(input).expect("Failed to expand");
-    println!("Expanded: {}", expanded);
+    println!("Expanded: {expanded}");
 
     // The macro should be expanded in the definition
     assert!(expanded.contains("(BinOp 42 + 42)"));
@@ -74,7 +72,7 @@ def result := quad 10
 "#;
 
     let expanded = expand_module(input).expect("Failed to expand");
-    println!("Expanded: {}", expanded);
+    println!("Expanded: {expanded}");
 
     // Should expand to ((10 + 10) + (10 + 10)) + ((10 + 10) + (10 + 10))
     // For now, we just check that it contains the expanded form
@@ -91,7 +89,7 @@ def c := double (double 3)
 "#;
 
     let expanded = expand_module(input).expect("Failed to expand");
-    println!("Expanded: {}", expanded);
+    println!("Expanded: {expanded}");
 
     // Check that all uses are expanded
     assert!(expanded.contains("(BinOp 5 * 2)"));
