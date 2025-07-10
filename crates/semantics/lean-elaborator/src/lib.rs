@@ -11,11 +11,13 @@ pub mod context;
 pub mod elab;
 pub mod error;
 pub mod metavar;
+pub mod typeck;
 
 pub use context::{LevelContext, LocalContext, LocalDecl};
 pub use elab::{ElabState, Elaborator};
 pub use error::ElabError;
 pub use metavar::{MetavarContext, MetavarDecl};
+pub use typeck::{TypeChecker, Unifier};
 
 #[cfg(test)]
 mod tests {

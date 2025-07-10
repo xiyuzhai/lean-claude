@@ -13,6 +13,7 @@ use crate::{
     context::{LevelContext, LocalContext},
     error::ElabError,
     metavar::MetavarContext,
+    typeck::TypeChecker,
 };
 
 /// Elaboration state
@@ -53,6 +54,24 @@ impl Elaborator {
         }
     }
 
+    /// Create an elaborator with a custom state (for testing)
+    #[cfg(test)]
+    pub(crate) fn with_state(state: ElabState) -> Self {
+        Self { state }
+    }
+    
+    /// Get mutable access to the state (for testing)
+    #[cfg(test)]
+    pub(crate) fn state_mut(&mut self) -> &mut ElabState {
+        &mut self.state
+    }
+    
+    /// Get access to the state (for testing)
+    #[cfg(test)]
+    pub(crate) fn state(&self) -> &ElabState {
+        &self.state
+    }
+
     /// Elaborate a syntax tree into a kernel expression
     pub fn elaborate(&mut self, syntax: &Syntax) -> Result<Expr, ElabError> {
         match syntax {
@@ -60,6 +79,23 @@ impl Elaborator {
             Syntax::Atom(atom) => self.elab_atom(atom),
             Syntax::Node(node) => self.elab_node(node),
         }
+    }
+
+    /// Elaborate with expected type
+    pub fn elaborate_with_type(&mut self, syntax: &Syntax, expected_ty: &Expr) -> Result<Expr, ElabError> {
+        let expr = self.elaborate(syntax)?;
+        
+        // Check that the expression has the expected type
+        let mut tc = TypeChecker::new(&self.state.lctx, &mut self.state.mctx);
+        tc.check_type(&expr, expected_ty)?;
+        
+        Ok(expr)
+    }
+
+    /// Infer the type of an expression
+    pub fn infer_type(&mut self, expr: &Expr) -> Result<Expr, ElabError> {
+        let mut tc = TypeChecker::new(&self.state.lctx, &mut self.state.mctx);
+        tc.infer_type(expr)
     }
 
     /// Elaborate an atomic syntax element
@@ -137,12 +173,17 @@ impl Elaborator {
             .push_local_decl(binder_name.clone(), binder_type.clone());
         let body = self.elaborate(body_syntax)?;
 
+        // Infer the type of the body
+        let body_type = self.infer_type(&body)?;
+
         // Replace fvar with bvar in body before popping context
         // The fvar should become bvar(0) since it's the most recent binding
         let body = self.abstract_fvar_core(body, &fvar_id, 0, 0);
+        let _body_type = self.abstract_fvar_core(body_type, &fvar_id, 0, 0);
 
         self.state.lctx.pop();
 
+        // The type of the lambda is: ∀ x : binder_type, body_type
         Ok(Expr::lam(
             binder_name,
             binder_type,
