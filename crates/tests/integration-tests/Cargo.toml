@@ -24,6 +24,10 @@ path = "../../../tests/integration/error_recovery_test.rs"
 name = "custom_syntax_test"
 path = "../../../tests/integration/custom_syntax_test.rs"
 
+[[test]]
+name = "projection_test"
+path = "../../../tests/integration/projection_test.rs"
+
 [dependencies]
 lean-parser = { path = "../../syntax/lean-parser" }
 lean-syn-expr = { path = "../../syntax/lean-syn-expr" }

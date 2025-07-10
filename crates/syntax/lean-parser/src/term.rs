@@ -176,7 +176,12 @@ impl<'a> Parser<'a> {
     /// Parse application: `f x y z`
     pub fn app_term(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
-        let mut terms = vec![self.atom_term()?];
+        let mut left = self.atom_term()?;
+
+        // Handle projections first (e.g., x.1, x.field)
+        left = self.parse_projections(left)?;
+
+        let mut terms = vec![left];
 
         loop {
             self.skip_whitespace();
@@ -208,7 +213,10 @@ impl<'a> Parser<'a> {
             }
 
             // Check if we can parse another atom
-            if let Ok(arg) = self.try_parse(|p| p.atom_term()) {
+            if let Ok(arg) = self.try_parse(|p| {
+                let atom = p.atom_term()?;
+                p.parse_projections(atom)
+            }) {
                 terms.push(arg);
             } else {
                 break;
@@ -686,5 +694,41 @@ impl<'a> Parser<'a> {
                 | Some('|')
                 | Some('⟩')
         )
+    }
+
+    /// Parse projections: x.1, x.field, x.field.subfield
+    fn parse_projections(&mut self, mut expr: Syntax) -> ParserResult<Syntax> {
+        loop {
+            // Check for projection
+            if self.peek() == Some('.') && self.input().peek_nth(1).is_some_and(|c| c != '.') {
+                let dot_pos = self.position();
+                self.advance(); // consume '.'
+
+                // Parse the projection field
+                let field = if self.peek().is_some_and(|c| c.is_ascii_digit()) {
+                    // Numeric projection: x.1, x.2, etc.
+                    self.number()?
+                } else if self.peek().is_some_and(is_id_start) {
+                    // Field projection: x.field
+                    self.identifier()?
+                } else {
+                    return Err(ParseError::boxed(
+                        ParseErrorKind::Expected("field name or number".to_string()),
+                        self.position(),
+                    ));
+                };
+
+                // Create projection node
+                let range = self.input().range_from(dot_pos);
+                expr = Syntax::Node(Box::new(SyntaxNode {
+                    kind: SyntaxKind::Projection,
+                    range,
+                    children: smallvec![expr, field],
+                }));
+            } else {
+                break;
+            }
+        }
+        Ok(expr)
     }
 }

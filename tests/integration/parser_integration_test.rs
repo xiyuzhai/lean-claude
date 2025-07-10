@@ -34,7 +34,9 @@ fn test_parse_complex_expressions() {
         ("{x : Nat // x > 0}", "subtype expression"),
         ("⟨1, 2, 3⟩", "anonymous constructor"),
         ("@id Nat", "explicit application"),
-        ("x.1", "projection"),
+        ("x.1", "field projection"),
+        ("p.field", "named field projection"),
+        ("x.1.2", "nested numeric projection"),
     ];
 
     for (input, description) in test_cases {

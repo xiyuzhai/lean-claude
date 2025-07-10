@@ -166,6 +166,7 @@ pub enum SyntaxKind {
     Subtype,
     AnonymousConstructor,
     ExplicitApp,
+    Projection,
 
     // Macros and Notation
     Macro,
@@ -329,6 +330,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::Subtype => "subtype",
             SyntaxKind::AnonymousConstructor => "anonymous constructor",
             SyntaxKind::ExplicitApp => "explicit application",
+            SyntaxKind::Projection => "projection",
             SyntaxKind::Macro => "macro",
             SyntaxKind::MacroDef => "macro definition",
             SyntaxKind::MacroRules => "macro rules",
