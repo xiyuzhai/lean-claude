@@ -308,7 +308,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse precedence annotation: `(priority := 1000)`
-    fn parse_precedence_annotation(&mut self) -> ParserResult<Syntax> {
+    pub fn parse_precedence_annotation(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 
         self.expect_char('(')?;
@@ -334,12 +334,26 @@ impl<'a> Parser<'a> {
         })))
     }
 
-    /// Parse a macro pattern (e.g., x:term or just a pattern)
+    /// Parse a macro pattern (e.g., x:term or multiple parameters x:term
+    /// y:term)
     fn parse_macro_pattern(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 
-        // Check if this is a simple parameter like x:term
-        if self.peek().is_some_and(|c| c.is_alphabetic()) {
+        // Check if this is a syntax quotation (for macro_rules)
+        if self.peek() == Some('`') && self.input().peek_nth(1) == Some('(') {
+            return self.parse_syntax_quotation();
+        }
+
+        // Try to parse multiple typed parameters
+        let mut params = Vec::new();
+
+        // Try to parse as many typed parameters as possible
+        loop {
+            if !self.peek().is_some_and(|c| c.is_alphabetic()) {
+                break;
+            }
+
+            // Try to parse a typed parameter
             if let Ok(typed_param) = self.try_parse(|p| {
                 let ident = p.identifier()?;
 
@@ -361,12 +375,40 @@ impl<'a> Parser<'a> {
                     ))
                 }
             }) {
-                return Ok(typed_param);
+                params.push(typed_param);
+                self.skip_whitespace();
+
+                // Continue parsing more parameters
+                continue;
+            } else {
+                break;
             }
         }
 
-        // Otherwise parse as a term pattern
-        self.term()
+        // If we found parameters, create a pattern node
+        if !params.is_empty() {
+            let range = self.input().range_from(start);
+            if params.len() == 1 {
+                // Single parameter
+                Ok(params.into_iter().next().unwrap())
+            } else {
+                // Multiple parameters - create an App node containing all of them
+                let mut children = Vec::new();
+                for param in params {
+                    if let Syntax::Node(param_node) = param {
+                        children.extend(param_node.children.into_iter());
+                    }
+                }
+                Ok(Syntax::Node(Box::new(SyntaxNode {
+                    kind: SyntaxKind::App,
+                    range,
+                    children: children.into(),
+                })))
+            }
+        } else {
+            // Otherwise parse as a term pattern
+            self.term()
+        }
     }
 
     /// Parse a macro body
@@ -683,13 +725,13 @@ impl<'a> Parser<'a> {
             self.advance(); // consume ','
             self.advance(); // consume '*'
 
-            // Add a marker for splice
-            let splice_start = self.position();
-            let splice_range = self.input().range_from(splice_start);
-            children.push(Syntax::Atom(lean_syn_expr::SyntaxAtom {
-                range: splice_range,
-                value: eterned::BaseCoword::new(",*"),
-            }));
+            // Create a splice node instead of antiquotation
+            let range = self.input().range_from(start);
+            return Ok(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::SyntaxSplice,
+                range,
+                children: children.into(),
+            })));
         }
 
         let range = self.input().range_from(start);

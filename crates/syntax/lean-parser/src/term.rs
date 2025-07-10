@@ -240,6 +240,7 @@ impl<'a> Parser<'a> {
             Some('l') if self.peek_keyword("let") => self.let_term(),
             Some('h') if self.peek_keyword("have") => self.have_term(),
             Some('s') if self.peek_keyword("show") => self.show_term(),
+            Some('c') if self.peek_keyword("calc") => self.calc_term(),
             Some('f') if self.peek_keyword("fun") => self.lambda_term(),
             Some('f') if self.peek_keyword("forall") => self.forall_term(),
             Some('m') if self.peek_keyword("match") => self.match_expr(),
@@ -247,6 +248,8 @@ impl<'a> Parser<'a> {
             Some('b') if self.peek_keyword("by") => self.by_tactic(),
             Some('`') if self.input().peek_nth(1) == Some('(') => self.parse_syntax_quotation(),
             Some('$') => self.parse_antiquotation(),
+            Some('⟨') => self.anonymous_constructor(),
+            Some('@') => self.explicit_application(),
             Some('r') if self.peek_raw_string() => self.raw_string_literal(),
             Some('s') if self.peek_interpolated_string() => self.interpolated_string_literal(),
             Some('0') if self.peek_special_number() => self.number(),
@@ -287,10 +290,17 @@ impl<'a> Parser<'a> {
         Ok(term)
     }
 
-    /// Parse implicit term: `{term}` or implicit binder `{x : Type}`
+    /// Parse implicit term: `{term}` or implicit binder `{x : Type}` or subtype
+    /// `{x : T // P}`
     pub fn implicit_term(&mut self) -> ParserResult<Syntax> {
-        // This is actually parsing a binder group in implicit braces
-        // It's already handled by binder_group(), so just delegate to it
+        let _start = self.position();
+
+        // Try to parse as a subtype expression first
+        if let Ok(subtype) = self.try_parse(|p| p.parse_subtype()) {
+            return Ok(subtype);
+        }
+
+        // Otherwise, parse as a binder group
         self.binder_group()
     }
 
@@ -399,11 +409,32 @@ impl<'a> Parser<'a> {
 
         // Parse binders
         let mut binders = Vec::new();
-        while self.peek() != Some(',') {
+        while self.peek() != Some(',') && !self.input().is_at_end() {
             if self.peek() == Some('{') || self.peek() == Some('[') || self.peek() == Some('(') {
                 binders.push(self.binder_group()?);
             } else if self.peek().is_some_and(is_id_start) {
-                binders.push(self.identifier()?);
+                // Try to parse a typed binder without parentheses
+                let name = self.identifier()?;
+                self.skip_whitespace();
+
+                if self.peek() == Some(':') {
+                    // This is a typed binder: x : T
+                    self.advance(); // consume ':'
+                    self.skip_whitespace();
+                    let ty = self.term()?;
+
+                    // Create a binder node
+                    let binder_range = self.input().range_from(start);
+                    let binder = Syntax::Node(Box::new(SyntaxNode {
+                        kind: SyntaxKind::LeftParen, // Using LeftParen to indicate explicit binder
+                        range: binder_range,
+                        children: smallvec![name, ty],
+                    }));
+                    binders.push(binder);
+                } else {
+                    // Just a name
+                    binders.push(name);
+                }
             } else {
                 break;
             }
@@ -528,5 +559,132 @@ impl<'a> Parser<'a> {
             range,
             children: smallvec![ty, proof],
         })))
+    }
+
+    /// Parse calc term: `calc a = b := proof1 _ = c := proof2`
+    pub fn calc_term(&mut self) -> ParserResult<Syntax> {
+        // Just delegate to the tactic version which has the full implementation
+        self.calc_tactic()
+    }
+
+    /// Parse subtype expression: `{x : T // P}`
+    fn parse_subtype(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.expect_char('{')?;
+        self.skip_whitespace();
+
+        // Parse name
+        let name = self.identifier()?;
+        self.skip_whitespace();
+
+        self.expect_char(':')?;
+        self.skip_whitespace();
+
+        // Parse type - use atom_term to avoid consuming //
+        let ty = self.atom_term()?;
+        self.skip_whitespace();
+
+        // Check for //
+        if self.peek() != Some('/') || self.input().peek_nth(1) != Some('/') {
+            return Err(ParseError::boxed(
+                ParseErrorKind::Expected("//".to_string()),
+                self.position(),
+            ));
+        }
+        self.advance(); // consume first /
+        self.advance(); // consume second /
+        self.skip_whitespace();
+
+        // Parse predicate
+        let pred = self.term()?;
+        self.skip_whitespace();
+
+        self.expect_char('}')?;
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Subtype,
+            range,
+            children: smallvec![name, ty, pred],
+        })))
+    }
+
+    /// Parse anonymous constructor: `⟨expr, ...⟩`
+    fn anonymous_constructor(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.expect_char('⟨')?;
+        self.skip_whitespace();
+
+        let mut elements = Vec::new();
+
+        // Parse elements
+        if self.peek() != Some('⟩') {
+            loop {
+                elements.push(self.term()?);
+                self.skip_whitespace();
+
+                if self.peek() == Some(',') {
+                    self.advance();
+                    self.skip_whitespace();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        self.expect_char('⟩')?;
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::AnonymousConstructor,
+            range,
+            children: elements.into(),
+        })))
+    }
+
+    /// Parse explicit application: `@f arg1 arg2`
+    fn explicit_application(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.expect_char('@')?;
+        // No whitespace after @
+
+        let func = self.atom_term()?;
+        self.skip_whitespace();
+
+        let mut args = vec![func];
+
+        // Parse arguments
+        while !self.at_term_boundary() {
+            if let Ok(arg) = self.try_parse(|p| p.atom_term()) {
+                args.push(arg);
+                self.skip_whitespace();
+            } else {
+                break;
+            }
+        }
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::ExplicitApp,
+            range,
+            children: args.into(),
+        })))
+    }
+
+    /// Check if we're at a term boundary
+    fn at_term_boundary(&self) -> bool {
+        matches!(
+            self.peek(),
+            None | Some(',')
+                | Some(';')
+                | Some(')')
+                | Some('}')
+                | Some(']')
+                | Some('|')
+                | Some('⟩')
+        )
     }
 }

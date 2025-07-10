@@ -14,6 +14,9 @@ impl<'a> Parser<'a> {
         match self.peek() {
             Some('(') => self.paren_pattern(),
             Some('_') => self.wildcard_pattern(),
+            Some(ch) if ch.is_ascii_digit() => self.literal_pattern(),
+            Some('"') => self.literal_pattern(),
+            Some('\'') => self.literal_pattern(),
             Some(ch) if ch.is_alphabetic() => {
                 // Could be constructor or variable pattern
                 let ident = self.identifier()?;
@@ -73,6 +76,19 @@ impl<'a> Parser<'a> {
         self.skip_whitespace();
         self.expect_char(')')?;
         Ok(pattern)
+    }
+
+    /// Parse literal pattern: number, string, or char literal
+    fn literal_pattern(&mut self) -> ParserResult<Syntax> {
+        match self.peek() {
+            Some(ch) if ch.is_ascii_digit() => self.number(),
+            Some('"') => self.string_literal(),
+            Some('\'') => self.char_literal(),
+            _ => Err(ParseError::boxed(
+                ParseErrorKind::Expected("literal pattern".to_string()),
+                self.position(),
+            )),
+        }
     }
 
     /// Parse match expression: `match expr with | pat1 => expr1 | pat2 =>

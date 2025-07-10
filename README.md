@@ -163,10 +163,10 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for development guidelines. Key requirement
 
 ## Performance Goals
 
-- Parser: < 2x slower than Lean4
-- Type checker: Comparable to Lean4
-- Code generation: Within 20% of Lean4
-- Memory usage: Comparable or better
+- Parser: **Faster than Lean4** (target: 1.2-2x faster)
+- Type checker: **Comparable to Lean4** (target: within 10% either direction)
+- Code generation: **Within 10% of Lean4** (target: comparable or faster)
+- Memory usage: **Better than Lean4** (target: 20-30% lower peak usage)
 
 ## References
 

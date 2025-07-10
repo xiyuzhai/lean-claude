@@ -6,6 +6,7 @@ use crate::{
     error::{ParseError, ParseErrorKind},
     lexical::is_id_start,
     parser::{Parser, ParserResult},
+    recovery::RecoveryStrategy,
 };
 
 impl<'a> Parser<'a> {
@@ -28,14 +29,31 @@ impl<'a> Parser<'a> {
             // Try to parse a command
             match self.command() {
                 Ok(cmd) => commands.push(cmd),
-                Err(_e) => {
+                Err(e) => {
                     // If we're at the end of input after whitespace/comments, that's fine
                     if self.input().is_at_end() {
                         break;
                     }
-                    // Otherwise, skip the current character and try again
-                    // This helps recover from standalone comments or other non-command content
-                    self.advance();
+
+                    // Check if we should attempt recovery
+                    if self.should_attempt_recovery() {
+                        // Try to recover by skipping to next statement
+                        match self.recover_from_error(e, RecoveryStrategy::SkipToNextStatement) {
+                            Ok(error_node) => {
+                                // Include the error node in the parse tree
+                                commands.push(error_node);
+                            }
+                            Err(_) => {
+                                // Recovery failed, stop parsing if too many errors
+                                if self.too_many_errors() {
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        // Too many errors, stop parsing
+                        break;
+                    }
                 }
             }
 
@@ -77,6 +95,7 @@ impl<'a> Parser<'a> {
                 's' if self.peek_keyword("syntax") => self.syntax_def(),
                 'n' if self.peek_keyword("notation") => self.notation_def(),
                 'e' if self.peek_keyword("elab") => self.elab_command(),
+                'd' if self.peek_keyword("declare_syntax_cat") => self.declare_syntax_cat(),
                 '#' => self.hash_command(),
                 '-' if self.input().peek_nth(1) == Some('-') => {
                     // Line comment, not a command

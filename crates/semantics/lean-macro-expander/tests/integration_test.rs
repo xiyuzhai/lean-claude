@@ -19,6 +19,12 @@ fn expand_module(input: &str) -> Result<String, String> {
                     let macro_def = MacroEnvironment::create_macro_from_syntax(child)
                         .map_err(|e| format!("Failed to create macro: {e:?}"))?;
                     env.register_macro(macro_def);
+                } else if node.kind == SyntaxKind::MacroRules {
+                    let macro_defs = MacroEnvironment::create_macros_from_macro_rules(child)
+                        .map_err(|e| format!("Failed to create macros from macro_rules: {e:?}"))?;
+                    for macro_def in macro_defs {
+                        env.register_macro(macro_def);
+                    }
                 }
             }
         }

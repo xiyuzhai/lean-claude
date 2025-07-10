@@ -55,6 +55,25 @@ impl PatternMatcher {
                 }
             }
 
+            // Pattern splice (antiquotation with splice syntax)
+            (Syntax::Node(p_node), _) if p_node.kind == SyntaxKind::SyntaxSplice => {
+                // Extract variable name
+                if let Some(Syntax::Atom(var_name)) = p_node.children.first() {
+                    // For splices, we need to collect multiple matching elements
+                    // For now, bind the whole syntax as is (this will be expanded later)
+                    if let Some(existing) = bindings.get(&var_name.value) {
+                        // Must match existing binding
+                        Self::syntax_equal(existing, syntax)
+                    } else {
+                        // New binding - store as a list/sequence
+                        bindings.insert(var_name.value.clone(), syntax.clone());
+                        Ok(true)
+                    }
+                } else {
+                    Ok(false)
+                }
+            }
+
             // Typed parameter pattern like x:term (parsed as App x term)
             (Syntax::Node(p_node), _)
                 if p_node.kind == SyntaxKind::App && p_node.children.len() == 2 =>
@@ -94,23 +113,44 @@ impl PatternMatcher {
                 }
             }
 
+            // Special handling for SyntaxQuotation patterns - unwrap them
+            (Syntax::Node(p_node), _) if p_node.kind == SyntaxKind::SyntaxQuotation => {
+                // A SyntaxQuotation in a pattern should match against the quoted content
+                if let Some(quoted_pattern) = p_node.children.first() {
+                    Self::match_recursive(quoted_pattern, syntax, bindings)
+                } else {
+                    Ok(false)
+                }
+            }
+
             // Node match - must have same kind and match all children
             (Syntax::Node(p_node), Syntax::Node(s_node)) => {
                 if p_node.kind != s_node.kind {
                     return Ok(false);
                 }
 
-                if p_node.children.len() != s_node.children.len() {
-                    return Ok(false);
-                }
+                // Check if pattern contains splices
+                let has_splice = p_node.children.iter().any(|child| {
+                    matches!(child, Syntax::Node(node) if node.kind == SyntaxKind::SyntaxSplice)
+                });
 
-                for (p_child, s_child) in p_node.children.iter().zip(s_node.children.iter()) {
-                    if !Self::match_recursive(p_child, s_child, bindings)? {
+                if has_splice {
+                    // Handle splice matching - collect remaining elements
+                    Self::match_with_splice(p_node, s_node, bindings)
+                } else {
+                    // Normal matching - must have same number of children
+                    if p_node.children.len() != s_node.children.len() {
                         return Ok(false);
                     }
-                }
 
-                Ok(true)
+                    for (p_child, s_child) in p_node.children.iter().zip(s_node.children.iter()) {
+                        if !Self::match_recursive(p_child, s_child, bindings)? {
+                            return Ok(false);
+                        }
+                    }
+
+                    Ok(true)
+                }
             }
 
             // Missing matches missing
@@ -119,6 +159,86 @@ impl PatternMatcher {
             // Otherwise no match
             _ => Ok(false),
         }
+    }
+
+    /// Match a pattern with splice against syntax
+    fn match_with_splice(
+        p_node: &lean_syn_expr::SyntaxNode,
+        s_node: &lean_syn_expr::SyntaxNode,
+        bindings: &mut HashMap<BaseCoword, Syntax>,
+    ) -> ExpansionResult<bool> {
+        let mut p_idx = 0;
+        let mut s_idx = 0;
+
+        while p_idx < p_node.children.len() {
+            let p_child = &p_node.children[p_idx];
+
+            // Check if this is a splice
+            if let Syntax::Node(splice_node) = p_child {
+                if splice_node.kind == SyntaxKind::SyntaxSplice {
+                    // Extract variable name from splice
+                    if let Some(Syntax::Atom(var_name)) = splice_node.children.first() {
+                        // Collect remaining elements for the splice
+                        let mut splice_elements = Vec::new();
+
+                        // Look ahead to see how many elements we need to leave for the rest of the
+                        // pattern
+                        let remaining_pattern_count = p_node.children.len() - p_idx - 1;
+                        let available_syntax_count = s_node.children.len() - s_idx;
+
+                        if available_syntax_count >= remaining_pattern_count {
+                            let splice_count = available_syntax_count - remaining_pattern_count;
+
+                            // Collect elements for the splice
+                            for _ in 0..splice_count {
+                                if s_idx < s_node.children.len() {
+                                    splice_elements.push(s_node.children[s_idx].clone());
+                                    s_idx += 1;
+                                }
+                            }
+
+                            // Create a node to hold the splice elements
+                            let splice_result = if splice_elements.is_empty() {
+                                Syntax::Missing
+                            } else if splice_elements.len() == 1 {
+                                splice_elements[0].clone()
+                            } else {
+                                // Create an App node containing all splice elements
+                                Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
+                                    kind: SyntaxKind::App,
+                                    range: s_node.range,
+                                    children: splice_elements.into(),
+                                }))
+                            };
+
+                            // Bind the splice variable
+                            bindings.insert(var_name.value.clone(), splice_result);
+                        } else {
+                            // Not enough elements to satisfy the pattern
+                            return Ok(false);
+                        }
+                    }
+
+                    p_idx += 1;
+                    continue;
+                }
+            }
+
+            // Regular matching
+            if s_idx >= s_node.children.len() {
+                return Ok(false);
+            }
+
+            if !Self::match_recursive(p_child, &s_node.children[s_idx], bindings)? {
+                return Ok(false);
+            }
+
+            p_idx += 1;
+            s_idx += 1;
+        }
+
+        // Check if we consumed all syntax elements
+        Ok(s_idx == s_node.children.len())
     }
 
     /// Check if two syntax trees are structurally equal
@@ -152,17 +272,19 @@ pub fn substitute_template(
         Syntax::Missing => Ok(template.clone()),
 
         Syntax::Node(node) => {
-            // Handle syntax quotations - evaluate their contents
+            // Handle syntax quotations - substitute into their contents but keep them as
+            // quotations
             if node.kind == SyntaxKind::SyntaxQuotation {
-                // Evaluate the content of the quotation
-                if let Some(content) = node.children.first() {
-                    return substitute_template(content, bindings);
-                } else {
-                    return Err(ExpansionError::InvalidAntiquotation {
-                        message: "Empty syntax quotation".to_string(),
-                        range: node.range,
-                    });
+                // Substitute into the content of the quotation but keep it wrapped
+                let mut new_children = Vec::new();
+                for child in &node.children {
+                    new_children.push(substitute_template(child, bindings)?);
                 }
+                return Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
+                    kind: node.kind,
+                    range: node.range,
+                    children: new_children.into(),
+                })));
             }
 
             // Handle antiquotations in template
@@ -179,10 +301,51 @@ pub fn substitute_template(
                 }
             }
 
-            // Recursively substitute in children
+            // Handle splices in template
+            if node.kind == SyntaxKind::SyntaxSplice {
+                if let Some(Syntax::Atom(var_name)) = node.children.first() {
+                    if let Some(bound_syntax) = bindings.get(&var_name.value) {
+                        // For splices, we need to "explode" the bound syntax
+                        // If it's a list/sequence, we should return its elements
+                        // For now, just return the bound syntax as is
+                        return Ok(bound_syntax.clone());
+                    } else {
+                        return Err(ExpansionError::InvalidAntiquotation {
+                            message: format!("Unbound splice variable: {}", var_name.value),
+                            range: node.range,
+                        });
+                    }
+                }
+            }
+
+            // Recursively substitute in children, handling splices specially
             let mut new_children = Vec::with_capacity(node.children.len());
             for child in &node.children {
-                new_children.push(substitute_template(child, bindings)?);
+                let substituted = substitute_template(child, bindings)?;
+
+                // If this child was a splice and resulted in an App node, expand its children
+                if let Syntax::Node(child_node) = child {
+                    if child_node.kind == SyntaxKind::SyntaxSplice {
+                        // This was a splice - expand its result
+                        match &substituted {
+                            Syntax::Node(result_node) if result_node.kind == SyntaxKind::App => {
+                                // Splice the children of the App node
+                                new_children.extend(result_node.children.iter().cloned());
+                            }
+                            Syntax::Missing => {
+                                // Empty splice - don't add anything
+                            }
+                            _ => {
+                                // Single element splice
+                                new_children.push(substituted);
+                            }
+                        }
+                    } else {
+                        new_children.push(substituted);
+                    }
+                } else {
+                    new_children.push(substituted);
+                }
             }
 
             Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {

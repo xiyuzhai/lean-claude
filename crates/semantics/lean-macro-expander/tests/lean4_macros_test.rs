@@ -28,6 +28,21 @@ fn expand_and_format(input: &str) -> Result<String, String> {
                             return Err(format!("Failed to create macro: {e:?}"));
                         }
                     }
+                } else if node.kind == SyntaxKind::MacroRules {
+                    println!("Found macro_rules: {node:?}");
+                    match MacroEnvironment::create_macros_from_macro_rules(child) {
+                        Ok(macro_defs) => {
+                            println!("Registering {} macros from macro_rules", macro_defs.len());
+                            for macro_def in macro_defs {
+                                println!("  Registering macro: {}", macro_def.name);
+                                env.register_macro(macro_def);
+                            }
+                        }
+                        Err(e) => {
+                            println!("Failed to create macros from macro_rules: {e:?}");
+                            return Err(format!("Failed to create macros from macro_rules: {e:?}"));
+                        }
+                    }
                 }
             }
         }

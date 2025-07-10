@@ -1,4 +1,5 @@
 use lean_syn_expr::{Syntax, SyntaxKind, SyntaxNode};
+use smallvec::smallvec;
 
 use crate::{
     environment::MacroEnvironment,
@@ -6,6 +7,14 @@ use crate::{
     hygiene::HygieneContext,
     pattern::{substitute_template, PatternMatcher},
 };
+
+/// A macro parameter specification
+#[derive(Debug, Clone)]
+struct MacroParameter {
+    name: eterned::BaseCoword,
+    #[allow(dead_code)]
+    category: eterned::BaseCoword,
+}
 
 /// Main macro expander
 pub struct MacroExpander {
@@ -15,10 +24,12 @@ pub struct MacroExpander {
 
 impl MacroExpander {
     pub fn new(env: MacroEnvironment) -> Self {
-        Self {
+        let mut expander = Self {
             env,
             hygiene: HygieneContext::new(),
-        }
+        };
+        expander.register_builtins();
+        expander
     }
 
     /// Expand all macros in a syntax tree
@@ -60,19 +71,21 @@ impl MacroExpander {
         node: &SyntaxNode,
         _ctx: &HygieneContext,
     ) -> ExpansionResult<Option<Syntax>> {
-        // Check if this looks like a macro application
-        if node.kind != SyntaxKind::App {
-            return Ok(None);
-        }
-
-        // Get the head of the application
-        let head = match node.children.first() {
-            Some(Syntax::Atom(atom)) => atom,
-            _ => return Ok(None),
+        let (macro_name, _is_app) = match node.kind {
+            SyntaxKind::App => {
+                // Macro application like (App panic! "msg")
+                match node.children.first() {
+                    Some(Syntax::Atom(atom)) => (atom.value.as_str(), true),
+                    _ => return Ok(None),
+                }
+            }
+            _ => {
+                // Not a macro application
+                return Ok(None);
+            }
         };
 
         // Look up macro definitions
-        let macro_name = head.value.as_str();
         let macros = match self.env.get_macros(macro_name) {
             Some(macros) => macros,
             None => return Ok(None),
@@ -80,39 +93,36 @@ impl MacroExpander {
 
         // Try each macro definition in order
         for macro_def in macros {
-            // For macro applications, we need to match the arguments against the pattern
-            // If we have (App twice 5) and pattern x:term, we should match 5 against x:term
-
-            // Get the arguments (everything after the macro name)
-            let args = if node.children.len() > 1 {
-                &node.children[1..]
+            let pattern_match = if Self::is_macro_rules_pattern(&macro_def.pattern) {
+                // For macro_rules, match the entire application against the quoted pattern
+                PatternMatcher::match_pattern(
+                    &macro_def.pattern,
+                    &Syntax::Node(Box::new(node.clone())),
+                )?
             } else {
-                // No arguments
-                &[]
+                // For traditional macros with typed parameters, match arguments against
+                // parameter pattern
+                Self::match_traditional_macro(&macro_def.pattern, node)?
             };
 
-            // Try to match the pattern against the arguments
-            let match_target = if args.len() == 1 {
-                // Single argument - match directly
-                &args[0]
-            } else if args.is_empty() {
-                // No arguments - create an empty syntax
-                &Syntax::Missing
-            } else {
-                // Multiple arguments - wrap in an App node
-                &Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::App,
-                    range: node.range,
-                    children: args.to_vec().into(),
-                }))
-            };
-
-            if let Some(pattern_match) =
-                PatternMatcher::match_pattern(&macro_def.pattern, match_target)?
-            {
+            if let Some(pattern_match) = pattern_match {
                 // Substitute into template
                 let expanded = substitute_template(&macro_def.template, &pattern_match.bindings)?;
-                return Ok(Some(expanded));
+
+                // If the template result is a SyntaxQuotation, unwrap it for the final
+                // expansion
+                let final_expansion = match &expanded {
+                    Syntax::Node(exp_node) if exp_node.kind == SyntaxKind::SyntaxQuotation => {
+                        if let Some(content) = exp_node.children.first() {
+                            content.clone()
+                        } else {
+                            expanded
+                        }
+                    }
+                    _ => expanded,
+                };
+
+                return Ok(Some(final_expansion));
             }
         }
 
@@ -135,8 +145,288 @@ impl MacroExpander {
         })))
     }
 
+    /// Check if a pattern is from macro_rules (contains SyntaxQuotation)
+    fn is_macro_rules_pattern(pattern: &Syntax) -> bool {
+        match pattern {
+            Syntax::Node(node) => node.kind == SyntaxKind::SyntaxQuotation,
+            _ => false,
+        }
+    }
+
+    /// Match traditional macro with typed parameters against application
+    /// arguments
+    fn match_traditional_macro(
+        pattern: &Syntax,
+        app_node: &SyntaxNode,
+    ) -> ExpansionResult<Option<crate::pattern::PatternMatch>> {
+        // Traditional macro pattern can be:
+        // - Syntax::Missing for parameterless macros like unreachable!
+        // - (App x term) for single typed parameter x:term
+        // - (App (App x term) (App y term)) for multiple parameters x:term y:term
+
+        // Get arguments (skip the first child which is the macro name)
+        let args: Vec<&Syntax> = app_node.children.iter().skip(1).collect();
+
+        match pattern {
+            Syntax::Missing => {
+                // Parameterless macro like unreachable!
+                if args.is_empty() {
+                    let bindings = im::HashMap::new();
+                    return Ok(Some(crate::pattern::PatternMatch { bindings }));
+                }
+            }
+            Syntax::Node(pattern_node) if pattern_node.kind == SyntaxKind::App => {
+                // Try to parse as multiple parameters first
+                if let Some(bindings) = Self::match_multiple_parameters(pattern_node, &args)? {
+                    return Ok(Some(crate::pattern::PatternMatch { bindings }));
+                }
+
+                // Fall back to single parameter matching
+                if pattern_node.children.len() == 2 && args.len() == 1 {
+                    if let (Some(Syntax::Atom(var_name)), Some(Syntax::Atom(_category))) =
+                        (pattern_node.children.first(), pattern_node.children.get(1))
+                    {
+                        // Bind the variable to the argument
+                        let mut bindings = im::HashMap::new();
+                        bindings.insert(var_name.value.clone(), args[0].clone());
+                        return Ok(Some(crate::pattern::PatternMatch { bindings }));
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        Ok(None)
+    }
+
+    /// Match multiple parameters against arguments
+    fn match_multiple_parameters(
+        pattern_node: &lean_syn_expr::SyntaxNode,
+        args: &[&Syntax],
+    ) -> ExpansionResult<Option<im::HashMap<eterned::BaseCoword, Syntax>>> {
+        // Extract parameter specifications from the pattern
+        let params = Self::extract_parameters(pattern_node)?;
+
+        // Check if we have the right number of arguments
+        if params.len() != args.len() {
+            return Ok(None);
+        }
+
+        // Match each parameter against its corresponding argument
+        let mut bindings = im::HashMap::new();
+        for (param, arg) in params.iter().zip(args.iter()) {
+            bindings.insert(param.name.clone(), (*arg).clone());
+        }
+
+        Ok(Some(bindings))
+    }
+
+    /// Extract parameter specifications from a pattern node
+    fn extract_parameters(
+        pattern_node: &lean_syn_expr::SyntaxNode,
+    ) -> ExpansionResult<Vec<MacroParameter>> {
+        let mut params = Vec::new();
+
+        // Pattern can be nested Apps: (App (App x term) (App y term))
+        // Or a flat list: (App x term y term)
+
+        if pattern_node.children.len() == 2 {
+            // Single parameter: (App x term)
+            if let (Some(Syntax::Atom(var_name)), Some(Syntax::Atom(category))) =
+                (pattern_node.children.first(), pattern_node.children.get(1))
+            {
+                params.push(MacroParameter {
+                    name: var_name.value.clone(),
+                    category: category.value.clone(),
+                });
+            }
+        } else if pattern_node.children.len() > 2 {
+            // Multiple parameters in flat form: (App x term y term)
+            let mut i = 0;
+            while i + 1 < pattern_node.children.len() {
+                if let (Some(Syntax::Atom(var_name)), Some(Syntax::Atom(category))) = (
+                    pattern_node.children.get(i),
+                    pattern_node.children.get(i + 1),
+                ) {
+                    params.push(MacroParameter {
+                        name: var_name.value.clone(),
+                        category: category.value.clone(),
+                    });
+                    i += 2;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        Ok(params)
+    }
+
     /// Register built-in macros
     pub fn register_builtins(&mut self) {
-        // TODO: Add built-in macros like panic!, assert!, etc.
+        use eterned::BaseCoword;
+        use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
+
+        let dummy_range = SourceRange {
+            start: SourcePos::new(0, 0, 0),
+            end: SourcePos::new(0, 0, 0),
+        };
+
+        // panic! macro: panic! msg => panic msg
+        let panic_pattern = Syntax::Node(Box::new(SyntaxNode {
+            kind: lean_syn_expr::SyntaxKind::App,
+            range: dummy_range,
+            children: smallvec![
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: BaseCoword::new("msg")
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: BaseCoword::new("term")
+                }),
+            ],
+        }));
+
+        let panic_template = Syntax::Node(Box::new(SyntaxNode {
+            kind: lean_syn_expr::SyntaxKind::SyntaxQuotation,
+            range: dummy_range,
+            children: smallvec![Syntax::Node(Box::new(SyntaxNode {
+                kind: lean_syn_expr::SyntaxKind::App,
+                range: dummy_range,
+                children: smallvec![
+                    Syntax::Atom(SyntaxAtom {
+                        range: dummy_range,
+                        value: BaseCoword::new("panic")
+                    }),
+                    Syntax::Node(Box::new(SyntaxNode {
+                        kind: lean_syn_expr::SyntaxKind::SyntaxAntiquotation,
+                        range: dummy_range,
+                        children: smallvec![Syntax::Atom(SyntaxAtom {
+                            range: dummy_range,
+                            value: BaseCoword::new("msg")
+                        }),],
+                    })),
+                ],
+            })),],
+        }));
+
+        let panic_macro = crate::environment::MacroDefinition {
+            name: BaseCoword::new("panic!"),
+            pattern: panic_pattern,
+            template: panic_template,
+            category: BaseCoword::new("term"),
+            priority: 0,
+        };
+
+        self.env.register_macro(panic_macro);
+
+        // unreachable! macro: unreachable! => panic "unreachable code"
+        let unreachable_template = Syntax::Node(Box::new(SyntaxNode {
+            kind: lean_syn_expr::SyntaxKind::SyntaxQuotation,
+            range: dummy_range,
+            children: smallvec![Syntax::Node(Box::new(SyntaxNode {
+                kind: lean_syn_expr::SyntaxKind::App,
+                range: dummy_range,
+                children: smallvec![
+                    Syntax::Atom(SyntaxAtom {
+                        range: dummy_range,
+                        value: BaseCoword::new("panic")
+                    }),
+                    Syntax::Atom(SyntaxAtom {
+                        range: dummy_range,
+                        value: BaseCoword::new("\"unreachable code\"")
+                    }),
+                ],
+            })),],
+        }));
+
+        // unreachable! has no parameters
+        let unreachable_pattern = Syntax::Missing;
+
+        let unreachable_macro = crate::environment::MacroDefinition {
+            name: BaseCoword::new("unreachable!"),
+            pattern: unreachable_pattern,
+            template: unreachable_template,
+            category: BaseCoword::new("term"),
+            priority: 0,
+        };
+
+        self.env.register_macro(unreachable_macro);
+
+        // assert! macro: assert! cond => if cond then () else panic "assertion failed"
+        let assert_pattern = Syntax::Node(Box::new(SyntaxNode {
+            kind: lean_syn_expr::SyntaxKind::App,
+            range: dummy_range,
+            children: smallvec![
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: BaseCoword::new("cond")
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: BaseCoword::new("term")
+                }),
+            ],
+        }));
+
+        let assert_template = Syntax::Node(Box::new(SyntaxNode {
+            kind: lean_syn_expr::SyntaxKind::SyntaxQuotation,
+            range: dummy_range,
+            children: smallvec![Syntax::Node(Box::new(SyntaxNode {
+                kind: lean_syn_expr::SyntaxKind::App,
+                range: dummy_range,
+                children: smallvec![
+                    Syntax::Atom(SyntaxAtom {
+                        range: dummy_range,
+                        value: BaseCoword::new("if")
+                    }),
+                    Syntax::Node(Box::new(SyntaxNode {
+                        kind: lean_syn_expr::SyntaxKind::SyntaxAntiquotation,
+                        range: dummy_range,
+                        children: smallvec![Syntax::Atom(SyntaxAtom {
+                            range: dummy_range,
+                            value: BaseCoword::new("cond")
+                        }),],
+                    })),
+                    Syntax::Atom(SyntaxAtom {
+                        range: dummy_range,
+                        value: BaseCoword::new("then")
+                    }),
+                    Syntax::Atom(SyntaxAtom {
+                        range: dummy_range,
+                        value: BaseCoword::new("()")
+                    }),
+                    Syntax::Atom(SyntaxAtom {
+                        range: dummy_range,
+                        value: BaseCoword::new("else")
+                    }),
+                    Syntax::Node(Box::new(SyntaxNode {
+                        kind: lean_syn_expr::SyntaxKind::App,
+                        range: dummy_range,
+                        children: smallvec![
+                            Syntax::Atom(SyntaxAtom {
+                                range: dummy_range,
+                                value: BaseCoword::new("panic")
+                            }),
+                            Syntax::Atom(SyntaxAtom {
+                                range: dummy_range,
+                                value: BaseCoword::new("\"assertion failed\"")
+                            }),
+                        ],
+                    })),
+                ],
+            })),],
+        }));
+
+        let assert_macro = crate::environment::MacroDefinition {
+            name: BaseCoword::new("assert!"),
+            pattern: assert_pattern,
+            template: assert_template,
+            category: BaseCoword::new("term"),
+            priority: 0,
+        };
+
+        self.env.register_macro(assert_macro);
     }
 }

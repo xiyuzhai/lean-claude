@@ -3,6 +3,7 @@
 pub mod category;
 pub mod combinators;
 pub mod command;
+pub mod custom_syntax;
 pub mod diagnostic;
 pub mod error;
 pub mod expansion;
@@ -13,6 +14,7 @@ pub mod module;
 pub mod parser;
 pub mod pattern;
 pub mod precedence;
+pub mod recovery;
 pub mod tactic;
 pub mod term;
 

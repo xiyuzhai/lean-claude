@@ -129,4 +129,96 @@ impl MacroEnvironment {
             }),
         }
     }
+
+    /// Create macro definitions from macro_rules syntax
+    pub fn create_macros_from_macro_rules(
+        syntax: &Syntax,
+    ) -> ExpansionResult<Vec<MacroDefinition>> {
+        match syntax {
+            Syntax::Node(node) if node.kind == SyntaxKind::MacroRules => {
+                let mut macros = Vec::new();
+
+                // MacroRules contains MacroRule children
+                for child in &node.children {
+                    if let Syntax::Node(rule_node) = child {
+                        if rule_node.kind == SyntaxKind::MacroRule {
+                            // Each MacroRule should have pattern and template
+                            if rule_node.children.len() < 2 {
+                                return Err(ExpansionError::InvalidMacroDefinition {
+                                    message: "MacroRule requires pattern and template".to_string(),
+                                    range: rule_node.range,
+                                });
+                            }
+
+                            let pattern = rule_node.children[0].clone();
+                            let template = rule_node.children[1].clone();
+
+                            // Extract macro name from pattern
+                            let name = Self::extract_macro_name_from_pattern(&pattern)?;
+
+                            macros.push(MacroDefinition {
+                                name,
+                                pattern,
+                                template,
+                                category: BaseCoword::new("term"), // Default category
+                                priority: 0,
+                            });
+                        }
+                    }
+                }
+
+                Ok(macros)
+            }
+            _ => Err(ExpansionError::InvalidMacroDefinition {
+                message: "Expected MacroRules node".to_string(),
+                range: syntax
+                    .range()
+                    .cloned()
+                    .unwrap_or(lean_syn_expr::SourceRange {
+                        start: lean_syn_expr::SourcePos::new(0, 0, 0),
+                        end: lean_syn_expr::SourcePos::new(0, 0, 0),
+                    }),
+            }),
+        }
+    }
+
+    /// Extract macro name from a pattern (e.g., from `(myif $c then $x else
+    /// $y)`)
+    fn extract_macro_name_from_pattern(pattern: &Syntax) -> ExpansionResult<BaseCoword> {
+        match pattern {
+            Syntax::Atom(atom) => Ok(atom.value.clone()),
+            Syntax::Node(node) if node.kind == SyntaxKind::SyntaxQuotation => {
+                // Look inside the quotation for the pattern
+                if let Some(quoted) = node.children.first() {
+                    Self::extract_macro_name_from_pattern(quoted)
+                } else {
+                    Err(ExpansionError::InvalidMacroDefinition {
+                        message: "Empty syntax quotation".to_string(),
+                        range: node.range,
+                    })
+                }
+            }
+            Syntax::Node(node) if node.kind == SyntaxKind::App => {
+                // First child should be the macro name
+                if let Some(first) = node.children.first() {
+                    Self::extract_macro_name_from_pattern(first)
+                } else {
+                    Err(ExpansionError::InvalidMacroDefinition {
+                        message: "Empty application pattern".to_string(),
+                        range: node.range,
+                    })
+                }
+            }
+            _ => Err(ExpansionError::InvalidMacroDefinition {
+                message: "Cannot extract macro name from pattern".to_string(),
+                range: pattern
+                    .range()
+                    .cloned()
+                    .unwrap_or(lean_syn_expr::SourceRange {
+                        start: lean_syn_expr::SourcePos::new(0, 0, 0),
+                        end: lean_syn_expr::SourcePos::new(0, 0, 0),
+                    }),
+            }),
+        }
+    }
 }

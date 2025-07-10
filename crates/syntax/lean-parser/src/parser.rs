@@ -29,6 +29,10 @@ pub struct Parser<'a> {
     current_category: String,
     /// Collected warnings during parsing
     warnings: Vec<Diagnostic>,
+    /// Collected errors during parsing
+    errors: Vec<ParseError>,
+    /// Maximum number of errors before stopping
+    max_errors: usize,
 }
 
 #[derive(Clone)]
@@ -47,6 +51,8 @@ impl<'a> Parser<'a> {
             categories: Rc::new(RefCell::new(categories)),
             current_category: "term".to_string(),
             warnings: Vec::new(),
+            errors: Vec::new(),
+            max_errors: 100,
         }
     }
 
@@ -59,6 +65,8 @@ impl<'a> Parser<'a> {
             categories: Rc::new(RefCell::new(categories)),
             current_category: "term".to_string(),
             warnings: Vec::new(),
+            errors: Vec::new(),
+            max_errors: 100,
         }
     }
 
@@ -106,6 +114,26 @@ impl<'a> Parser<'a> {
     /// Get collected warnings
     pub fn warnings(&self) -> &[Diagnostic] {
         &self.warnings
+    }
+
+    /// Record an error
+    pub fn record_error(&mut self, error: Box<ParseError>) {
+        self.errors.push(*error);
+    }
+
+    /// Get collected errors
+    pub fn errors(&self) -> &[ParseError] {
+        &self.errors
+    }
+
+    /// Check if we've exceeded the error limit
+    pub fn too_many_errors(&self) -> bool {
+        self.errors.len() >= self.max_errors
+    }
+
+    /// Get a reference to the category registry
+    pub fn categories(&self) -> &Rc<RefCell<CategoryRegistry>> {
+        &self.categories
     }
 
     /// Parse using current category rules

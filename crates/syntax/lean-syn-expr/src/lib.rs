@@ -162,6 +162,11 @@ pub enum SyntaxKind {
     CustomTactic,
     CasePattern,
 
+    // Advanced expressions
+    Subtype,
+    AnonymousConstructor,
+    ExplicitApp,
+
     // Macros and Notation
     Macro,
     MacroDef,
@@ -170,6 +175,7 @@ pub enum SyntaxKind {
     Syntax,
     SyntaxQuotation,
     SyntaxAntiquotation,
+    SyntaxSplice,
     Notation,
     NotationDef,
     Precedence,
@@ -180,6 +186,13 @@ pub enum SyntaxKind {
     Module,
     Error,
     StringInterpolation,
+
+    // Custom Syntax
+    DeclareSyntaxCat,
+    SyntaxExtension,
+    SyntaxPattern,
+    SyntaxParam,
+    CustomSyntax,
 }
 
 impl Syntax {
@@ -313,6 +326,9 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::Focus => "focus",
             SyntaxKind::CustomTactic => "custom tactic",
             SyntaxKind::CasePattern => "case pattern",
+            SyntaxKind::Subtype => "subtype",
+            SyntaxKind::AnonymousConstructor => "anonymous constructor",
+            SyntaxKind::ExplicitApp => "explicit application",
             SyntaxKind::Macro => "macro",
             SyntaxKind::MacroDef => "macro definition",
             SyntaxKind::MacroRules => "macro rules",
@@ -320,6 +336,7 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::Syntax => "syntax",
             SyntaxKind::SyntaxQuotation => "syntax quotation",
             SyntaxKind::SyntaxAntiquotation => "syntax antiquotation",
+            SyntaxKind::SyntaxSplice => "syntax splice",
             SyntaxKind::Notation => "notation",
             SyntaxKind::NotationDef => "notation definition",
             SyntaxKind::Precedence => "precedence",
@@ -328,6 +345,11 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::Module => "module",
             SyntaxKind::Error => "error",
             SyntaxKind::StringInterpolation => "string interpolation",
+            SyntaxKind::DeclareSyntaxCat => "declare_syntax_cat",
+            SyntaxKind::SyntaxExtension => "syntax extension",
+            SyntaxKind::SyntaxPattern => "syntax pattern",
+            SyntaxKind::SyntaxParam => "syntax parameter",
+            SyntaxKind::CustomSyntax => "custom syntax",
         };
         write!(f, "{s}")
     }

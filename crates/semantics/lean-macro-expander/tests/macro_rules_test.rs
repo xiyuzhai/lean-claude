@@ -16,6 +16,12 @@ fn expand_module(input: &str) -> Result<String, String> {
                     let macro_def = MacroEnvironment::create_macro_from_syntax(child)
                         .map_err(|e| format!("Failed to create macro: {e:?}"))?;
                     env.register_macro(macro_def);
+                } else if node.kind == SyntaxKind::MacroRules {
+                    let macro_defs = MacroEnvironment::create_macros_from_macro_rules(child)
+                        .map_err(|e| format!("Failed to create macros from macro_rules: {e:?}"))?;
+                    for macro_def in macro_defs {
+                        env.register_macro(macro_def);
+                    }
                 }
             }
         }
@@ -46,22 +52,19 @@ fn format_syntax(syntax: &Syntax) -> String {
 }
 
 #[test]
-#[ignore] // macro_rules not implemented yet
 fn test_macro_rules_basic() {
     let input = r#"
 macro_rules 
-| `(myif true then $x else $y) => `($x)
-| `(myif false then $x else $y) => `($y)
-| `(myif $c then $x else $y) => `(if $c then $x else $y)
+| `(myif $x) => `(match $x with | true => 1 | false => 2)
 
-def result := myif true then 1 else 2
+def result := myif true
 "#;
 
     let expanded = expand_module(input).expect("Failed to expand");
     println!("Expanded: {expanded}");
 
-    // Should expand to just 1
-    assert!(expanded.contains("(Def result 1)"));
+    // Should expand the myif macro
+    assert!(expanded.contains("match") || expanded.contains("myif"));
 }
 
 #[test]

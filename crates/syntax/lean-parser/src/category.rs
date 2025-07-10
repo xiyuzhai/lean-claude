@@ -484,6 +484,18 @@ pub fn init_standard_categories() -> CategoryRegistry {
         },
     );
 
+    // Calc expressions
+    term_category.tables.add_leading(
+        "calc",
+        ParserEntry {
+            parser: Rc::new(|p| p.calc_term()),
+            precedence: Precedence::MAX,
+            name: "calc expression".to_string(),
+            example: Some("calc a = b := proof1\n     _ = c := proof2".to_string()),
+            help: Some("Calculational proof".to_string()),
+        },
+    );
+
     // Match expressions
     term_category.tables.add_leading(
         "match",
