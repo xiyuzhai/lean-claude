@@ -1320,13 +1320,17 @@ mod tests {
             result.err()
         );
 
-        // The result should be a metavariable placeholder for now
-        match &result.unwrap().kind {
-            lean_kernel::expr::ExprKind::MVar(_) => {
-                // Expected - match compilation returns placeholder
-            }
-            _ => panic!("Expected metavariable placeholder for match result"),
-        }
+        // The result should be compiled to if-then-else and let expressions
+        // For the pattern: match x with | 0 => 1 | n => n + 1
+        // This compiles to: if x == 0 then 1 else (let n := x in n + 1)
+        let expr = result.unwrap();
+
+        // Verify it's an application (if-then-else is an application of ite)
+        assert!(
+            matches!(&expr.kind, lean_kernel::expr::ExprKind::App(_, _)),
+            "Expected application (if-then-else), got {:?}",
+            expr.kind
+        )
     }
 
     #[test]

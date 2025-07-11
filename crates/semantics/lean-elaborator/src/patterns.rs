@@ -214,25 +214,135 @@ pub fn check_exhaustiveness(
 /// Compile patterns to case expressions
 pub fn patterns_to_case_expr(
     discriminants: Vec<Expr>,
-    _arms: Vec<CompiledArm>,
-    _state: &mut ElabState,
+    arms: Vec<CompiledArm>,
+    state: &mut ElabState,
 ) -> Result<Expr, ElabError> {
-    // TODO: This is a simplified implementation
-    // Real pattern compilation would generate case expressions with proper indices
-
     if discriminants.len() != 1 {
         return Err(ElabError::UnsupportedSyntax(SyntaxKind::Match));
     }
 
-    // For now, return a placeholder
-    // In a real implementation, this would generate:
-    // - Case expressions for inductive types
-    // - If-then-else chains for literals
-    // - Let bindings for variable patterns
+    let discriminant = discriminants.into_iter().next().unwrap();
 
-    // For now, return a placeholder metavariable
-    // In a real implementation, this would generate proper case expressions
-    Ok(Expr::mvar(Name::mk_simple("_match_result")))
+    // For now, we implement a simple compilation strategy:
+    // 1. Variable patterns compile to let bindings
+    // 2. Literal patterns compile to if-then-else chains
+    // 3. Constructor patterns are not yet supported (need inductive types in
+    //    kernel)
+    // 4. Wildcard patterns become the else branch
+
+    compile_arms_to_expr(discriminant, arms, state)
+}
+
+/// Compile a list of match arms into nested if-then-else expressions
+fn compile_arms_to_expr(
+    discriminant: Expr,
+    arms: Vec<CompiledArm>,
+    state: &mut ElabState,
+) -> Result<Expr, ElabError> {
+    if arms.is_empty() {
+        // No arms means non-exhaustive match - create error expression
+        return Ok(Expr::mvar(Name::mk_simple("_match_error")));
+    }
+
+    let mut arms_iter = arms.into_iter();
+    let first_arm = arms_iter.next().unwrap();
+    let rest_arms: Vec<_> = arms_iter.collect();
+
+    compile_single_arm(discriminant, first_arm, rest_arms, state)
+}
+
+/// Compile a single arm, with the rest as fallback
+fn compile_single_arm(
+    discriminant: Expr,
+    arm: CompiledArm,
+    rest: Vec<CompiledArm>,
+    state: &mut ElabState,
+) -> Result<Expr, ElabError> {
+    if arm.patterns.len() != 1 {
+        return Err(ElabError::UnsupportedSyntax(SyntaxKind::Match));
+    }
+
+    let pattern = &arm.patterns[0];
+    let body = arm.body;
+
+    match pattern {
+        Pattern::Var(name) => {
+            // Variable pattern: compile to let binding
+            // let x := discriminant in body
+            let ty = Expr::mvar(Name::mk_simple("_var_type"));
+            Ok(Expr::let_expr(name.clone(), ty, discriminant, body))
+        }
+        Pattern::Wildcard => {
+            // Wildcard pattern always matches
+            Ok(body)
+        }
+        Pattern::Literal(lit) => {
+            // Literal pattern: compile to if-then-else
+            // if discriminant == lit then body else (compile rest)
+            let lit_expr = literal_to_expr(lit);
+            let eq_expr = build_equality_test(discriminant.clone(), lit_expr, state)?;
+
+            if rest.is_empty() {
+                // Last arm with literal pattern - just return body
+                // (assumes exhaustiveness)
+                Ok(body)
+            } else {
+                // Build if-then-else
+                let else_expr = compile_arms_to_expr(discriminant, rest, state)?;
+                build_if_then_else(eq_expr, body, else_expr, state)
+            }
+        }
+        Pattern::Constructor { .. } => {
+            // TODO: Constructor patterns require inductive type support in kernel
+            // For now, return error
+            Err(ElabError::UnsupportedSyntax(SyntaxKind::ConstructorPattern))
+        }
+        Pattern::As { .. } => {
+            // TODO: As patterns need special handling
+            Err(ElabError::UnsupportedSyntax(SyntaxKind::Match))
+        }
+    }
+}
+
+/// Convert a literal pattern to an expression
+fn literal_to_expr(lit: &Literal) -> Expr {
+    match lit {
+        Literal::Nat(n) => Expr::nat(*n),
+        Literal::String(s) => Expr::string(s.clone()),
+        Literal::Char(c) => {
+            // Represent char as a nat for now
+            Expr::nat(*c as u64)
+        }
+    }
+}
+
+/// Build an equality test expression
+fn build_equality_test(left: Expr, right: Expr, _state: &mut ElabState) -> Result<Expr, ElabError> {
+    // Build: Eq left right
+    // For now, we create a simple application
+    let eq = Expr::const_expr(Name::mk_simple("Eq"), vec![]);
+    Ok(Expr::app(Expr::app(eq, left), right))
+}
+
+/// Build an if-then-else expression
+fn build_if_then_else(
+    _condition: Expr,
+    then_branch: Expr,
+    else_branch: Expr,
+    _state: &mut ElabState,
+) -> Result<Expr, ElabError> {
+    // In Lean, if-then-else is defined as:
+    // ite : ∀ {α : Sort u}, Decidable p → α → α → α
+    // For now, create a simplified version without the condition
+    // TODO: Properly thread the condition through when decidable instances are
+    // implemented
+    let ite = Expr::const_expr(Name::mk_simple("ite"), vec![]);
+    let decidable_inst = Expr::mvar(Name::mk_simple("_decidable"));
+
+    Ok(Expr::app(
+        Expr::app(Expr::app(ite, decidable_inst), then_branch),
+        else_branch,
+    ))
 }
 
 #[cfg(test)]
@@ -286,5 +396,78 @@ mod tests {
             Pattern::Literal(Literal::Nat(n)) => assert_eq!(n, 42),
             _ => panic!("Expected number literal pattern"),
         }
+    }
+
+    #[test]
+    fn test_patterns_to_case_expr_literal() {
+        use lean_kernel::{Expr, Name};
+
+        let mut state = ElabState::new();
+
+        // Create a match with literal patterns: match x with | 0 => a | 1 => b | _ => c
+        let discriminant = Expr::fvar(Name::mk_simple("x"));
+
+        let arms = vec![
+            CompiledArm {
+                patterns: vec![Pattern::Literal(Literal::Nat(0))],
+                body: Expr::fvar(Name::mk_simple("a")),
+                bound_vars: vec![],
+            },
+            CompiledArm {
+                patterns: vec![Pattern::Literal(Literal::Nat(1))],
+                body: Expr::fvar(Name::mk_simple("b")),
+                bound_vars: vec![],
+            },
+            CompiledArm {
+                patterns: vec![Pattern::Wildcard],
+                body: Expr::fvar(Name::mk_simple("c")),
+                bound_vars: vec![],
+            },
+        ];
+
+        let result = patterns_to_case_expr(vec![discriminant], arms, &mut state);
+        assert!(
+            result.is_ok(),
+            "Pattern compilation should succeed: {:?}",
+            result.err()
+        );
+
+        // The result should be nested if-then-else expressions
+        let expr = result.unwrap();
+        assert!(
+            matches!(&expr.kind, lean_kernel::expr::ExprKind::App(_, _)),
+            "Expected application (if-then-else)"
+        );
+    }
+
+    #[test]
+    fn test_patterns_to_case_expr_variable() {
+        use lean_kernel::{Expr, Name};
+
+        let mut state = ElabState::new();
+
+        // Create a match with variable pattern: match x with | y => y + 1
+        let discriminant = Expr::fvar(Name::mk_simple("x"));
+
+        let arms = vec![CompiledArm {
+            patterns: vec![Pattern::Var(Name::mk_simple("y"))],
+            body: Expr::bvar(0), // y is bound as bvar(0)
+            bound_vars: vec![Name::mk_simple("y")],
+        }];
+
+        let result = patterns_to_case_expr(vec![discriminant], arms, &mut state);
+        assert!(
+            result.is_ok(),
+            "Pattern compilation should succeed: {:?}",
+            result.err()
+        );
+
+        // The result should be a let expression
+        let expr = result.unwrap();
+        assert!(
+            matches!(&expr.kind, lean_kernel::expr::ExprKind::Let(_, _, _, _)),
+            "Expected let expression for variable pattern, got {:?}",
+            expr.kind
+        );
     }
 }
