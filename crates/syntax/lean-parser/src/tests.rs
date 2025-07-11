@@ -9,6 +9,7 @@ mod do_bind_test;
 mod macro_test;
 mod module_tests;
 mod operator_category_test;
+mod pattern_operator_test;
 mod tactic_category_test;
 mod unicode_test;
 mod unit_syntax_test;

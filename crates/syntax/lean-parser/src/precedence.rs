@@ -184,6 +184,12 @@ pub static BINARY_OPERATORS: Lazy<HashMap<&'static str, OperatorInfo>> = Lazy::n
         OperatorInfo::new("++", Precedence(65), Associativity::Right),
     );
 
+    // Option operations
+    ops.insert(
+        "??",
+        OperatorInfo::new("??", Precedence(60), Associativity::Right),
+    );
+
     ops
 });
 

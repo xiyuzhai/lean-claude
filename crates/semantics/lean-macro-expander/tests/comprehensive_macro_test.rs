@@ -115,7 +115,8 @@ def test3 := when (x > 0) do (print "positive")
     // test2 should expand to ()
     // test3 should expand to if (x > 0) then (print "positive") else ()
     assert!(expanded.contains("print"));
-    assert!(expanded.contains("Unit.unit")); // () is parsed as Unit.unit
+    assert!(expanded.contains("(App Unit unit)")); // () is parsed as (App Unit
+                                                   // unit)
 }
 
 #[test]
@@ -184,7 +185,7 @@ def test := ()
     let expanded = expand_and_verify(input).expect("Failed to expand");
     println!("Expanded: {expanded}");
 
-    assert!(expanded.contains("Unit.unit"));
+    assert!(expanded.contains("(App Unit unit)"));
 }
 
 #[test]
