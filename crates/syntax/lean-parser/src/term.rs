@@ -1,4 +1,5 @@
-use lean_syn_expr::{Syntax, SyntaxKind, SyntaxNode};
+use eterned::BaseCoword;
+use lean_syn_expr::{Syntax, SyntaxAtom, SyntaxKind, SyntaxNode};
 use smallvec::smallvec;
 
 use crate::{
@@ -255,10 +256,12 @@ impl<'a> Parser<'a> {
             Some('m') if self.peek_keyword("match") => self.match_expr(),
             Some('i') if self.peek_keyword("if") => self.if_term(),
             Some('b') if self.peek_keyword("by") => self.by_tactic(),
+            Some('d') if self.peek_keyword("do") => self.do_term(),
             Some('`') if self.input().peek_nth(1) == Some('(') => self.parse_syntax_quotation(),
             Some('$') => self.parse_antiquotation(),
             Some('⟨') => self.anonymous_constructor(),
             Some('@') => self.explicit_application(),
+            Some('·') => self.cdot_placeholder(),
             Some('r') if self.peek_raw_string() => self.raw_string_literal(),
             Some('s') if self.peek_interpolated_string() => self.interpolated_string_literal(),
             Some('0') if self.peek_special_number() => self.number(),
@@ -579,6 +582,15 @@ impl<'a> Parser<'a> {
         self.keyword("let")?;
         self.skip_whitespace();
 
+        // Check for 'mut' keyword
+        let _is_mut = if self.peek_keyword("mut") {
+            self.keyword("mut")?;
+            self.skip_whitespace();
+            true
+        } else {
+            false
+        };
+
         let name = self.identifier()?;
         self.skip_whitespace();
 
@@ -836,5 +848,252 @@ impl<'a> Parser<'a> {
             }
         }
         Ok(expr)
+    }
+
+    /// Parse do block: `do statements...`
+    pub fn do_term(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.keyword("do")?;
+        self.skip_whitespace();
+
+        let mut statements = Vec::new();
+
+        // Parse statements in the do block
+        // Each statement can be on its own line or separated by semicolons
+        loop {
+            self.skip_whitespace();
+
+            // Check for end of do block
+            if self.at_block_end() {
+                break;
+            }
+
+            // Parse different statement types
+            if self.peek_keyword("let") {
+                statements.push(self.do_let_stmt()?);
+            } else if self.peek_keyword("return") {
+                statements.push(self.do_return_stmt()?);
+            } else if self.peek_keyword("pure") {
+                statements.push(self.do_pure_stmt()?);
+            } else if self.peek_keyword("for") {
+                statements.push(self.do_for_stmt()?);
+            } else {
+                // Expression statement (possibly with bind)
+                statements.push(self.do_expr_stmt()?);
+            }
+
+            self.skip_whitespace();
+
+            // Check for statement separator
+            if self.peek() == Some(';') {
+                self.advance();
+                self.skip_whitespace();
+            } else if !self.at_line_start() && !self.at_block_end() {
+                // If we're not at a line start or block end, we need a separator
+                // This is a bit lenient for now
+                continue;
+            }
+        }
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Do,
+            range,
+            children: statements.into(),
+        })))
+    }
+
+    /// Parse do-let statement: `let x := expr` or `let x ← expr`
+    fn do_let_stmt(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.keyword("let")?;
+        self.skip_whitespace();
+
+        // Check for 'mut' keyword
+        let _is_mut = if self.peek_keyword("mut") {
+            self.keyword("mut")?;
+            self.skip_whitespace();
+            true
+        } else {
+            false
+        };
+
+        let pattern = self.identifier()?; // TODO: Support full patterns
+        self.skip_whitespace();
+
+        // Check for type annotation
+        let ty = if self.peek() == Some(':') && self.input().peek_nth(1) != Some('=') {
+            self.advance(); // consume ':'
+            self.skip_whitespace();
+            Some(self.term()?)
+        } else {
+            None
+        };
+
+        self.skip_whitespace();
+
+        // Check for bind operator ← or assignment :=
+        let is_bind = if self.peek() == Some('←') {
+            self.advance(); // consume ←
+            true
+        } else if self.peek() == Some('<') && self.input().peek_nth(1) == Some('-') {
+            self.advance(); // consume <
+            self.advance(); // consume -
+            true
+        } else {
+            self.expect_char(':')?;
+            self.expect_char('=')?;
+            false
+        };
+
+        self.skip_whitespace();
+        let value = self.term()?;
+
+        let range = self.input().range_from(start);
+        let mut children = vec![pattern];
+        if let Some(ty) = ty {
+            children.push(ty);
+        }
+        children.push(value);
+
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: if is_bind {
+                SyntaxKind::Bind
+            } else {
+                SyntaxKind::Let
+            },
+            range,
+            children: children.into(),
+        })))
+    }
+
+    /// Parse do-return statement: `return expr`
+    fn do_return_stmt(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.keyword("return")?;
+        self.skip_whitespace();
+
+        let expr = self.term()?;
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Return,
+            range,
+            children: smallvec![expr],
+        })))
+    }
+
+    /// Parse do-pure statement: `pure expr`
+    fn do_pure_stmt(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.keyword("pure")?;
+        self.skip_whitespace();
+
+        let expr = self.term()?;
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Return, // Reuse Return kind for pure
+            range,
+            children: smallvec![expr],
+        })))
+    }
+
+    /// Parse do-for statement: `for x in xs do body`
+    fn do_for_stmt(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.keyword("for")?;
+        self.skip_whitespace();
+
+        let pattern = self.identifier()?; // TODO: Support full patterns
+        self.skip_whitespace();
+
+        self.keyword("in")?;
+        self.skip_whitespace();
+
+        let collection = self.term()?;
+        self.skip_whitespace();
+
+        self.keyword("do")?;
+        self.skip_whitespace();
+
+        // Parse the body (single statement or block)
+        let body = if self.peek() == Some('{') {
+            // Block
+            self.do_term()?
+        } else {
+            // Single statement
+            self.do_expr_stmt()?
+        };
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Do, // Reuse Do kind for for loops
+            range,
+            children: smallvec![pattern, collection, body],
+        })))
+    }
+
+    /// Parse do expression statement: `expr` or `pat ← expr`
+    fn do_expr_stmt(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        // Try to parse as bind first: pattern ← expr
+        if let Ok((pattern, expr)) = self.try_parse(|p| {
+            let pattern = p.identifier()?; // TODO: Support full patterns
+            p.skip_whitespace();
+
+            // Check for bind operator
+            if p.peek() == Some('←') {
+                p.advance();
+            } else if p.peek() == Some('<') && p.input().peek_nth(1) == Some('-') {
+                p.advance();
+                p.advance();
+            } else {
+                return Err(ParseError::boxed(
+                    ParseErrorKind::Expected("bind operator".to_string()),
+                    p.position(),
+                ));
+            }
+
+            p.skip_whitespace();
+            let expr = p.term()?;
+            Ok((pattern, expr))
+        }) {
+            let range = self.input().range_from(start);
+            Ok(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::Bind,
+                range,
+                children: smallvec![pattern, expr],
+            })))
+        } else {
+            // Just a plain expression
+            self.term()
+        }
+    }
+
+    /// Check if we're at the start of a new line
+    fn at_line_start(&self) -> bool {
+        // Simple heuristic: check if the previous non-whitespace character was a
+        // newline This is a simplified implementation
+        false
+    }
+
+    /// Parse centered dot placeholder: `·`
+    pub fn cdot_placeholder(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.expect_char('·')?;
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Atom(SyntaxAtom {
+            range,
+            value: BaseCoword::new("·"),
+        }))
     }
 }

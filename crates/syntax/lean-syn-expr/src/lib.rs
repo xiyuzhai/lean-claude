@@ -172,6 +172,9 @@ pub enum SyntaxKind {
     ExplicitApp,
     Projection,
     List,
+    Do,
+    Bind,
+    Return,
 
     // Macros and Notation
     Macro,
@@ -341,6 +344,9 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::ExplicitApp => "explicit application",
             SyntaxKind::Projection => "projection",
             SyntaxKind::List => "list",
+            SyntaxKind::Do => "do",
+            SyntaxKind::Bind => "bind",
+            SyntaxKind::Return => "return",
             SyntaxKind::Macro => "macro",
             SyntaxKind::MacroDef => "macro definition",
             SyntaxKind::MacroRules => "macro rules",

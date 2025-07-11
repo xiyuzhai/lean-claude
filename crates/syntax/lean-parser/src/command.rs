@@ -45,6 +45,17 @@ impl<'a> Parser<'a> {
             None
         };
 
+        self.skip_whitespace();
+
+        // Parse where clause if present
+        let where_clause = if self.peek_keyword("where") {
+            self.keyword("where")?;
+            self.skip_whitespace();
+            Some(self.term()?)
+        } else {
+            None
+        };
+
         // Parse definition - always expect ':='
         self.skip_whitespace();
         self.expect_char(':')?;
@@ -62,6 +73,9 @@ impl<'a> Parser<'a> {
         children.extend(params);
         if let Some(ty) = ty {
             children.push(ty);
+        }
+        if let Some(where_clause) = where_clause {
+            children.push(where_clause);
         }
         children.push(value);
 
@@ -144,6 +158,53 @@ impl<'a> Parser<'a> {
             kind: SyntaxKind::Variable,
             range,
             children: binders.into(),
+        })))
+    }
+
+    /// Parse example command: `example : type := proof`
+    pub fn example_command(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.keyword("example")?;
+        self.skip_whitespace();
+
+        // Parse optional type parameters
+        let mut params = Vec::new();
+        while self.peek() == Some('{') || self.peek() == Some('[') || self.peek() == Some('(') {
+            params.push(self.binder_group()?);
+            self.skip_whitespace();
+        }
+
+        // Parse type
+        self.expect_char(':')?;
+        self.skip_whitespace();
+        let ty = self.term()?;
+
+        // Parse proof
+        self.skip_whitespace();
+        // Parse := operator
+        if self.peek() == Some(':') {
+            self.advance(); // consume ':'
+            self.expect_char('=')?;
+        } else {
+            return Err(ParseError::boxed(
+                ParseErrorKind::Expected(":=".to_string()),
+                self.position(),
+            ));
+        }
+        self.skip_whitespace();
+
+        let proof = self.term()?;
+
+        let range = self.input().range_from(start);
+        let mut children = params;
+        children.push(ty);
+        children.push(proof);
+
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Theorem, // Reuse Theorem kind for examples
+            range,
+            children: children.into(),
         })))
     }
 
@@ -609,7 +670,17 @@ impl<'a> Parser<'a> {
             self.skip_whitespace();
         }
 
+        // Parse optional type annotation - but check it's not :=
+        let ty = if self.peek() == Some(':') && self.input().peek_nth(1) != Some('=') {
+            self.advance(); // consume ':'
+            self.skip_whitespace();
+            Some(self.term()?)
+        } else {
+            None
+        };
+
         // Parse definition (:=)
+        self.skip_whitespace();
         if self.peek() == Some(':') && self.input().peek_nth(1) == Some('=') {
             self.advance(); // consume ':'
             self.advance(); // consume '='
@@ -625,6 +696,9 @@ impl<'a> Parser<'a> {
 
         let mut children = smallvec![name];
         children.extend(params);
+        if let Some(ty) = ty {
+            children.push(ty);
+        }
         children.push(body);
 
         let range = self.input().range_from(start);

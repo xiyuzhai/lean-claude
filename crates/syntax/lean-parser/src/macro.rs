@@ -535,7 +535,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Check if we're at the end of a block
-    fn at_block_end(&self) -> bool {
+    pub(crate) fn at_block_end(&self) -> bool {
         matches!(
             self.peek(),
             None | Some('|') | Some(')') | Some('}') | Some(']')

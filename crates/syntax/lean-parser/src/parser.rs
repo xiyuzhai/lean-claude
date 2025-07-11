@@ -254,14 +254,22 @@ impl<'a> Parser<'a> {
     pub fn skip_whitespace_and_comments(&mut self) {
         loop {
             self.skip_whitespace();
-            if self.peek() == Some('-') && self.input.peek_nth(1) == Some('-') {
-                self.advance();
-                self.advance();
-                self.consume_while(|ch| ch != '\n');
-            } else if self.peek() == Some('/') && self.input.peek_nth(1) == Some('-') {
+
+            // Try to parse documentation comments as syntax nodes
+            if self.peek() == Some('/') && self.input.peek_nth(1) == Some('-') {
+                if self.input.peek_nth(2) == Some('-') || self.input.peek_nth(2) == Some('!') {
+                    // This is a documentation comment, don't skip it
+                    break;
+                }
+                // Regular block comment
                 self.advance();
                 self.advance();
                 self.skip_block_comment();
+            } else if self.peek() == Some('-') && self.input.peek_nth(1) == Some('-') {
+                // Line comment
+                self.advance();
+                self.advance();
+                self.consume_while(|ch| ch != '\n');
             } else {
                 break;
             }

@@ -1,0 +1,90 @@
+name: Lean Compatibility Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lean-lake-test:
+    name: Test Lean Lake Projects
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
+
+      - name: Install elan (Lean version manager)
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: Cache Lake builds
+        uses: actions/cache@v4
+        with:
+          path: |
+            test-data/implemented-features/.lake
+            test-data/implemented-features/build
+          key: ${{ runner.os }}-lake-${{ hashFiles('test-data/implemented-features/lakefile.lean') }}
+
+      - name: Build test-data/implemented-features with Lake
+        run: |
+          cd test-data/implemented-features
+          lake build
+        continue-on-error: true  # Allow failures initially as we improve compatibility
+
+      - name: Run our parser on Lean files
+        run: |
+          cargo build --release
+          # Parse all Lean files in test-data
+          find test-data/implemented-features -name "*.lean" -type f | while read file; do
+            echo "Parsing: $file"
+            ./target/release/leanc-rs parse "$file" || echo "Failed to parse: $file"
+          done
+
+      - name: Compare parsing results
+        run: |
+          # This could be expanded to compare ASTs or other metrics
+          echo "TODO: Add more detailed comparison between our parser and Lean's"
+
+  mathlib-sample-test:
+    name: Test Mathlib4 Sample Files
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'  # Only on main branch pushes
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Build parser
+        run: cargo build --release
+
+      - name: Test parsing sample Mathlib4 files
+        run: |
+          # Test a few representative files from mathlib4
+          if [ -d "test-data/mathlib4" ]; then
+            echo "Testing sample Mathlib4 files..."
+            # Pick a few key files to test
+            for file in \
+              "test-data/mathlib4/Mathlib/Data/List/Basic.lean" \
+              "test-data/mathlib4/Mathlib/Data/Nat/Basic.lean" \
+              "test-data/mathlib4/Mathlib/Logic/Basic.lean"
+            do
+              if [ -f "$file" ]; then
+                echo "Parsing: $file"
+                timeout 30s ./target/release/leanc-rs parse "$file" || echo "Failed or timeout: $file"
+              fi
+            done
+          else
+            echo "Mathlib4 submodule not found"
+          fi
+        continue-on-error: true

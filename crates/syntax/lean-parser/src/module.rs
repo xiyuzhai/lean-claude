@@ -26,6 +26,39 @@ impl<'a> Parser<'a> {
                 break;
             }
 
+            // Check for documentation comments
+            if self.peek() == Some('/')
+                && self.input().peek_nth(1) == Some('-')
+                && (self.input().peek_nth(2) == Some('-') || self.input().peek_nth(2) == Some('!'))
+            {
+                // Parse documentation comment
+                match self.parse_doc_comment() {
+                    Ok(doc) => {
+                        commands.push(doc);
+                        continue;
+                    }
+                    Err(e) => {
+                        // Fall through to error recovery
+                        if self.should_attempt_recovery() {
+                            match self.recover_from_error(e, RecoveryStrategy::SkipToNextStatement)
+                            {
+                                Ok(error_node) => {
+                                    commands.push(error_node);
+                                    continue;
+                                }
+                                Err(_) => {
+                                    if self.too_many_errors() {
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+
             // Try to parse a command
             match self.command() {
                 Ok(cmd) => commands.push(cmd),
@@ -113,7 +146,9 @@ impl<'a> Parser<'a> {
                     }
                 }
                 'e' => {
-                    if self.peek_keyword("elab") {
+                    if self.peek_keyword("example") {
+                        self.example_command()
+                    } else if self.peek_keyword("elab") {
                         self.elab_command()
                     } else if self.peek_keyword("end") {
                         self.end_command()
@@ -241,14 +276,14 @@ impl<'a> Parser<'a> {
         })))
     }
 
-    /// Parse namespace: `namespace Name`
+    /// Parse namespace: `namespace Name` or `namespace Name.Path.To.Module`
     pub fn namespace_command(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 
         self.keyword("namespace")?;
         self.skip_whitespace();
 
-        let name = self.identifier()?;
+        let name = self.parse_dotted_name()?;
 
         let range = self.input().range_from(start);
         Ok(Syntax::Node(Box::new(SyntaxNode {
@@ -256,6 +291,34 @@ impl<'a> Parser<'a> {
             range,
             children: smallvec![name],
         })))
+    }
+
+    /// Parse a dotted name like `Foo.Bar.Baz`
+    fn parse_dotted_name(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        let mut parts = vec![];
+
+        // Parse first identifier
+        parts.push(self.identifier()?);
+
+        // Parse remaining parts
+        while self.peek() == Some('.') {
+            self.advance(); // consume '.'
+            parts.push(self.identifier()?);
+        }
+
+        if parts.len() == 1 {
+            // Single identifier, return as-is
+            Ok(parts.into_iter().next().unwrap())
+        } else {
+            // Multiple parts, create a compound name node
+            let range = self.input().range_from(start);
+            Ok(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::Identifier, // Use Identifier for now
+                range,
+                children: parts.into(),
+            })))
+        }
     }
 
     /// Parse end: `end [Name]`
@@ -268,7 +331,7 @@ impl<'a> Parser<'a> {
         // Optional namespace name
         let mut children = smallvec![];
         if self.peek().is_some_and(is_id_start) {
-            children.push(self.identifier()?);
+            children.push(self.parse_dotted_name()?);
         }
 
         let range = self.input().range_from(start);
@@ -297,6 +360,56 @@ impl<'a> Parser<'a> {
             kind: SyntaxKind::Section,
             range,
             children,
+        })))
+    }
+
+    /// Parse documentation comment: `/-- ... -/` or `/-! ... -/`
+    fn parse_doc_comment(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.expect_char('/')?;
+        self.expect_char('-')?;
+
+        let _is_module_doc = if self.peek() == Some('!') {
+            self.advance();
+            true
+        } else if self.peek() == Some('-') {
+            self.advance();
+            false
+        } else {
+            return Err(ParseError::boxed(
+                ParseErrorKind::Expected("documentation comment".to_string()),
+                self.position(),
+            ));
+        };
+
+        // Collect comment content until we find -/
+        let mut content = String::new();
+        let mut prev = '\0';
+
+        while let Some(ch) = self.peek() {
+            if prev == '-' && ch == '/' {
+                self.advance(); // consume '/'
+                break;
+            }
+            prev = ch;
+            self.advance();
+            content.push(ch);
+        }
+
+        // Remove trailing '-' if present
+        if content.ends_with('-') {
+            content.pop();
+        }
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Comment,
+            range,
+            children: smallvec![Syntax::Atom(SyntaxAtom {
+                range,
+                value: BaseCoword::new(content.trim()),
+            })],
         })))
     }
 
