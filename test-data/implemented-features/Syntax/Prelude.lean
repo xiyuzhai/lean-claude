@@ -68,6 +68,36 @@ structure Point where
 -- Function type abbreviation
 abbrev F := Nat → Nat
 
+-- Common functions for examples
+def const (x : α) (_ : β) : α := x
+def add (x y : Nat) : Nat := x + y
+def mul (x y : Nat) : Nat := x * y
+def f (x : Nat) : Nat := x + 1
+def g (x : Nat) : Nat := x * 2
+def h (x : Nat) : Nat := x - 1
+def map (f : α → β) (xs : List α) : List β := List.map f xs
+def fold (f : α → β → α) (init : α) (xs : List β) : α := List.foldl f init xs
+def filter (p : α → Bool) (xs : List α) : List α := List.filter p xs
+
+-- Example list for testing
+def list : List Nat := [1, 2, 3, 4, 5]
+
+-- Point construction function
+def mkPoint (x y : Float) : Point := ⟨x, y, 0⟩
+
+-- Example point for testing
+def point : Point := ⟨1.0, 2.0, 3.0⟩
+
+-- Processing functions for pipeline examples
+def computeValue (x : Nat) : Nat := x * 2
+def process (x : Nat) : Nat := x + 1
+def postProcess (x : Nat) : Nat := x * 3
+def finalize (x : Nat) : Nat := x
+
+-- Variables for examples
+variable (x y z : Nat)
+variable (p : Nat → Bool)
+
 -- Common lemmas for examples (not real proofs)
 theorem add_succ (n m : Nat) : n + (m + 1) = (n + m) + 1 := by sorry
 theorem mul_succ (n m : Nat) : n * (m + 1) = n * m + n := by sorry

@@ -37,7 +37,7 @@ jobs:
         run: |
           cd test-data/implemented-features
           lake build
-        continue-on-error: true  # Allow failures initially as we improve compatibility
+        continue-on-error: false  # Require valid Lean4 code for testing
 
       - name: Run our parser on Lean files
         run: |

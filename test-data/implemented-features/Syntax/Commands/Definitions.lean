@@ -19,14 +19,14 @@ def k (x : Nat) (y : Nat) := x - y
 
 -- With implicit parameters
 def id {α : Type} (x : α) := x
-def const {α β : Type} (x : α) (y : β) := x
+def const {α β : Type} (x : α) (_y : β) := x
 
 -- Mixed parameters
 def foo {α : Type} (x : α) {β : Type} (y : β) := (x, y)
 
 -- With type class constraints
-def sum [Add α] (x y : α) := x + y
-def showNat [ToString α] (x : α) : String := toString x
+def sum {α : Type} [TestPrelude.Add α] (x y : α) := TestPrelude.Add.add x y
+def showNat {α : Type} [ToString α] (x : α) : String := toString x
 
 -- Pattern matching definitions
 def not : Bool → Bool
@@ -37,7 +37,7 @@ def factorial : Nat → Nat
   | 0 => 1
   | n + 1 => (n + 1) * factorial n
 
-def map : List α → (α → β) → List β
+def map {α β : Type} : List α → (α → β) → List β
   | [], _ => []
   | x :: xs, f => f x :: map xs f
 
@@ -86,11 +86,11 @@ noncomputable def choice {α : Type} (h : Nonempty α) : α :=
 
 -- Abbreviation
 abbrev MyNat := Nat
-abbrev StateM σ α := σ → α × σ
+abbrev StateM (σ α : Type) := σ → α × σ
 
 -- With docstring
 /-- Computes the length of a list -/
-def length : List α → Nat
+def length {α : Type} : List α → Nat
   | [] => 0
   | _ :: xs => 1 + length xs
 
