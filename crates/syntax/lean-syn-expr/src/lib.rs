@@ -135,6 +135,8 @@ pub enum SyntaxKind {
 
     // Elaboration
     Elab,
+    ElabRules,
+    ElabRulesList,
 
     // Tactics
     Tactic,
@@ -311,6 +313,8 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::HashPrint => "#print",
             SyntaxKind::HashReduce => "#reduce",
             SyntaxKind::Elab => "elab",
+            SyntaxKind::ElabRules => "elab_rules",
+            SyntaxKind::ElabRulesList => "elab rules list",
             SyntaxKind::Tactic => "tactic",
             SyntaxKind::TacticSeq => "tactic sequence",
             SyntaxKind::TacticAlt => "tactic alternative",

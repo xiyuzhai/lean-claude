@@ -9,6 +9,7 @@
 
 pub mod context;
 pub mod elab;
+pub mod elab_rules;
 pub mod error;
 pub mod instances;
 pub mod metavar;
@@ -17,6 +18,7 @@ pub mod typeck;
 
 pub use context::{LevelContext, LocalContext, LocalDecl};
 pub use elab::{ElabState, Elaborator};
+pub use elab_rules::{ElabRule, ElabRuleAction, ElabRulesRegistry};
 pub use error::ElabError;
 pub use instances::{Instance, InstanceContext, InstanceResolver};
 pub use metavar::{MetavarContext, MetavarDecl};

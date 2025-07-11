@@ -35,4 +35,7 @@ pub enum ElabError {
 
     #[error("Elaboration failed: {0}")]
     ElaborationFailed(String),
+
+    #[error("Unsupported feature: {0}")]
+    UnsupportedFeature(String),
 }

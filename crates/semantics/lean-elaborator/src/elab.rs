@@ -11,6 +11,7 @@ use lean_syn_expr::{Syntax, SyntaxKind};
 
 use crate::{
     context::{LevelContext, LocalContext},
+    elab_rules::ElabRulesRegistry,
     error::ElabError,
     instances::InstanceContext,
     metavar::MetavarContext,
@@ -27,6 +28,8 @@ pub struct ElabState {
     pub level_ctx: LevelContext,
     /// Instance resolution context
     pub inst_ctx: InstanceContext,
+    /// Custom elaboration rules registry
+    pub elab_rules: ElabRulesRegistry,
 }
 
 impl ElabState {
@@ -36,6 +39,7 @@ impl ElabState {
             mctx: MetavarContext::new(),
             level_ctx: LevelContext::new(),
             inst_ctx: InstanceContext::new(),
+            elab_rules: ElabRulesRegistry::new(),
         }
     }
 }
@@ -77,10 +81,37 @@ impl Elaborator {
 
     /// Elaborate a syntax tree into a kernel expression
     pub fn elaborate(&mut self, syntax: &Syntax) -> Result<Expr, ElabError> {
+        // First check if there are custom elab_rules for this syntax
+        if let Some(expr) = self.try_custom_elab_rules(syntax, "term")? {
+            return Ok(expr);
+        }
+
+        // Otherwise use default elaboration
         match syntax {
             Syntax::Missing => Err(ElabError::MissingSyntax),
             Syntax::Atom(atom) => self.elab_atom(atom),
             Syntax::Node(node) => self.elab_node(node),
+        }
+    }
+
+    /// Try to apply custom elaboration rules
+    fn try_custom_elab_rules(
+        &mut self,
+        syntax: &Syntax,
+        category: &str,
+    ) -> Result<Option<Expr>, ElabError> {
+        use crate::elab_rules::apply_elab_rules;
+
+        match apply_elab_rules(syntax, category, &self.state)? {
+            Some(instantiated_syntax) => {
+                // Recursively elaborate the instantiated syntax
+                let expr = self.elaborate(&instantiated_syntax)?;
+                Ok(Some(expr))
+            }
+            None => {
+                // No matching rules found
+                Ok(None)
+            }
         }
     }
 

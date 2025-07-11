@@ -1,6 +1,6 @@
 use eterned::BaseCoword;
 use lean_syn_expr::{Syntax, SyntaxAtom, SyntaxKind, SyntaxNode};
-use smallvec::smallvec;
+use smallvec::{smallvec, SmallVec};
 
 use crate::{
     error::{ParseError, ParseErrorKind},
@@ -148,6 +148,8 @@ impl<'a> Parser<'a> {
                 'e' => {
                     if self.peek_keyword("example") {
                         self.example_command()
+                    } else if self.peek_keyword("elab_rules") {
+                        self.elab_rules_command()
                     } else if self.peek_keyword("elab") {
                         self.elab_command()
                     } else if self.peek_keyword("end") {
@@ -544,6 +546,101 @@ impl<'a> Parser<'a> {
             kind: SyntaxKind::Elab,
             range,
             children: children.into(),
+        })))
+    }
+
+    /// Parse elab_rules command
+    /// elab_rules : category
+    ///   | pattern => elaboration
+    fn elab_rules_command(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+        let mut children = SmallVec::new();
+
+        // Parse "elab_rules"
+        self.keyword("elab_rules")?;
+        self.skip_whitespace();
+
+        // Parse optional attributes
+        let mut attributes = SmallVec::new();
+        while self.peek() == Some('@') {
+            attributes.push(self.parse_attributes()?);
+            self.skip_whitespace();
+        }
+        if !attributes.is_empty() {
+            let attrs_range = self.input().range_from(start);
+            children.push(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::AttributeList,
+                range: attrs_range,
+                children: attributes,
+            })));
+        }
+
+        // Parse colon
+        self.expect_char(':')?;
+        self.skip_whitespace();
+
+        // Parse category (term, command, tactic, etc.)
+        let category = self.identifier()?;
+        children.push(category);
+        self.skip_whitespace();
+
+        // Parse optional expected type for term elaboration
+        if self.peek() == Some('<') && self.input().peek_nth(1) == Some('=') {
+            self.advance(); // <
+            self.advance(); // =
+            self.skip_whitespace();
+            let expected_type = self.identifier()?;
+            children.push(expected_type);
+            self.skip_whitespace();
+        }
+
+        // Parse rules (pattern matching)
+        let mut rules = SmallVec::new();
+
+        // First rule can start with | or not
+        if self.peek() == Some('|') {
+            self.advance();
+            self.skip_whitespace();
+        }
+
+        loop {
+            // Parse pattern using quotation syntax
+            let pattern = self.parse_syntax_quotation()?;
+            rules.push(pattern);
+            self.skip_whitespace();
+
+            // Parse arrow
+            self.expect_char('=')?;
+            self.expect_char('>')?;
+            self.skip_whitespace();
+
+            // Parse elaboration body
+            let body = self.term()?;
+            rules.push(body);
+
+            // Check for more rules
+            self.skip_whitespace();
+            if self.peek() == Some('|') {
+                self.advance();
+                self.skip_whitespace();
+            } else {
+                break;
+            }
+        }
+
+        // Create rules node
+        let rules_range = self.input().range_from(start);
+        children.push(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::ElabRulesList,
+            range: rules_range,
+            children: rules,
+        })));
+
+        let range = self.input().range_from(start);
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::ElabRules,
+            range,
+            children,
         })))
     }
 }
