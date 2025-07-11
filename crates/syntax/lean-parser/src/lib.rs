@@ -1,5 +1,6 @@
 #![feature(if_let_guard)]
 
+pub mod attribute;
 pub mod category;
 pub mod combinators;
 pub mod command;
@@ -11,6 +12,7 @@ pub mod input;
 pub mod lexical;
 pub mod r#macro;
 pub mod module;
+pub mod notation;
 pub mod parser;
 pub mod pattern;
 pub mod precedence;

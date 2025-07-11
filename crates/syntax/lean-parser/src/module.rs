@@ -168,6 +168,11 @@ impl<'a> Parser<'a> {
                         self.instance_command()
                     } else if self.peek_keyword("import") {
                         self.import_command()
+                    } else if self.peek_keyword("infix")
+                        || self.peek_keyword("infixl")
+                        || self.peek_keyword("infixr")
+                    {
+                        self.operator_with_assoc()
                     } else {
                         Err(ParseError::boxed(
                             ParseErrorKind::Expected("command".to_string()),
@@ -191,7 +196,7 @@ impl<'a> Parser<'a> {
                 }
                 'n' => {
                     if self.peek_keyword("notation") {
-                        self.notation_def()
+                        self.notation_command()
                     } else if self.peek_keyword("namespace") {
                         self.namespace_command()
                     } else {
@@ -209,6 +214,18 @@ impl<'a> Parser<'a> {
                         self.syntax_def()
                     } else if self.peek_keyword("section") {
                         self.section_command()
+                    } else {
+                        Err(ParseError::boxed(
+                            ParseErrorKind::Expected("command".to_string()),
+                            start,
+                        ))
+                    }
+                }
+                'p' => {
+                    if self.peek_keyword("prefix") {
+                        self.prefix_notation()
+                    } else if self.peek_keyword("postfix") {
+                        self.postfix_notation()
                     } else {
                         Err(ParseError::boxed(
                             ParseErrorKind::Expected("command".to_string()),

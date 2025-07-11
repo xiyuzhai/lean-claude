@@ -15,12 +15,59 @@ pub enum Pattern {
     Var(Name),
     /// Constructor pattern: C p1 ... pn
     Constructor { name: Name, params: Vec<Pattern> },
+    /// Structure pattern: { field1 := p1, field2 := p2, ... }
+    Structure {
+        name: Name,
+        fields: Vec<FieldPattern>,
+    },
+    /// Tuple pattern: (p1, p2, ..., pn)
+    Tuple { patterns: Vec<Pattern> },
     /// Literal pattern: numbers, strings, chars
     Literal(Literal),
     /// Wildcard pattern: _
     Wildcard,
     /// As pattern: p@x (binds x to the whole value matched by p)
     As { pattern: Box<Pattern>, name: Name },
+    /// Guarded pattern: pattern if condition
+    Guarded {
+        pattern: Box<Pattern>,
+        guard: GuardCondition,
+    },
+}
+
+/// Guard condition in pattern matching
+#[derive(Debug, Clone)]
+pub enum GuardCondition {
+    /// Simple boolean expression
+    BoolExpr(Expr),
+    /// Equality check: expr == value
+    Equals { expr: Expr, value: Expr },
+    /// Comparison: expr < value, expr > value, etc.
+    Compare {
+        op: ComparisonOp,
+        left: Expr,
+        right: Expr,
+    },
+}
+
+/// Comparison operators for guards
+#[derive(Debug, Clone)]
+pub enum ComparisonOp {
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    Equal,
+    NotEqual,
+}
+
+/// Field pattern in structure patterns
+#[derive(Debug, Clone)]
+pub struct FieldPattern {
+    /// Field name
+    pub name: Name,
+    /// Pattern for the field value
+    pub pattern: Pattern,
 }
 
 #[derive(Debug, Clone)]
@@ -115,9 +162,162 @@ fn compile_pattern_node(node: &lean_syn_expr::SyntaxNode) -> Result<Pattern, Ela
                 params,
             })
         }
+        SyntaxKind::StructurePattern => {
+            // Structure pattern: { field1 := p1, field2 := p2, ... }
+            compile_structure_pattern(node)
+        }
+        SyntaxKind::TuplePattern => {
+            // Tuple pattern: (p1, p2, ..., pn)
+            compile_tuple_pattern(node)
+        }
         SyntaxKind::WildcardPattern => Ok(Pattern::Wildcard),
         _ => Err(ElabError::UnsupportedSyntax(node.kind)),
     }
+}
+
+/// Compile a structure pattern from syntax
+/// Expected syntax: { field1 := pattern1, field2 := pattern2, ... }
+fn compile_structure_pattern(node: &lean_syn_expr::SyntaxNode) -> Result<Pattern, ElabError> {
+    if node.children.is_empty() {
+        return Err(ElabError::InvalidSyntax("Empty structure pattern".into()));
+    }
+
+    // The first child should be the structure name (optional)
+    // If it starts with a brace, it's an anonymous structure pattern
+    let (start_idx, struct_name) = if !node.children.is_empty() {
+        match &node.children[0] {
+            Syntax::Atom(atom) if atom.value.as_str() == "{" => {
+                // Anonymous structure pattern: { field1 := p1, ... }
+                (1, Name::anonymous())
+            }
+            Syntax::Atom(atom) => {
+                // Named structure pattern: StructName { field1 := p1, ... }
+                (1, Name::mk_simple(atom.value.as_str()))
+            }
+            _ => {
+                // Assume anonymous if first child is not an atom
+                (0, Name::anonymous())
+            }
+        }
+    } else {
+        return Err(ElabError::InvalidSyntax("Empty structure pattern".into()));
+    };
+
+    let mut fields = Vec::new();
+    let mut i = start_idx;
+
+    // Skip opening brace if present
+    if i < node.children.len() {
+        if let Syntax::Atom(atom) = &node.children[i] {
+            if atom.value.as_str() == "{" {
+                i += 1;
+            }
+        }
+    }
+
+    // Parse field patterns
+    while i < node.children.len() {
+        // Skip closing brace
+        if let Syntax::Atom(atom) = &node.children[i] {
+            if atom.value.as_str() == "}" {
+                break;
+            }
+        }
+
+        // Parse field assignment: field_name := pattern
+        if i + 2 < node.children.len() {
+            let field_name = match &node.children[i] {
+                Syntax::Atom(atom) => Name::mk_simple(atom.value.as_str()),
+                _ => {
+                    return Err(ElabError::InvalidSyntax(
+                        "Expected field name in structure pattern".into(),
+                    ))
+                }
+            };
+
+            // Skip := operator
+            i += 1;
+            if let Syntax::Atom(atom) = &node.children[i] {
+                if atom.value.as_str() != ":=" {
+                    return Err(ElabError::InvalidSyntax(
+                        "Expected ':=' in structure pattern field".into(),
+                    ));
+                }
+            }
+            i += 1;
+
+            // Parse field pattern
+            let field_pattern = compile_pattern(&node.children[i])?;
+            fields.push(FieldPattern {
+                name: field_name,
+                pattern: field_pattern,
+            });
+            i += 1;
+
+            // Skip comma if present
+            if i < node.children.len() {
+                if let Syntax::Atom(atom) = &node.children[i] {
+                    if atom.value.as_str() == "," {
+                        i += 1;
+                    }
+                }
+            }
+        } else {
+            break;
+        }
+    }
+
+    Ok(Pattern::Structure {
+        name: struct_name,
+        fields,
+    })
+}
+
+/// Compile a tuple pattern from syntax
+/// Expected syntax: (p1, p2, ..., pn)
+fn compile_tuple_pattern(node: &lean_syn_expr::SyntaxNode) -> Result<Pattern, ElabError> {
+    if node.children.is_empty() {
+        return Ok(Pattern::Tuple {
+            patterns: Vec::new(),
+        });
+    }
+
+    let mut patterns = Vec::new();
+    let mut i = 0;
+
+    // Skip opening parenthesis if present
+    if i < node.children.len() {
+        if let Syntax::Atom(atom) = &node.children[i] {
+            if atom.value.as_str() == "(" {
+                i += 1;
+            }
+        }
+    }
+
+    // Parse patterns separated by commas
+    while i < node.children.len() {
+        // Skip closing parenthesis
+        if let Syntax::Atom(atom) = &node.children[i] {
+            if atom.value.as_str() == ")" {
+                break;
+            }
+        }
+
+        // Skip commas
+        if let Syntax::Atom(atom) = &node.children[i] {
+            if atom.value.as_str() == "," {
+                i += 1;
+                continue;
+            }
+        }
+
+        // Parse pattern
+        let pattern = compile_pattern(&node.children[i])?;
+        patterns.push(pattern);
+        i += 1;
+    }
+
+    Ok(Pattern::Tuple { patterns })
 }
 
 fn parse_char_literal(s: &str) -> Result<char, ElabError> {
@@ -192,8 +392,22 @@ fn collect_bound_vars_impl(pattern: &Pattern, vars: &mut Vec<Name>) {
                 collect_bound_vars_impl(p, vars);
             }
         }
+        Pattern::Structure { fields, .. } => {
+            for field in fields {
+                collect_bound_vars_impl(&field.pattern, vars);
+            }
+        }
+        Pattern::Tuple { patterns } => {
+            for p in patterns {
+                collect_bound_vars_impl(p, vars);
+            }
+        }
         Pattern::As { pattern, name } => {
             vars.push(name.clone());
+            collect_bound_vars_impl(pattern, vars);
+        }
+        Pattern::Guarded { pattern, .. } => {
+            // Guarded patterns bind the same variables as their underlying pattern
             collect_bound_vars_impl(pattern, vars);
         }
         Pattern::Literal(_) | Pattern::Wildcard => {}
@@ -347,11 +561,277 @@ fn compile_single_arm(
             // For now, return error
             Err(ElabError::UnsupportedSyntax(SyntaxKind::ConstructorPattern))
         }
+        Pattern::Structure { fields, .. } => {
+            // Structure pattern: compile to field projections and nested matching
+            compile_structure_pattern_to_expr(discriminant, fields, body, rest, state)
+        }
+        Pattern::Tuple { patterns } => {
+            // Tuple pattern: compile to tuple projections and nested matching
+            compile_tuple_pattern_to_expr(discriminant, patterns, body, rest, state)
+        }
+        Pattern::Guarded { pattern, guard } => {
+            // Guarded pattern: compile pattern first, then add guard condition
+            compile_guarded_pattern_to_expr(discriminant, pattern, guard, body, rest, state)
+        }
         Pattern::As { .. } => {
             // TODO: As patterns need special handling
             Err(ElabError::UnsupportedSyntax(SyntaxKind::Match))
         }
     }
+}
+
+/// Compile a structure pattern to an expression
+/// This creates nested let bindings for each field and then evaluates the body
+fn compile_structure_pattern_to_expr(
+    discriminant: Expr,
+    fields: &[FieldPattern],
+    body: Expr,
+    rest: Vec<CompiledArm>,
+    state: &mut ElabState,
+) -> Result<Expr, ElabError> {
+    if fields.is_empty() {
+        // Empty structure pattern just matches the body
+        return Ok(body);
+    }
+
+    // For each field pattern, create a projection and bind variables
+    // Start from the innermost pattern and work outward
+    let mut current_body = body;
+
+    // Process fields in reverse order to build nested let expressions
+    for field in fields.iter().rev() {
+        // Create field projection: discriminant.field_name
+        let field_proj = Expr::proj(
+            Name::mk_simple("_struct"), // Placeholder struct name
+            0,                          // Field index - simplified for now
+            discriminant.clone(),
+        );
+
+        // Compile the field pattern against the projection
+        match &field.pattern {
+            Pattern::Var(var_name) => {
+                // Simple variable binding: let var_name := discriminant.field_name in body
+                let var_type = Expr::mvar(Name::mk_simple("_field_type"));
+                current_body = Expr::let_expr(var_name.clone(), var_type, field_proj, current_body);
+            }
+            Pattern::Wildcard => {
+                // Wildcard doesn't bind anything, just continue
+                continue;
+            }
+            Pattern::Literal(lit) => {
+                // Field literal pattern: if discriminant.field_name == literal then body else
+                // rest
+                let lit_expr = literal_to_expr(lit);
+                let eq_expr = build_equality_test(field_proj, lit_expr, state)?;
+
+                if rest.is_empty() {
+                    current_body = build_if_then_else(
+                        eq_expr,
+                        current_body,
+                        Expr::mvar(Name::mk_simple("_match_error")),
+                        state,
+                    )?;
+                } else {
+                    let else_expr =
+                        compile_arms_to_expr(discriminant.clone(), rest.clone(), state)?;
+                    current_body = build_if_then_else(eq_expr, current_body, else_expr, state)?;
+                }
+            }
+            _ => {
+                // Nested patterns (constructor, structure, as) are not yet supported
+                return Err(ElabError::UnsupportedSyntax(SyntaxKind::StructurePattern));
+            }
+        }
+    }
+
+    Ok(current_body)
+}
+
+/// Compile a tuple pattern to an expression
+/// This creates projections for each tuple element and binds variables
+fn compile_tuple_pattern_to_expr(
+    discriminant: Expr,
+    patterns: &[Pattern],
+    body: Expr,
+    rest: Vec<CompiledArm>,
+    state: &mut ElabState,
+) -> Result<Expr, ElabError> {
+    if patterns.is_empty() {
+        // Empty tuple pattern (unit type) just matches the body
+        return Ok(body);
+    }
+
+    // For each pattern, create a tuple projection and bind variables
+    // Start from the innermost pattern and work outward
+    let mut current_body = body;
+
+    // Process patterns in reverse order to build nested let expressions
+    for (idx, pattern) in patterns.iter().enumerate().rev() {
+        // Create tuple projection: discriminant.idx
+        let tuple_proj = Expr::proj(
+            Name::mk_simple("_tuple"), // Placeholder tuple type name
+            idx as u32,                // Element index
+            discriminant.clone(),
+        );
+
+        // Compile the pattern against the projection
+        match pattern {
+            Pattern::Var(var_name) => {
+                // Simple variable binding: let var_name := discriminant.idx in body
+                let var_type = Expr::mvar(Name::mk_simple("_elem_type"));
+                current_body = Expr::let_expr(var_name.clone(), var_type, tuple_proj, current_body);
+            }
+            Pattern::Wildcard => {
+                // Wildcard doesn't bind anything, just continue
+                continue;
+            }
+            Pattern::Literal(lit) => {
+                // Element literal pattern: if discriminant.idx == literal then body else rest
+                let lit_expr = literal_to_expr(lit);
+                let eq_expr = build_equality_test(tuple_proj, lit_expr, state)?;
+
+                if rest.is_empty() {
+                    current_body = build_if_then_else(
+                        eq_expr,
+                        current_body,
+                        Expr::mvar(Name::mk_simple("_match_error")),
+                        state,
+                    )?;
+                } else {
+                    let else_expr =
+                        compile_arms_to_expr(discriminant.clone(), rest.clone(), state)?;
+                    current_body = build_if_then_else(eq_expr, current_body, else_expr, state)?;
+                }
+            }
+            Pattern::Tuple {
+                patterns: nested_patterns,
+            } => {
+                // Nested tuple pattern: recursively compile
+                current_body = compile_tuple_pattern_to_expr(
+                    tuple_proj,
+                    nested_patterns,
+                    current_body,
+                    rest.clone(),
+                    state,
+                )?;
+            }
+            Pattern::Structure { fields, .. } => {
+                // Nested structure pattern: recursively compile
+                current_body = compile_structure_pattern_to_expr(
+                    tuple_proj,
+                    fields,
+                    current_body,
+                    rest.clone(),
+                    state,
+                )?;
+            }
+            _ => {
+                // Other nested patterns (constructor, as) are not yet supported
+                return Err(ElabError::UnsupportedSyntax(SyntaxKind::TuplePattern));
+            }
+        }
+    }
+
+    Ok(current_body)
+}
+
+/// Compile a guarded pattern to an expression
+/// This compiles the underlying pattern first, then adds the guard condition
+fn compile_guarded_pattern_to_expr(
+    discriminant: Expr,
+    pattern: &Pattern,
+    guard: &GuardCondition,
+    body: Expr,
+    rest: Vec<CompiledArm>,
+    state: &mut ElabState,
+) -> Result<Expr, ElabError> {
+    // First compile the underlying pattern to create variable bindings
+    let pattern_expr = match pattern {
+        Pattern::Var(name) => {
+            // Variable pattern: let name := discriminant in (guard check)
+            let var_type = Expr::mvar(Name::mk_simple("_var_type"));
+            let guard_expr = compile_guard_condition(guard, state)?;
+            let then_expr = body;
+            let else_expr = if rest.is_empty() {
+                Expr::mvar(Name::mk_simple("_match_error"))
+            } else {
+                compile_arms_to_expr(discriminant.clone(), rest, state)?
+            };
+            let conditional = build_if_then_else(guard_expr, then_expr, else_expr, state)?;
+            Expr::let_expr(name.clone(), var_type, discriminant, conditional)
+        }
+        Pattern::Wildcard => {
+            // Wildcard with guard: just check the guard condition
+            let guard_expr = compile_guard_condition(guard, state)?;
+            let then_expr = body;
+            let else_expr = if rest.is_empty() {
+                Expr::mvar(Name::mk_simple("_match_error"))
+            } else {
+                compile_arms_to_expr(discriminant, rest, state)?
+            };
+            build_if_then_else(guard_expr, then_expr, else_expr, state)?
+        }
+        Pattern::Literal(lit) => {
+            // Literal pattern with guard: check literal match AND guard
+            let lit_expr = literal_to_expr(lit);
+            let pattern_check = build_equality_test(discriminant.clone(), lit_expr, state)?;
+            let guard_expr = compile_guard_condition(guard, state)?;
+
+            // Combine pattern check AND guard check
+            let combined_check = build_logical_and(pattern_check, guard_expr, state)?;
+
+            let then_expr = body;
+            let else_expr = if rest.is_empty() {
+                Expr::mvar(Name::mk_simple("_match_error"))
+            } else {
+                compile_arms_to_expr(discriminant, rest, state)?
+            };
+            build_if_then_else(combined_check, then_expr, else_expr, state)?
+        }
+        _ => {
+            // For complex patterns (constructor, structure, tuple), we need to
+            // first match the pattern, then check the guard
+            // This is a simplified implementation - a full implementation would
+            // need to properly integrate guard checking with pattern matching
+            return Err(ElabError::UnsupportedFeature(
+                "Guards on complex patterns not yet implemented".to_string(),
+            ));
+        }
+    };
+
+    Ok(pattern_expr)
+}
+
+/// Compile a guard condition to a boolean expression
+fn compile_guard_condition(
+    guard: &GuardCondition,
+    state: &mut ElabState,
+) -> Result<Expr, ElabError> {
+    match guard {
+        GuardCondition::BoolExpr(expr) => Ok(expr.clone()),
+        GuardCondition::Equals { expr, value } => {
+            build_equality_test(expr.clone(), value.clone(), state)
+        }
+        GuardCondition::Compare { op, left, right } => {
+            let op_name = match op {
+                ComparisonOp::Less => "LT.lt",
+                ComparisonOp::LessEqual => "LE.le",
+                ComparisonOp::Greater => "GT.gt",
+                ComparisonOp::GreaterEqual => "GE.ge",
+                ComparisonOp::Equal => "Eq.eq",
+                ComparisonOp::NotEqual => "Ne.ne",
+            };
+            let op_expr = Expr::const_expr(Name::mk_simple(op_name), vec![]);
+            Ok(Expr::app(Expr::app(op_expr, left.clone()), right.clone()))
+        }
+    }
+}
+
+/// Build a logical AND expression
+fn build_logical_and(left: Expr, right: Expr, _state: &mut ElabState) -> Result<Expr, ElabError> {
+    // In Lean, logical AND is typically: left && right
+    let and_op = Expr::const_expr(Name::mk_simple("And"), vec![]);
+    Ok(Expr::app(Expr::app(and_op, left), right))
 }
 
 /// Convert a literal pattern to an expression
@@ -610,5 +1090,419 @@ mod tests {
             !result.unwrap(),
             "Bool with only true should not be exhaustive"
         );
+    }
+
+    #[test]
+    fn test_compile_structure_pattern() {
+        use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
+
+        // Create a structure pattern: { x := a, y := b }
+        let pattern_node = SyntaxNode {
+            kind: SyntaxKind::StructurePattern,
+            range: SourceRange {
+                start: SourcePos::new(0, 0, 0),
+                end: SourcePos::new(0, 0, 0),
+            },
+            children: vec![
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new("{"),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new("x"),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new(":="),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new("a"),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new(","),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new("y"),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new(":="),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new("b"),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new("}"),
+                }),
+            ]
+            .into(),
+        };
+
+        let pattern = compile_structure_pattern(&pattern_node).unwrap();
+
+        match pattern {
+            Pattern::Structure { name: _, fields } => {
+                assert_eq!(fields.len(), 2);
+                assert_eq!(fields[0].name.to_string(), "x");
+                assert_eq!(fields[1].name.to_string(), "y");
+
+                match (&fields[0].pattern, &fields[1].pattern) {
+                    (Pattern::Var(x_name), Pattern::Var(y_name)) => {
+                        assert_eq!(x_name.to_string(), "a");
+                        assert_eq!(y_name.to_string(), "b");
+                    }
+                    _ => panic!("Expected variable patterns for fields"),
+                }
+            }
+            _ => panic!("Expected structure pattern"),
+        }
+    }
+
+    #[test]
+    fn test_structure_pattern_bound_vars() {
+        let pattern = Pattern::Structure {
+            name: Name::mk_simple("Point"),
+            fields: vec![
+                FieldPattern {
+                    name: Name::mk_simple("x"),
+                    pattern: Pattern::Var(Name::mk_simple("x_val")),
+                },
+                FieldPattern {
+                    name: Name::mk_simple("y"),
+                    pattern: Pattern::Var(Name::mk_simple("y_val")),
+                },
+            ],
+        };
+
+        let bound_vars = collect_bound_vars(&pattern);
+        assert_eq!(bound_vars.len(), 2);
+        assert!(bound_vars.contains(&Name::mk_simple("x_val")));
+        assert!(bound_vars.contains(&Name::mk_simple("y_val")));
+    }
+
+    #[test]
+    fn test_compile_tuple_pattern() {
+        use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
+
+        // Create a tuple pattern: (a, b, c)
+        let pattern_node = SyntaxNode {
+            kind: SyntaxKind::TuplePattern,
+            range: SourceRange {
+                start: SourcePos::new(0, 0, 0),
+                end: SourcePos::new(0, 0, 0),
+            },
+            children: vec![
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new("("),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new("a"),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new(","),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new("b"),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new(","),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new("c"),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new(")"),
+                }),
+            ]
+            .into(),
+        };
+
+        let pattern = compile_tuple_pattern(&pattern_node).unwrap();
+
+        match pattern {
+            Pattern::Tuple { patterns } => {
+                assert_eq!(patterns.len(), 3);
+                match (&patterns[0], &patterns[1], &patterns[2]) {
+                    (Pattern::Var(a_name), Pattern::Var(b_name), Pattern::Var(c_name)) => {
+                        assert_eq!(a_name.to_string(), "a");
+                        assert_eq!(b_name.to_string(), "b");
+                        assert_eq!(c_name.to_string(), "c");
+                    }
+                    _ => panic!("Expected variable patterns for tuple elements"),
+                }
+            }
+            _ => panic!("Expected tuple pattern"),
+        }
+    }
+
+    #[test]
+    fn test_tuple_pattern_bound_vars() {
+        let pattern = Pattern::Tuple {
+            patterns: vec![
+                Pattern::Var(Name::mk_simple("x")),
+                Pattern::Var(Name::mk_simple("y")),
+                Pattern::Wildcard,
+                Pattern::Var(Name::mk_simple("z")),
+            ],
+        };
+
+        let bound_vars = collect_bound_vars(&pattern);
+        assert_eq!(bound_vars.len(), 3);
+        assert!(bound_vars.contains(&Name::mk_simple("x")));
+        assert!(bound_vars.contains(&Name::mk_simple("y")));
+        assert!(bound_vars.contains(&Name::mk_simple("z")));
+    }
+
+    #[test]
+    fn test_nested_tuple_pattern() {
+        // Test nested tuple pattern: ((a, b), c)
+        let pattern = Pattern::Tuple {
+            patterns: vec![
+                Pattern::Tuple {
+                    patterns: vec![
+                        Pattern::Var(Name::mk_simple("a")),
+                        Pattern::Var(Name::mk_simple("b")),
+                    ],
+                },
+                Pattern::Var(Name::mk_simple("c")),
+            ],
+        };
+
+        let bound_vars = collect_bound_vars(&pattern);
+        assert_eq!(bound_vars.len(), 3);
+        assert!(bound_vars.contains(&Name::mk_simple("a")));
+        assert!(bound_vars.contains(&Name::mk_simple("b")));
+        assert!(bound_vars.contains(&Name::mk_simple("c")));
+    }
+
+    #[test]
+    fn test_empty_tuple_pattern() {
+        use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
+
+        // Test unit pattern: ()
+        let pattern_node = SyntaxNode {
+            kind: SyntaxKind::TuplePattern,
+            range: SourceRange {
+                start: SourcePos::new(0, 0, 0),
+                end: SourcePos::new(0, 0, 0),
+            },
+            children: vec![
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new("("),
+                }),
+                Syntax::Atom(SyntaxAtom {
+                    range: SourceRange {
+                        start: SourcePos::new(0, 0, 0),
+                        end: SourcePos::new(0, 0, 0),
+                    },
+                    value: eterned::BaseCoword::new(")"),
+                }),
+            ]
+            .into(),
+        };
+
+        let pattern = compile_tuple_pattern(&pattern_node).unwrap();
+
+        match pattern {
+            Pattern::Tuple { patterns } => {
+                assert_eq!(patterns.len(), 0);
+            }
+            _ => panic!("Expected empty tuple pattern"),
+        }
+    }
+
+    #[test]
+    fn test_guarded_pattern_var() {
+        use lean_kernel::{Expr, Name};
+
+        // Test variable pattern with guard: x if x > 0
+        let guard = GuardCondition::Compare {
+            op: ComparisonOp::Greater,
+            left: Expr::fvar(Name::mk_simple("x")),
+            right: Expr::nat(0),
+        };
+
+        let pattern = Pattern::Guarded {
+            pattern: Box::new(Pattern::Var(Name::mk_simple("x"))),
+            guard,
+        };
+
+        let bound_vars = collect_bound_vars(&pattern);
+        assert_eq!(bound_vars.len(), 1);
+        assert!(bound_vars.contains(&Name::mk_simple("x")));
+    }
+
+    #[test]
+    fn test_guarded_pattern_literal() {
+        use lean_kernel::{Expr, Name};
+
+        // Test literal pattern with guard: 5 if someCondition
+        let guard = GuardCondition::BoolExpr(Expr::fvar(Name::mk_simple("someCondition")));
+
+        let pattern = Pattern::Guarded {
+            pattern: Box::new(Pattern::Literal(Literal::Nat(5))),
+            guard,
+        };
+
+        let bound_vars = collect_bound_vars(&pattern);
+        assert_eq!(bound_vars.len(), 0); // Literal patterns don't bind
+                                         // variables
+    }
+
+    #[test]
+    fn test_guard_condition_compilation() {
+        use lean_kernel::{Expr, Name};
+
+        let mut state = ElabState::new();
+
+        // Test boolean expression guard
+        let bool_guard = GuardCondition::BoolExpr(Expr::fvar(Name::mk_simple("condition")));
+        let result = compile_guard_condition(&bool_guard, &mut state);
+        assert!(result.is_ok());
+
+        // Test equality guard
+        let eq_guard = GuardCondition::Equals {
+            expr: Expr::fvar(Name::mk_simple("x")),
+            value: Expr::nat(42),
+        };
+        let result = compile_guard_condition(&eq_guard, &mut state);
+        assert!(result.is_ok());
+
+        // Test comparison guard
+        let comp_guard = GuardCondition::Compare {
+            op: ComparisonOp::Greater,
+            left: Expr::fvar(Name::mk_simple("x")),
+            right: Expr::nat(10),
+        };
+        let result = compile_guard_condition(&comp_guard, &mut state);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_nested_guarded_pattern() {
+        use lean_kernel::{Expr, Name};
+
+        // Test tuple pattern with guarded element: (x if x > 0, y)
+        let guarded_element = Pattern::Guarded {
+            pattern: Box::new(Pattern::Var(Name::mk_simple("x"))),
+            guard: GuardCondition::Compare {
+                op: ComparisonOp::Greater,
+                left: Expr::fvar(Name::mk_simple("x")),
+                right: Expr::nat(0),
+            },
+        };
+
+        let tuple_pattern = Pattern::Tuple {
+            patterns: vec![guarded_element, Pattern::Var(Name::mk_simple("y"))],
+        };
+
+        let bound_vars = collect_bound_vars(&tuple_pattern);
+        assert_eq!(bound_vars.len(), 2);
+        assert!(bound_vars.contains(&Name::mk_simple("x")));
+        assert!(bound_vars.contains(&Name::mk_simple("y")));
+    }
+
+    #[test]
+    fn test_guard_compilation_simple() {
+        use lean_kernel::{Expr, Name};
+
+        let mut state = ElabState::new();
+
+        // Test simple guarded variable pattern compilation
+        let discriminant = Expr::fvar(Name::mk_simple("input"));
+        let body = Expr::fvar(Name::mk_simple("result"));
+
+        let guard = GuardCondition::Compare {
+            op: ComparisonOp::Greater,
+            left: Expr::fvar(Name::mk_simple("x")),
+            right: Expr::nat(0),
+        };
+
+        let pattern = Pattern::Var(Name::mk_simple("x"));
+
+        let result = compile_guarded_pattern_to_expr(
+            discriminant,
+            &pattern,
+            &guard,
+            body,
+            vec![], // no rest arms
+            &mut state,
+        );
+
+        assert!(result.is_ok());
+        let expr = result.unwrap();
+
+        // Should be a let expression binding x
+        match &expr.kind {
+            lean_kernel::expr::ExprKind::Let(name, _, _, _) => {
+                assert_eq!(name.to_string(), "x");
+            }
+            _ => panic!("Expected let expression for guarded variable pattern"),
+        }
     }
 }

@@ -121,6 +121,8 @@ pub enum SyntaxKind {
     // Patterns
     ConstructorPattern,
     WildcardPattern,
+    StructurePattern,
+    TuplePattern,
 
     // Commands
     Command,
@@ -303,6 +305,8 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::MatchArm => "match arm",
             SyntaxKind::ConstructorPattern => "constructor pattern",
             SyntaxKind::WildcardPattern => "wildcard pattern",
+            SyntaxKind::StructurePattern => "structure pattern",
+            SyntaxKind::TuplePattern => "tuple pattern",
             SyntaxKind::Command => "command",
             SyntaxKind::Declaration => "declaration",
             SyntaxKind::Field => "field",

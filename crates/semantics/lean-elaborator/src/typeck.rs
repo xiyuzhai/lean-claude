@@ -349,10 +349,27 @@ impl<'a> Unifier<'a> {
         match (&e1.kind, &e2.kind) {
             // Metavariable cases
             (MVar(m1), MVar(m2)) if m1 == m2 => Ok(()),
-            (MVar(m), _) => self.assign_mvar(m.clone(), e2.clone()),
-            (_, MVar(m)) => self.assign_mvar(m.clone(), e1.clone()),
+            (MVar(m1), MVar(_m2)) => {
+                // Flex-flex case: assign one to the other
+                // Prefer assigning the "younger" metavariable
+                self.assign_mvar(m1.clone(), e2.clone())
+            }
+            (MVar(m), _) => {
+                // Flex-rigid case
+                self.unify_flex_rigid(m.clone(), e2)
+            }
+            (_, MVar(m)) => {
+                // Rigid-flex case (symmetric)
+                self.unify_flex_rigid(m.clone(), e1)
+            }
 
             // Structural cases
+            (BVar(i1), BVar(i2)) if i1 == i2 => Ok(()),
+            (FVar(n1), FVar(n2)) if n1 == n2 => Ok(()),
+            (Sort(l1), Sort(l2)) if l1 == l2 => Ok(()),
+            (Const(n1, ls1), Const(n2, ls2)) if n1 == n2 && ls1 == ls2 => Ok(()),
+            (Lit(l1), Lit(l2)) if l1 == l2 => Ok(()),
+
             (App(f1, a1), App(f2, a2)) => {
                 self.unify(f1, f2)?;
                 self.unify(a1, a2)
@@ -368,26 +385,111 @@ impl<'a> Unifier<'a> {
                 self.unify(body1, body2)
             }
 
+            (Let(_, ty1, val1, body1), Let(_, ty2, val2, body2)) => {
+                self.unify(ty1, ty2)?;
+                self.unify(val1, val2)?;
+                self.unify(body1, body2)
+            }
+
+            (Proj(s1, i1, e1), Proj(s2, i2, e2)) if s1 == s2 && i1 == i2 => self.unify(e1, e2),
+
             _ => {
-                // Check if they're definitionally equal
-                if self.tc.is_def_eq(e1, e2)? {
-                    Ok(())
+                // Try to reduce and unify again
+                let e1_reduced = self.tc.whnf(e1)?;
+                let e2_reduced = self.tc.whnf(e2)?;
+
+                if e1_reduced != *e1 || e2_reduced != *e2 {
+                    // Something reduced, try again
+                    self.unify(&e1_reduced, &e2_reduced)
                 } else {
-                    Err(ElabError::TypeMismatch {
-                        expected: format!("{e2:?}"),
-                        got: format!("{e1:?}"),
-                    })
+                    // Nothing to reduce, check definitional equality
+                    if self.tc.is_def_eq(e1, e2)? {
+                        Ok(())
+                    } else {
+                        Err(ElabError::TypeMismatch {
+                            expected: self.expr_to_string(e2),
+                            got: self.expr_to_string(e1),
+                        })
+                    }
                 }
             }
         }
     }
 
+    /// Unify a metavariable with a rigid term
+    fn unify_flex_rigid(&mut self, mvar: Name, rigid: &Expr) -> Result<(), ElabError> {
+        // Check if the rigid term is a function application with the metavariable
+        // This handles cases like ?m a =?= f a where we can set ?m := f
+        if let ExprKind::App(_f, _a) = &rigid.kind {
+            // Try pattern unification if applicable
+            if let Ok(solution) = self.try_pattern_unification(&mvar, rigid) {
+                return self.assign_mvar(mvar, solution);
+            }
+        }
+
+        // Default case: just assign if occurs check passes
+        self.assign_mvar(mvar, rigid.clone())
+    }
+
+    /// Try to solve metavariable using pattern unification
+    /// This is a simplified version that handles basic cases
+    fn try_pattern_unification(&self, _mvar: &Name, _pattern: &Expr) -> Result<Expr, ElabError> {
+        // TODO: Implement proper pattern unification
+        // For now, just fail and fall back to simple assignment
+        Err(ElabError::CannotInferType)
+    }
+
     fn assign_mvar(&mut self, mvar: Name, value: Expr) -> Result<(), ElabError> {
-        // TODO: Occurs check
+        // Occurs check: ensure the metavariable doesn't occur in the value
+        if self.occurs_check(&mvar, &value) {
+            return Err(ElabError::ElaborationFailed(format!(
+                "Occurs check failed: ?{} occurs in {}",
+                mvar,
+                self.expr_to_string(&value)
+            )));
+        }
+
+        // Assign the metavariable
         self.tc
             .mctx
             .assign(mvar, value)
             .map_err(ElabError::ElaborationFailed)
+    }
+
+    /// Check if a metavariable occurs in an expression
+    fn occurs_check(&self, mvar: &Name, expr: &Expr) -> bool {
+        self.occurs_check_core(mvar, expr, 0)
+    }
+
+    #[allow(clippy::only_used_in_recursion)]
+    fn occurs_check_core(&self, mvar: &Name, expr: &Expr, _depth: u32) -> bool {
+        match &expr.kind {
+            ExprKind::MVar(name) => name == mvar,
+            ExprKind::App(f, a) => {
+                self.occurs_check_core(mvar, f, _depth) || self.occurs_check_core(mvar, a, _depth)
+            }
+            ExprKind::Lam(_, ty, body, _) => {
+                self.occurs_check_core(mvar, ty, _depth)
+                    || self.occurs_check_core(mvar, body, _depth + 1)
+            }
+            ExprKind::Forall(_, ty, body, _) => {
+                self.occurs_check_core(mvar, ty, _depth)
+                    || self.occurs_check_core(mvar, body, _depth + 1)
+            }
+            ExprKind::Let(_, ty, val, body) => {
+                self.occurs_check_core(mvar, ty, _depth)
+                    || self.occurs_check_core(mvar, val, _depth)
+                    || self.occurs_check_core(mvar, body, _depth + 1)
+            }
+            ExprKind::Proj(_, _, e) => self.occurs_check_core(mvar, e, _depth),
+            ExprKind::MData(_, e) => self.occurs_check_core(mvar, e, _depth),
+            _ => false,
+        }
+    }
+
+    /// Convert expression to string for error messages
+    fn expr_to_string(&self, expr: &Expr) -> String {
+        format!("{expr:?}") // Simple implementation for now
     }
 }
 
@@ -457,5 +559,66 @@ mod tests {
             assert!(mctx.is_assigned(name));
             assert_eq!(mctx.get_assignment(name).unwrap(), &const_expr);
         }
+    }
+
+    #[test]
+    fn test_unify_flex_flex() {
+        let lctx = LocalContext::new();
+        let mut mctx = MetavarContext::new();
+
+        // Create two metavariables
+        let mvar1 = mctx.mk_metavar(Expr::sort(Level::zero()), lctx.clone());
+        let mvar2 = mctx.mk_metavar(Expr::sort(Level::zero()), lctx.clone());
+
+        let mut unifier = Unifier::new(&lctx, &mut mctx);
+        unifier.unify(&mvar1, &mvar2).unwrap();
+
+        // One should be assigned to the other
+        match (&mvar1.kind, &mvar2.kind) {
+            (ExprKind::MVar(name1), ExprKind::MVar(_name2)) => {
+                assert!(mctx.is_assigned(name1));
+            }
+            _ => panic!("Expected metavariables"),
+        }
+    }
+
+    #[test]
+    fn test_unify_occurs_check() {
+        let lctx = LocalContext::new();
+        let mut mctx = MetavarContext::new();
+
+        // Create a metavariable
+        let mvar = mctx.mk_metavar(Expr::sort(Level::zero()), lctx.clone());
+
+        // Try to unify ?m with f(?m) - should fail occurs check
+        let app = Expr::app(Expr::const_expr("f".into(), vec![]), mvar.clone());
+
+        let mut unifier = Unifier::new(&lctx, &mut mctx);
+        let result = unifier.unify(&mvar, &app);
+
+        assert!(result.is_err());
+        if let Err(ElabError::ElaborationFailed(msg)) = result {
+            assert!(msg.contains("Occurs check failed"));
+        }
+    }
+
+    #[test]
+    fn test_unify_structural() {
+        let lctx = LocalContext::new();
+        let mut mctx = MetavarContext::new();
+
+        // Create metavariables
+        let mvar1 = mctx.mk_metavar(Expr::sort(Level::zero()), lctx.clone());
+        let mvar2 = mctx.mk_metavar(Expr::sort(Level::zero()), lctx.clone());
+
+        // Create structural expressions: f ?m1 and f ?m2
+        let expr1 = Expr::app(Expr::const_expr("f".into(), vec![]), mvar1);
+        let expr2 = Expr::app(Expr::const_expr("f".into(), vec![]), mvar2);
+
+        let mut unifier = Unifier::new(&lctx, &mut mctx);
+        unifier.unify(&expr1, &expr2).unwrap();
+
+        // The metavariables should be unified
+        // (either m1 assigned to m2 or vice versa)
     }
 }
