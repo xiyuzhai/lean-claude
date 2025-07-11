@@ -78,6 +78,18 @@ fn test_projection_with_application() {
     // Should be App(f, projection(x, 1), projection(y, field))
     if let Syntax::Node(app) = &syntax {
         assert_eq!(app.kind, SyntaxKind::App);
+        println!("App has {} children", app.children.len());
+        for (i, child) in app.children.iter().enumerate() {
+            println!(
+                "Child {}: {:?}",
+                i,
+                match child {
+                    Syntax::Atom(atom) => format!("Atom({})", atom.value),
+                    Syntax::Node(node) => format!("Node({:?})", node.kind),
+                    Syntax::Missing => "Missing".to_string(),
+                }
+            );
+        }
         assert_eq!(app.children.len(), 3);
 
         // Check second argument is projection

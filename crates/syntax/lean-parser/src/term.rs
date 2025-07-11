@@ -814,20 +814,20 @@ impl<'a> Parser<'a> {
         )
     }
 
-    /// Parse projections: x.1, x.field, x.field.subfield
+    /// Parse projections and method calls: x.1, x.field, xs.reverse, list.map f
     fn parse_projections(&mut self, mut expr: Syntax) -> ParserResult<Syntax> {
         loop {
-            // Check for projection
+            // Check for projection or method call
             if self.peek() == Some('.') && self.input().peek_nth(1).is_some_and(|c| c != '.') {
                 let dot_pos = self.position();
                 self.advance(); // consume '.'
 
-                // Parse the projection field
+                // Parse the field/method name
                 let field = if self.peek().is_some_and(|c| c.is_ascii_digit()) {
                     // Numeric projection: x.1, x.2, etc.
                     self.number()?
                 } else if self.peek().is_some_and(is_id_start) {
-                    // Field projection: x.field
+                    // Field projection or method name: x.field or xs.reverse
                     self.identifier()?
                 } else {
                     return Err(ParseError::boxed(
@@ -836,13 +836,63 @@ impl<'a> Parser<'a> {
                     ));
                 };
 
-                // Create projection node
+                // Check if this is a method call by looking for arguments
+                // We need to be careful here - if there's whitespace followed by an argument,
+                // it's a method call. Otherwise, it's a field projection.
+                // Note: Numeric projections (x.1) are never method calls
+                self.skip_whitespace();
+
+                // Try to parse method arguments (only for non-numeric projections)
+                let mut method_args = Vec::new();
+                let is_numeric_projection = matches!(&field, Syntax::Atom(atom) if atom.value.as_str().chars().all(|c| c.is_ascii_digit()));
+                let is_method_call = if !is_numeric_projection && !self.at_term_boundary() {
+                    // Save position in case this isn't actually a method call
+                    self.input_mut().save_position();
+
+                    // Try to parse arguments
+                    while let Ok(arg) = self.try_parse(|p| p.atom_term()) {
+                        method_args.push(arg);
+                        self.skip_whitespace();
+
+                        // Check if we can parse more arguments
+                        if self.at_term_boundary() || self.peek_binary_operator().is_some() {
+                            break;
+                        }
+                    }
+
+                    if method_args.is_empty() {
+                        // No arguments parsed, restore position
+                        self.input_mut().restore_position();
+                        false
+                    } else {
+                        // We have arguments, commit the position
+                        self.input_mut().commit_position();
+                        true
+                    }
+                } else {
+                    false
+                };
+
+                // Create appropriate node
                 let range = self.input().range_from(dot_pos);
-                expr = Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::Projection,
-                    range,
-                    children: smallvec![expr, field],
-                }));
+                if is_method_call {
+                    // Method call: create an application node
+                    let mut children = vec![expr, field];
+                    children.extend(method_args);
+
+                    expr = Syntax::Node(Box::new(SyntaxNode {
+                        kind: SyntaxKind::App,
+                        range,
+                        children: children.into(),
+                    }));
+                } else {
+                    // Field projection
+                    expr = Syntax::Node(Box::new(SyntaxNode {
+                        kind: SyntaxKind::Projection,
+                        range,
+                        children: smallvec![expr, field],
+                    }));
+                }
             } else {
                 break;
             }

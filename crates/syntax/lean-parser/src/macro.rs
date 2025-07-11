@@ -32,38 +32,68 @@ impl<'a> Parser<'a> {
         self.skip_whitespace();
 
         // Optional name (for named macros)
-        let name = if self.peek() == Some('"') {
+        let (name, is_string_pattern) = if self.peek() == Some('"') {
             // String literal for syntax patterns
-            Some(self.string_literal()?)
+            (Some(self.string_literal()?), true)
         } else if self.peek_keyword("atomic") || self.peek_keyword("leading") {
             // Macro kind specifier
-            Some(self.identifier()?)
+            (Some(self.identifier()?), false)
         } else if self.peek().is_some_and(|c| c.is_alphabetic()) {
             // Named macro
-            Some(self.identifier()?)
+            (Some(self.identifier()?), false)
         } else {
-            None
+            (None, false)
         };
         self.skip_whitespace();
 
         // Parse pattern and category
-        let (pattern, category) = if name.is_some() {
-            // After a named macro, we expect pattern parameters
-            let pat = self.parse_macro_pattern()?;
-            self.skip_whitespace();
+        let (pattern, category, name_used_as_pattern) = if let Some(ref n) = name {
+            // Check if this is a string literal name
+            if is_string_pattern {
+                // For string literal macros, check if we have a pattern or go directly to
+                // category
+                if self.peek() == Some(':') {
+                    // No pattern, just category
+                    self.advance(); // consume ':'
+                    self.skip_whitespace();
+                    let cat = Some(self.identifier()?);
+                    (n.clone(), cat, true) // Use the string literal as the
+                                           // pattern
+                } else {
+                    // Has pattern parameters after the string
+                    let pat = self.parse_macro_pattern()?;
+                    self.skip_whitespace();
 
-            // Then category after colon
-            let cat = if self.peek() == Some(':') {
-                self.advance(); // consume ':'
-                self.skip_whitespace();
-                Some(self.identifier()?)
+                    // Then category after colon
+                    let cat = if self.peek() == Some(':') {
+                        self.advance(); // consume ':'
+                        self.skip_whitespace();
+                        Some(self.identifier()?)
+                    } else {
+                        None
+                    };
+
+                    // Just use the pattern, don't combine with the name
+                    (pat, cat, false)
+                }
             } else {
-                None
-            };
-            (pat, cat)
+                // Regular named macro
+                let pat = self.parse_macro_pattern()?;
+                self.skip_whitespace();
+
+                // Then category after colon
+                let cat = if self.peek() == Some(':') {
+                    self.advance(); // consume ':'
+                    self.skip_whitespace();
+                    Some(self.identifier()?)
+                } else {
+                    None
+                };
+                (pat, cat, false)
+            }
         } else {
             // Anonymous macro - parse pattern directly
-            (self.parse_macro_pattern()?, None)
+            (self.parse_macro_pattern()?, None, false)
         };
         self.skip_whitespace();
 
@@ -87,8 +117,12 @@ impl<'a> Parser<'a> {
         if let Some(prec) = precedence {
             children.push(prec);
         }
+
+        // Only add name if it wasn't used as the pattern itself
         if let Some(n) = name {
-            children.push(n);
+            if !name_used_as_pattern {
+                children.push(n);
+            }
         }
         children.push(pattern);
         if let Some(cat) = category {
@@ -334,8 +368,8 @@ impl<'a> Parser<'a> {
         })))
     }
 
-    /// Parse a macro pattern (e.g., x:term or multiple parameters x:term
-    /// y:term)
+    /// Parse a macro pattern (e.g., x:term or multiple parameters with
+    /// literals)
     fn parse_macro_pattern(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 
@@ -344,70 +378,88 @@ impl<'a> Parser<'a> {
             return self.parse_syntax_quotation_impl(true); // true = is_pattern
         }
 
-        // Try to parse multiple typed parameters
-        let mut params = Vec::new();
+        // Parse a pattern that can contain typed parameters and string literals
+        let mut elements = Vec::new();
 
-        // Try to parse as many typed parameters as possible
+        // Parse pattern elements
         loop {
-            if !self.peek().is_some_and(|c| c.is_alphabetic()) {
-                break;
-            }
+            self.skip_whitespace();
 
-            // Try to parse a typed parameter
-            if let Ok(typed_param) = self.try_parse(|p| {
-                let ident = p.identifier()?;
-
-                if p.peek() == Some(':') {
-                    // This is a typed parameter
-                    p.advance(); // consume ':'
-                    let category = p.identifier()?;
-
-                    let range = p.input().range_from(start);
-                    Ok(Syntax::Node(Box::new(SyntaxNode {
-                        kind: SyntaxKind::App, // Use App for now to represent typed param
-                        range,
-                        children: smallvec![ident, category],
-                    })))
-                } else {
-                    Err(ParseError::boxed(
-                        ParseErrorKind::Expected(":".to_string()),
-                        p.position(),
-                    ))
-                }
-            }) {
-                params.push(typed_param);
+            // Check for string literal
+            if self.peek() == Some('"') {
+                elements.push(self.string_literal()?);
                 self.skip_whitespace();
-
-                // Continue parsing more parameters
                 continue;
-            } else {
-                break;
             }
+
+            // Check for typed parameter
+            if self.peek().is_some_and(|c| c.is_alphabetic()) {
+                // Try to parse a typed parameter (with optional * for repetition)
+                if let Ok(typed_param) = self.try_parse(|p| {
+                    let ident = p.identifier()?;
+                    p.skip_whitespace();
+
+                    if p.peek() == Some(':') {
+                        // This is a typed parameter
+                        p.advance(); // consume ':'
+                        let category = p.identifier()?;
+
+                        // Check for repetition operator *
+                        let mut is_repeated = false;
+                        if p.peek() == Some('*') {
+                            p.advance(); // consume '*'
+                            is_repeated = true;
+                        }
+
+                        let range = p.input().range_from(start);
+                        let mut param = Syntax::Node(Box::new(SyntaxNode {
+                            kind: SyntaxKind::App, // Use App for typed param
+                            range,
+                            children: smallvec![ident, category],
+                        }));
+
+                        // If repeated, wrap in a repetition node
+                        if is_repeated {
+                            param = Syntax::Node(Box::new(SyntaxNode {
+                                kind: SyntaxKind::App, // Use App for repetition
+                                range,
+                                children: smallvec![param],
+                            }));
+                        }
+
+                        Ok(param)
+                    } else {
+                        Err(ParseError::boxed(
+                            ParseErrorKind::Expected(":".to_string()),
+                            p.position(),
+                        ))
+                    }
+                }) {
+                    elements.push(typed_param);
+                    self.skip_whitespace();
+                    continue;
+                }
+            }
+
+            // No more pattern elements
+            break;
         }
 
-        // If we found parameters, create a pattern node
-        if !params.is_empty() {
-            let range = self.input().range_from(start);
-            if params.len() == 1 {
-                // Single parameter
-                Ok(params.into_iter().next().unwrap())
-            } else {
-                // Multiple parameters - create an App node containing all of them
-                let mut children = Vec::new();
-                for param in params {
-                    if let Syntax::Node(param_node) = param {
-                        children.extend(param_node.children.into_iter());
-                    }
-                }
-                Ok(Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::App,
-                    range,
-                    children: children.into(),
-                })))
-            }
-        } else {
-            // Otherwise parse as a term pattern
+        // Create pattern node
+        if elements.is_empty() {
+            // Empty pattern - parse as term
             self.term()
+        } else if elements.len() == 1 {
+            // Single element
+            Ok(elements.into_iter().next().unwrap())
+        } else {
+            // Multiple elements - create a pattern node
+            let range = self.input().range_from(start);
+            Ok(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::App, // Use App for pattern
+                range,
+                children: elements.into(),
+            })))
         }
     }
 
