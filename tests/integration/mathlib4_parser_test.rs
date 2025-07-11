@@ -77,6 +77,161 @@ fn test_parse_mathlib4_files() {
 }
 
 #[test]
+fn test_parse_mathlib4_init() {
+    let init_path = Path::new("../../../test-data/mathlib4/Mathlib/Init.lean");
+
+    if !init_path.exists() {
+        eprintln!("Mathlib4 Init.lean not found, skipping test");
+        return;
+    }
+
+    let content = fs::read_to_string(init_path).expect("Failed to read Init.lean");
+    let mut parser = Parser::new(&content);
+
+    match parser.module() {
+        Ok(_) => {
+            println!("✅ Successfully parsed Mathlib/Init.lean");
+        }
+        Err(e) => {
+            panic!("❌ Failed to parse Mathlib/Init.lean: {}", e);
+        }
+    }
+}
+
+#[test]
+fn test_parse_mathlib4_logic_basic_partial() {
+    // Test just the header and imports of Logic/Basic.lean
+    let logic_basic_imports = r#"/-
+Copyright (c) 2016 Jeremy Avigad. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Jeremy Avigad, Leonardo de Moura
+-/
+import Mathlib.Tactic.Attr.Register
+import Mathlib.Tactic.Basic
+import Batteries.Logic
+import Batteries.Tactic.Trans
+
+open Function
+
+section Miscellany
+end Miscellany"#;
+
+    let mut parser = Parser::new(logic_basic_imports);
+    match parser.module() {
+        Ok(_) => {
+            println!("✅ Successfully parsed Logic/Basic.lean header");
+        }
+        Err(e) => {
+            panic!("❌ Failed to parse Logic/Basic.lean header: {}", e);
+        }
+    }
+}
+
+#[test]
+fn test_parse_simple_mathlib4_constructs() {
+    // Test various simple Mathlib4 constructs
+    let simple_constructs = r#"
+import Mathlib.Data.Nat.Basic
+
+-- Simple theorem
+theorem simple_theorem (n : Nat) : n + 0 = n := by
+  rw [Nat.add_zero]
+
+-- Simple definition  
+def double (n : Nat) : Nat := n + n
+
+-- Simple attribute
+attribute [simp] double
+"#;
+
+    let mut parser = Parser::new(simple_constructs);
+    match parser.module() {
+        Ok(_) => {
+            println!("✅ Successfully parsed simple Mathlib4 constructs");
+        }
+        Err(e) => {
+            panic!("❌ Failed to parse simple Mathlib4 constructs: {}", e);
+        }
+    }
+}
+
+#[test]
+#[ignore] // Run with `cargo test --test mathlib4_parser_test test_parse_mathlib4_sample
+          // -- --ignored`
+fn test_parse_mathlib4_sample() {
+    // Test a sample of real Mathlib4 files to get an idea of our success rate
+    let test_files = [
+        "../../../test-data/mathlib4/Mathlib/Init.lean",
+        "../../../test-data/mathlib4/Mathlib/Logic/Basic.lean",
+        "../../../test-data/mathlib4/Mathlib/Data/Nat/Basic.lean",
+        "../../../test-data/mathlib4/Mathlib/Algebra/Group/Basic.lean",
+        "../../../test-data/mathlib4/Mathlib/Logic/Relation.lean",
+        "../../../test-data/mathlib4/Mathlib/Data/Bool/Basic.lean",
+    ];
+
+    let mut total_files = 0;
+    let mut parsed_files = 0;
+    let mut failed_files = Vec::new();
+
+    for file_path in &test_files {
+        let path = Path::new(file_path);
+
+        if !path.exists() {
+            println!("File {} not found, skipping", file_path);
+            continue;
+        }
+
+        total_files += 1;
+        println!("Testing file: {}", file_path);
+
+        match fs::read_to_string(path) {
+            Ok(content) => {
+                let mut parser = Parser::new(&content);
+                match parser.module() {
+                    Ok(_) => {
+                        parsed_files += 1;
+                        println!("✅ Successfully parsed {}", file_path);
+                    }
+                    Err(e) => {
+                        failed_files.push((file_path.to_string(), e.to_string()));
+                        println!("❌ Failed to parse {}: {}", file_path, e);
+                    }
+                }
+            }
+            Err(e) => {
+                failed_files.push((file_path.to_string(), format!("Failed to read: {}", e)));
+                println!("❌ Failed to read {}: {}", file_path, e);
+            }
+        }
+    }
+
+    println!("\n=== Mathlib4 Sample Test Results ===");
+    println!("Total files tested: {}", total_files);
+    println!("Successfully parsed: {}", parsed_files);
+    println!("Failed: {}", failed_files.len());
+
+    if !failed_files.is_empty() {
+        println!("\n=== Failed Files ===");
+        for (path, error) in &failed_files {
+            println!("{}: {}", path, error);
+        }
+    }
+
+    let success_rate = if total_files > 0 {
+        (parsed_files as f64 / total_files as f64) * 100.0
+    } else {
+        0.0
+    };
+    println!("\nSuccess rate: {:.2}%", success_rate);
+
+    // We expect at least some success on real Mathlib4 files
+    assert!(
+        success_rate > 0.0,
+        "Should be able to parse at least some Mathlib4 files"
+    );
+}
+
+#[test]
 #[ignore]
 fn test_parse_specific_mathlib4_file() {
     // Test parsing a specific well-known file
