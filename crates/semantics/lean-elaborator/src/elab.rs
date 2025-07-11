@@ -563,7 +563,7 @@ impl Elaborator {
 
     /// Elaborate a match expression: match x with | p1 => e1 | p2 => e2
     fn elab_match(&mut self, node: &lean_syn_expr::SyntaxNode) -> Result<Expr, ElabError> {
-        use crate::patterns::{compile_match_arms, patterns_to_case_expr};
+        use crate::patterns::{check_exhaustiveness, compile_match_arms, patterns_to_case_expr};
 
         if node.children.is_empty() {
             return Err(ElabError::InvalidSyntax("Empty match expression".into()));
@@ -634,6 +634,28 @@ impl Elaborator {
             // Pop the local context
             for _ in &fvar_ids {
                 self.state.lctx.pop();
+            }
+        }
+
+        // Check exhaustiveness if we have a single discriminant
+        if discriminants.len() == 1 {
+            // Extract just the patterns for exhaustiveness checking
+            let patterns: Vec<_> = compiled_arms
+                .iter()
+                .flat_map(|arm| &arm.patterns)
+                .cloned()
+                .collect();
+
+            // Infer the type of the discriminant
+            let discriminant_type = self.infer_type(&discriminants[0])?;
+
+            // Check if patterns are exhaustive
+            let is_exhaustive = check_exhaustiveness(&patterns, &discriminant_type, &self.state)?;
+
+            if !is_exhaustive {
+                // For now, just warn - in a real compiler, this might be an error
+                // or we might add an implicit wildcard case that throws an error
+                eprintln!("Warning: Non-exhaustive patterns in match expression");
             }
         }
 
@@ -1331,6 +1353,84 @@ mod tests {
             "Expected application (if-then-else), got {:?}",
             expr.kind
         )
+    }
+
+    #[test]
+    fn test_elab_match_non_exhaustive() {
+        use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
+
+        let mut elab = Elaborator::new();
+
+        let dummy_range = SourceRange {
+            start: SourcePos::new(0, 0, 0),
+            end: SourcePos::new(0, 0, 0),
+        };
+
+        // Create syntax for: match x with | 0 => 1 | 1 => 2
+        // This is non-exhaustive for Nat
+        let match_syntax = Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Match,
+            range: dummy_range,
+            children: vec![
+                // discriminant: x
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: eterned::BaseCoword::new("x".to_string()),
+                }),
+                // First arm: | 0 => 1
+                Syntax::Node(Box::new(SyntaxNode {
+                    kind: SyntaxKind::MatchArm,
+                    range: dummy_range,
+                    children: vec![
+                        // pattern: 0
+                        Syntax::Atom(SyntaxAtom {
+                            range: dummy_range,
+                            value: eterned::BaseCoword::new("0".to_string()),
+                        }),
+                        // body: 1
+                        Syntax::Atom(SyntaxAtom {
+                            range: dummy_range,
+                            value: eterned::BaseCoword::new("1".to_string()),
+                        }),
+                    ]
+                    .into(),
+                })),
+                // Second arm: | 1 => 2
+                Syntax::Node(Box::new(SyntaxNode {
+                    kind: SyntaxKind::MatchArm,
+                    range: dummy_range,
+                    children: vec![
+                        // pattern: 1
+                        Syntax::Atom(SyntaxAtom {
+                            range: dummy_range,
+                            value: eterned::BaseCoword::new("1".to_string()),
+                        }),
+                        // body: 2
+                        Syntax::Atom(SyntaxAtom {
+                            range: dummy_range,
+                            value: eterned::BaseCoword::new("2".to_string()),
+                        }),
+                    ]
+                    .into(),
+                })),
+            ]
+            .into(),
+        }));
+
+        // Add x to local context with Nat type
+        let nat_type = Expr::const_expr(Name::mk_simple("Nat"), vec![]);
+        let _x_id = elab
+            .state_mut()
+            .lctx
+            .push_local_decl(Name::mk_simple("x"), nat_type);
+
+        // This should succeed but print a warning about non-exhaustive patterns
+        let result = elab.elaborate(&match_syntax);
+        assert!(
+            result.is_ok(),
+            "Non-exhaustive match should still elaborate: {:?}",
+            result.err()
+        );
     }
 
     #[test]

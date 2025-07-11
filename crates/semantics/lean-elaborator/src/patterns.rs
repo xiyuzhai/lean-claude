@@ -3,7 +3,7 @@
 //! This module handles the compilation of pattern matching from surface syntax
 //! to the kernel's case expressions.
 
-use lean_kernel::{Expr, Name};
+use lean_kernel::{expr::ExprKind, Expr, Name};
 use lean_syn_expr::{Syntax, SyntaxKind};
 
 use crate::{error::ElabError, ElabState};
@@ -202,13 +202,63 @@ fn collect_bound_vars_impl(pattern: &Pattern, vars: &mut Vec<Name>) {
 
 /// Check if a pattern is exhaustive for a given type
 pub fn check_exhaustiveness(
-    _patterns: &[Pattern],
-    _expected_type: &Expr,
+    patterns: &[Pattern],
+    expected_type: &Expr,
     _state: &ElabState,
 ) -> Result<bool, ElabError> {
-    // TODO: Implement exhaustiveness checking
-    // For now, assume patterns are exhaustive
-    Ok(true)
+    // Basic exhaustiveness checking
+    // This is a simplified implementation that handles:
+    // 1. Wildcard patterns (always exhaustive)
+    // 2. Variable patterns (always exhaustive)
+    // 3. Literal patterns (check coverage based on type)
+
+    // Check if any pattern is a wildcard or variable - these are catch-all patterns
+    for pattern in patterns {
+        if matches!(pattern, Pattern::Wildcard | Pattern::Var(_)) {
+            return Ok(true);
+        }
+    }
+
+    // For literal patterns, we need to check based on the expected type
+    match expected_type.kind {
+        // For Bool type, check we have both true and false
+        ExprKind::Const(ref name, _) if name.to_string() == "Bool" => {
+            check_bool_exhaustiveness(patterns)
+        }
+        // For Nat type with literals, we can't be exhaustive without a catch-all
+        ExprKind::Const(ref name, _) if name.to_string() == "Nat" => {
+            // Nat literals alone are never exhaustive
+            Ok(false)
+        }
+        // For other types, we need more type information
+        _ => {
+            // Conservative: if we don't know the type structure,
+            // assume non-exhaustive unless there's a catch-all
+            Ok(false)
+        }
+    }
+}
+
+/// Check exhaustiveness for Bool patterns
+fn check_bool_exhaustiveness(patterns: &[Pattern]) -> Result<bool, ElabError> {
+    let mut has_true = false;
+    let mut has_false = false;
+
+    for pattern in patterns {
+        match pattern {
+            Pattern::Literal(Literal::Nat(0)) => has_false = true,
+            Pattern::Literal(Literal::Nat(1)) => has_true = true,
+            // Constructor patterns for true/false would go here
+            Pattern::Constructor { name, .. } => match name.to_string().as_str() {
+                "true" => has_true = true,
+                "false" => has_false = true,
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+
+    Ok(has_true && has_false)
 }
 
 /// Compile patterns to case expressions
@@ -468,6 +518,97 @@ mod tests {
             matches!(&expr.kind, lean_kernel::expr::ExprKind::Let(_, _, _, _)),
             "Expected let expression for variable pattern, got {:?}",
             expr.kind
+        );
+    }
+
+    #[test]
+    fn test_exhaustiveness_wildcard() {
+        use lean_kernel::{Expr, Name};
+
+        let state = ElabState::new();
+        let nat_type = Expr::const_expr(Name::mk_simple("Nat"), vec![]);
+
+        // Wildcard pattern is always exhaustive
+        let patterns = vec![Pattern::Wildcard];
+        let result = check_exhaustiveness(&patterns, &nat_type, &state);
+        assert!(result.unwrap(), "Wildcard pattern should be exhaustive");
+    }
+
+    #[test]
+    fn test_exhaustiveness_variable() {
+        use lean_kernel::{Expr, Name};
+
+        let state = ElabState::new();
+        let nat_type = Expr::const_expr(Name::mk_simple("Nat"), vec![]);
+
+        // Variable pattern is always exhaustive
+        let patterns = vec![Pattern::Var(Name::mk_simple("x"))];
+        let result = check_exhaustiveness(&patterns, &nat_type, &state);
+        assert!(result.unwrap(), "Variable pattern should be exhaustive");
+    }
+
+    #[test]
+    fn test_exhaustiveness_nat_literals() {
+        use lean_kernel::{Expr, Name};
+
+        let state = ElabState::new();
+        let nat_type = Expr::const_expr(Name::mk_simple("Nat"), vec![]);
+
+        // Nat literals alone are not exhaustive
+        let patterns = vec![
+            Pattern::Literal(Literal::Nat(0)),
+            Pattern::Literal(Literal::Nat(1)),
+            Pattern::Literal(Literal::Nat(2)),
+        ];
+        let result = check_exhaustiveness(&patterns, &nat_type, &state);
+        assert!(
+            !result.unwrap(),
+            "Nat literals alone should not be exhaustive"
+        );
+
+        // But with a wildcard, they are
+        let patterns_with_wildcard = vec![
+            Pattern::Literal(Literal::Nat(0)),
+            Pattern::Literal(Literal::Nat(1)),
+            Pattern::Wildcard,
+        ];
+        let result = check_exhaustiveness(&patterns_with_wildcard, &nat_type, &state);
+        assert!(
+            result.unwrap(),
+            "Nat literals with wildcard should be exhaustive"
+        );
+    }
+
+    #[test]
+    fn test_exhaustiveness_bool() {
+        use lean_kernel::{Expr, Name};
+
+        let state = ElabState::new();
+        let bool_type = Expr::const_expr(Name::mk_simple("Bool"), vec![]);
+
+        // Bool with both true/false constructors is exhaustive
+        let patterns = vec![
+            Pattern::Constructor {
+                name: Name::mk_simple("true"),
+                params: vec![],
+            },
+            Pattern::Constructor {
+                name: Name::mk_simple("false"),
+                params: vec![],
+            },
+        ];
+        let result = check_exhaustiveness(&patterns, &bool_type, &state);
+        assert!(result.unwrap(), "Bool with true/false should be exhaustive");
+
+        // Bool with only one constructor is not exhaustive
+        let patterns_incomplete = vec![Pattern::Constructor {
+            name: Name::mk_simple("true"),
+            params: vec![],
+        }];
+        let result = check_exhaustiveness(&patterns_incomplete, &bool_type, &state);
+        assert!(
+            !result.unwrap(),
+            "Bool with only true should not be exhaustive"
         );
     }
 }
