@@ -214,6 +214,15 @@ pub enum SyntaxKind {
     UniverseSucc,
     UniverseMax,
     UniverseIMax,
+    
+    // Scoped notation and attributes
+    ScopedNotation,
+    LocalNotation,
+    AttributeInstance,
+    MacroPattern,
+    MacroExpansion,
+    SyntaxDecl,
+    Optional,
 }
 
 impl Syntax {
@@ -390,6 +399,13 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::UniverseSucc => "universe successor",
             SyntaxKind::UniverseMax => "universe max",
             SyntaxKind::UniverseIMax => "universe imax",
+            SyntaxKind::ScopedNotation => "scoped notation",
+            SyntaxKind::LocalNotation => "local notation",
+            SyntaxKind::AttributeInstance => "attribute instance",
+            SyntaxKind::MacroPattern => "macro pattern",
+            SyntaxKind::MacroExpansion => "macro expansion",
+            SyntaxKind::SyntaxDecl => "syntax declaration",
+            SyntaxKind::Optional => "optional",
         };
         write!(f, "{s}")
     }

@@ -12,13 +12,16 @@ pub mod implicits;
 pub mod input;
 pub mod lexical;
 pub mod r#macro;
+pub mod mathlib_tactics;
 pub mod module;
 pub mod notation;
 pub mod parser;
 pub mod pattern;
 pub mod precedence;
 pub mod recovery;
+pub mod scoped_notation;
 pub mod tactic;
+pub mod tactic_combinators;
 pub mod term;
 pub mod universe;
 

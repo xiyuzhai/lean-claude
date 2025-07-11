@@ -170,6 +170,64 @@ impl<'a> Parser<'a> {
         if self.peek_keyword("show") {
             return self.show_tactic();
         }
+        
+        // Mathlib tactics
+        if self.peek_keyword("ring") {
+            return self.ring_tactic();
+        }
+        if self.peek_keyword("ring_nf") {
+            return self.ring_nf_tactic();
+        }
+        if self.peek_keyword("linarith") {
+            return self.linarith_tactic();
+        }
+        if self.peek_keyword("simp_all") {
+            return self.simp_all_tactic();
+        }
+        if self.peek_keyword("norm_num") {
+            return self.norm_num_tactic();
+        }
+        if self.peek_keyword("field_simp") {
+            return self.field_simp_tactic();
+        }
+        if self.peek_keyword("abel") {
+            return self.abel_tactic();
+        }
+        if self.peek_keyword("omega") {
+            return self.omega_tactic();
+        }
+        if self.peek_keyword("tauto") {
+            return self.tauto_tactic();
+        }
+        if self.peek_keyword("aesop") {
+            return self.aesop_tactic();
+        }
+        if self.peek_keyword("hint") {
+            return self.hint_tactic();
+        }
+        if self.peek_keyword("library_search") {
+            return self.library_search_tactic();
+        }
+        if self.peek_keyword("suggest") {
+            return self.suggest_tactic();
+        }
+        
+        // More tactic combinators
+        if self.peek_keyword("any_goals") {
+            return self.any_goals_tactic();
+        }
+        if self.peek_keyword("fail_if_success") {
+            return self.fail_if_success_tactic();
+        }
+        if self.peek_keyword("suffices") {
+            return self.suffices_tactic();
+        }
+        if self.peek_keyword("conv") {
+            return self.conv_tactic();
+        }
+        if self.peek_keyword("guard_hyp") || self.peek_keyword("guard_target") || self.peek_keyword("guard_expr") {
+            return self.guard_tactic();
+        }
 
         // Parenthesized tactic or custom tactic
         if self.peek() == Some('(') {
@@ -390,7 +448,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse rewrite tactic: `rw [lemmas]` or `rewrite [lemmas]`
-    fn rewrite_tactic(&mut self) -> ParserResult<Syntax> {
+    pub fn rewrite_tactic(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 
         if self.peek_keyword("rw") {
@@ -756,106 +814,6 @@ impl<'a> Parser<'a> {
         })))
     }
 
-    /// Parse repeat tactic: `repeat tactic`
-    fn repeat_tactic(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-
-        self.keyword("repeat")?;
-        self.skip_whitespace();
-
-        let tactic = self.tactic_atom()?;
-
-        let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Repeat,
-            range,
-            children: smallvec![tactic],
-        })))
-    }
-
-    /// Parse try tactic: `try tactic`
-    fn try_tactic(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-
-        self.keyword("try")?;
-        self.skip_whitespace();
-
-        let tactic = self.tactic_atom()?;
-
-        let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Try,
-            range,
-            children: smallvec![tactic],
-        })))
-    }
-
-    /// Parse first tactic: `first | tactic1 | tactic2 | ...`
-    fn first_tactic(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-
-        self.keyword("first")?;
-        self.skip_whitespace();
-
-        let mut tactics = Vec::new();
-
-        // Expect at least one |
-        self.expect_char('|')?;
-        self.skip_whitespace();
-
-        loop {
-            tactics.push(self.tactic_atom()?);
-            self.skip_whitespace();
-
-            if self.peek() == Some('|') && !self.peek_tactic_end() {
-                self.advance();
-                self.skip_whitespace();
-            } else {
-                break;
-            }
-        }
-
-        let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::First,
-            range,
-            children: tactics.into(),
-        })))
-    }
-
-    /// Parse all_goals tactic: `all_goals tactic`
-    fn all_goals_tactic(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-
-        self.keyword("all_goals")?;
-        self.skip_whitespace();
-
-        let tactic = self.tactic_atom()?;
-
-        let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::AllGoals,
-            range,
-            children: smallvec![tactic],
-        })))
-    }
-
-    /// Parse focus tactic: `focus tactic`
-    fn focus_tactic(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-
-        self.keyword("focus")?;
-        self.skip_whitespace();
-
-        let tactic = self.tactic_atom()?;
-
-        let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Focus,
-            range,
-            children: smallvec![tactic],
-        })))
-    }
 
     /// Parse parenthesized tactic: `(tactic)`
     fn paren_tactic(&mut self) -> ParserResult<Syntax> {
