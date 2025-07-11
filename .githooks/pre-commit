@@ -1,0 +1,40 @@
+#!/bin/bash
+# Pre-commit hook to run tests before committing
+
+echo "Running pre-commit checks..."
+
+# Source cargo environment
+source "$HOME/.cargo/env" 2>/dev/null || true
+
+# Check if cargo is available
+if ! command -v cargo &> /dev/null; then
+    echo "Error: cargo not found. Please ensure Rust is installed."
+    exit 1
+fi
+
+# Run cargo fmt check
+echo "Checking code formatting..."
+if ! cargo fmt --all -- --check; then
+    echo "❌ Code formatting check failed!"
+    echo "Please run 'cargo fmt --all' to fix formatting issues."
+    exit 1
+fi
+
+# Run clippy
+echo "Running clippy..."
+if ! cargo clippy --all-features --workspace -- -D warnings 2>/dev/null; then
+    echo "❌ Clippy check failed!"
+    echo "Please fix the clippy warnings before committing."
+    exit 1
+fi
+
+# Run tests
+echo "Running tests..."
+if ! cargo test --all-features --workspace; then
+    echo "❌ Tests failed!"
+    echo "Please fix the failing tests before committing."
+    exit 1
+fi
+
+echo "✅ All pre-commit checks passed!"
+exit 0

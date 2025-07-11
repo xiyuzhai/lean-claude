@@ -214,7 +214,7 @@ pub enum SyntaxKind {
     UniverseSucc,
     UniverseMax,
     UniverseIMax,
-    
+
     // Scoped notation and attributes
     ScopedNotation,
     LocalNotation,

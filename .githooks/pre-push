@@ -1,0 +1,61 @@
+#!/bin/bash
+# Pre-push hook to ensure code quality before pushing to remote
+
+echo "Running pre-push checks..."
+
+# Source cargo environment
+source "$HOME/.cargo/env" 2>/dev/null || true
+
+# Check if cargo is available
+if ! command -v cargo &> /dev/null; then
+    echo "Error: cargo not found. Please ensure Rust is installed."
+    exit 1
+fi
+
+# Run cargo fmt check
+echo "Checking code formatting..."
+if ! cargo fmt --all -- --check; then
+    echo "❌ Code formatting check failed!"
+    echo "Please run 'cargo fmt --all' to fix formatting issues."
+    echo "Push aborted."
+    exit 1
+fi
+
+# Run clippy with all features
+echo "Running clippy..."
+if ! cargo clippy --all-features --workspace -- -D warnings; then
+    echo "❌ Clippy check failed!"
+    echo "Please fix the clippy warnings before pushing."
+    echo "Push aborted."
+    exit 1
+fi
+
+# Build the project
+echo "Building project..."
+if ! cargo build --all-features --workspace; then
+    echo "❌ Build failed!"
+    echo "Please fix the build errors before pushing."
+    echo "Push aborted."
+    exit 1
+fi
+
+# Run all tests
+echo "Running tests..."
+if ! cargo test --all-features --workspace; then
+    echo "❌ Tests failed!"
+    echo "Please fix the failing tests before pushing."
+    echo "Push aborted."
+    exit 1
+fi
+
+# Check for TODOs or FIXMEs in staged files (optional warning)
+echo "Checking for TODOs and FIXMEs..."
+TODO_COUNT=$(git diff --cached --name-only | xargs grep -E "(TODO|FIXME)" 2>/dev/null | wc -l || echo "0")
+if [ "$TODO_COUNT" -gt "0" ]; then
+    echo "⚠️  Warning: Found $TODO_COUNT TODO/FIXME comments in staged files"
+    echo "Consider addressing these before pushing, but proceeding anyway..."
+fi
+
+echo "✅ All pre-push checks passed!"
+echo "Pushing to remote repository..."
+exit 0

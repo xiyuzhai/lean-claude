@@ -5,6 +5,9 @@ This guide covers the development workflow for the lean-claude project.
 ## Quick Start
 
 ```bash
+# Set up Git hooks (one-time setup)
+./scripts/setup-hooks.sh
+
 # Run all checks before committing
 make check
 
@@ -66,11 +69,53 @@ Sometimes you may need to bypass hooks for emergency fixes:
 - `make ci` - Run full CI checks (format, clippy, all tests)
 - `make help` - Show all available commands
 
+## Git Hooks
+
+The project includes Git hooks to ensure code quality. These hooks automatically run checks before commits and pushes.
+
+### Setting Up Hooks
+
+Run the setup script (one-time setup):
+
+```bash
+./scripts/setup-hooks.sh
+```
+
+### What the Hooks Do
+
+**pre-commit hook:**
+- Checks code formatting
+- Runs clippy linter
+- Runs tests
+
+**pre-push hook:**
+- All pre-commit checks
+- Ensures project builds
+- Comprehensive test suite
+- Warns about TODO/FIXME comments
+
+### Bypassing Hooks (Emergency Only)
+
+If you need to bypass hooks in an emergency:
+
+```bash
+# Bypass pre-commit
+git commit --no-verify -m "Emergency fix"
+
+# Bypass pre-push
+git push --no-verify
+```
+
+⚠️ **Warning**: Always run checks manually afterward:
+```bash
+make check
+```
+
 ## Development Tips
 
 ### Before Committing
 
-Always run checks before committing:
+The Git hooks will automatically run checks, but you can also run them manually:
 
 ```bash
 make check

@@ -170,7 +170,7 @@ impl<'a> Parser<'a> {
         if self.peek_keyword("show") {
             return self.show_tactic();
         }
-        
+
         // Mathlib tactics
         if self.peek_keyword("ring") {
             return self.ring_tactic();
@@ -211,7 +211,7 @@ impl<'a> Parser<'a> {
         if self.peek_keyword("suggest") {
             return self.suggest_tactic();
         }
-        
+
         // More tactic combinators
         if self.peek_keyword("any_goals") {
             return self.any_goals_tactic();
@@ -225,7 +225,10 @@ impl<'a> Parser<'a> {
         if self.peek_keyword("conv") {
             return self.conv_tactic();
         }
-        if self.peek_keyword("guard_hyp") || self.peek_keyword("guard_target") || self.peek_keyword("guard_expr") {
+        if self.peek_keyword("guard_hyp")
+            || self.peek_keyword("guard_target")
+            || self.peek_keyword("guard_expr")
+        {
             return self.guard_tactic();
         }
 
@@ -813,7 +816,6 @@ impl<'a> Parser<'a> {
             children: smallvec![ty],
         })))
     }
-
 
     /// Parse parenthesized tactic: `(tactic)`
     fn paren_tactic(&mut self) -> ParserResult<Syntax> {

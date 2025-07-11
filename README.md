@@ -17,6 +17,9 @@ This project aims to rewrite the entire Lean4 compiler toolchain in Rust while m
 git clone https://github.com/xiyuzhai/lean-claude.git
 cd lean-claude
 
+# Set up Git hooks (recommended)
+./scripts/setup-hooks.sh
+
 # Run all checks
 make check
 
