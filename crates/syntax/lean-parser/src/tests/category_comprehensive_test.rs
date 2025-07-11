@@ -868,8 +868,9 @@ fn test_implicit_arguments() {
                                 },
                             },
                         ),
-                        Atom(
-                            SyntaxAtom {
+                        Node(
+                            SyntaxNode {
+                                kind: Type,
                                 range: SourceRange {
                                     start: SourcePos {
                                         line: 1,
@@ -882,9 +883,7 @@ fn test_implicit_arguments() {
                                         offset: 10,
                                     },
                                 },
-                                value: BaseCoword {
-                                    data: "Type",
-                                },
+                                children: [],
                             },
                         ),
                     ],

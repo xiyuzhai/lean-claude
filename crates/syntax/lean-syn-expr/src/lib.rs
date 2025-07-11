@@ -206,6 +206,14 @@ pub enum SyntaxKind {
     SyntaxPattern,
     SyntaxParam,
     CustomSyntax,
+
+    // Universe levels
+    Sort,
+    Type,
+    Prop,
+    UniverseSucc,
+    UniverseMax,
+    UniverseIMax,
 }
 
 impl Syntax {
@@ -376,6 +384,12 @@ impl fmt::Display for SyntaxKind {
             SyntaxKind::SyntaxPattern => "syntax pattern",
             SyntaxKind::SyntaxParam => "syntax parameter",
             SyntaxKind::CustomSyntax => "custom syntax",
+            SyntaxKind::Sort => "Sort",
+            SyntaxKind::Type => "Type",
+            SyntaxKind::Prop => "Prop",
+            SyntaxKind::UniverseSucc => "universe successor",
+            SyntaxKind::UniverseMax => "universe max",
+            SyntaxKind::UniverseIMax => "universe imax",
         };
         write!(f, "{s}")
     }

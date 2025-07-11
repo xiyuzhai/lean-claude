@@ -210,25 +210,7 @@ impl<'a> Parser<'a> {
 
     /// Parse universe command: `universe u v`
     pub fn universe_command(&mut self) -> ParserResult<Syntax> {
-        let start = self.position();
-
-        self.keyword("universe")?;
-        self.skip_whitespace();
-
-        let mut universes = Vec::new();
-
-        // Parse universe names
-        while self.peek().is_some_and(is_id_start) {
-            universes.push(self.identifier()?);
-            self.skip_whitespace();
-        }
-
-        let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Universe,
-            range,
-            children: universes.into(),
-        })))
+        self.parse_universe_declaration()
     }
 
     /// Parse constant command: `constant c : Type`

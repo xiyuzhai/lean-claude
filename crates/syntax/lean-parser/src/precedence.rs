@@ -1,42 +1,32 @@
+//! Operator precedence and associativity for Lean 4
+
 use std::collections::HashMap;
 
 use once_cell::sync::Lazy;
 
+/// Precedence level for operators
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Precedence(pub u32);
 
 impl Precedence {
     pub const MIN: Precedence = Precedence(0);
-    pub const MAX: Precedence = Precedence(1024);
-    pub const DEFAULT: Precedence = Precedence(0);
-
-    // Standard precedences following Lean4
     pub const ARROW: Precedence = Precedence(25);
     pub const OR: Precedence = Precedence(30);
     pub const AND: Precedence = Precedence(35);
-    pub const CMP: Precedence = Precedence(50); // ==, <, >, ≤, ≥
-    pub const ADD: Precedence = Precedence(65); // +, -
-    pub const MUL: Precedence = Precedence(70); // *, /
-    pub const POW: Precedence = Precedence(80); // ^
-    pub const COMPOSE: Precedence = Precedence(90); // ∘
-    pub const APP: Precedence = Precedence(1024); // function application
+    pub const CMP: Precedence = Precedence(50);
+    pub const ADD: Precedence = Precedence(65);
+    pub const MUL: Precedence = Precedence(70);
+    pub const POW: Precedence = Precedence(80);
+    pub const COMPOSE: Precedence = Precedence(90);
+    pub const MAX: Precedence = Precedence(1024);
 
-    /// Get the next higher precedence
+    /// Get the next precedence level
     pub fn next(self) -> Precedence {
-        Precedence(self.0.saturating_add(1))
-    }
-
-    /// Get the associativity for standard operators at this precedence
-    pub fn associativity(self) -> Associativity {
-        // Most operators are left-associative by default
-        // Right-associative operators will override this
-        match self.0 {
-            25 => Associativity::Right, // Function arrow
-            _ => Associativity::Left,
-        }
+        Precedence(self.0 + 1)
     }
 }
 
+/// Associativity of operators
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Associativity {
     Left,
@@ -44,6 +34,7 @@ pub enum Associativity {
     None,
 }
 
+/// Information about an operator
 #[derive(Debug, Clone)]
 pub struct OperatorInfo {
     pub symbol: String,
@@ -51,183 +42,358 @@ pub struct OperatorInfo {
     pub associativity: Associativity,
 }
 
-impl OperatorInfo {
-    pub fn new(
-        symbol: impl Into<String>,
-        precedence: Precedence,
-        associativity: Associativity,
-    ) -> Self {
-        Self {
-            symbol: symbol.into(),
-            precedence,
-            associativity,
-        }
-    }
-}
-
-pub static BINARY_OPERATORS: Lazy<HashMap<&'static str, OperatorInfo>> = Lazy::new(|| {
+// Static operator tables
+static BINARY_OPERATORS: Lazy<HashMap<String, OperatorInfo>> = Lazy::new(|| {
     let mut ops = HashMap::new();
 
-    // Arrow
+    // Logical operators
     ops.insert(
-        "->",
-        OperatorInfo::new("->", Precedence::ARROW, Associativity::Right),
+        "||".to_string(),
+        OperatorInfo {
+            symbol: "||".to_string(),
+            precedence: Precedence(20),
+            associativity: Associativity::Right,
+        },
     );
     ops.insert(
-        "→",
-        OperatorInfo::new("→", Precedence::ARROW, Associativity::Right),
-    );
-
-    // Logical
-    ops.insert(
-        "||",
-        OperatorInfo::new("||", Precedence::OR, Associativity::Right),
+        "&&".to_string(),
+        OperatorInfo {
+            symbol: "&&".to_string(),
+            precedence: Precedence(35),
+            associativity: Associativity::Right,
+        },
     );
     ops.insert(
-        "∨",
-        OperatorInfo::new("∨", Precedence::OR, Associativity::Right),
+        "∨".to_string(),
+        OperatorInfo {
+            symbol: "∨".to_string(),
+            precedence: Precedence(30),
+            associativity: Associativity::Right,
+        },
     );
     ops.insert(
-        "&&",
-        OperatorInfo::new("&&", Precedence::AND, Associativity::Right),
-    );
-    ops.insert(
-        "∧",
-        OperatorInfo::new("∧", Precedence::AND, Associativity::Right),
-    );
-
-    // Comparison
-    ops.insert(
-        "==",
-        OperatorInfo::new("==", Precedence::CMP, Associativity::None),
-    );
-    ops.insert(
-        "=",
-        OperatorInfo::new("=", Precedence::CMP, Associativity::None),
-    );
-    ops.insert(
-        "!=",
-        OperatorInfo::new("!=", Precedence::CMP, Associativity::None),
-    );
-    ops.insert(
-        "≠",
-        OperatorInfo::new("≠", Precedence::CMP, Associativity::None),
-    );
-    ops.insert(
-        "<",
-        OperatorInfo::new("<", Precedence::CMP, Associativity::None),
-    );
-    ops.insert(
-        ">",
-        OperatorInfo::new(">", Precedence::CMP, Associativity::None),
-    );
-    ops.insert(
-        "<=",
-        OperatorInfo::new("<=", Precedence::CMP, Associativity::None),
-    );
-    ops.insert(
-        "≤",
-        OperatorInfo::new("≤", Precedence::CMP, Associativity::None),
-    );
-    ops.insert(
-        ">=",
-        OperatorInfo::new(">=", Precedence::CMP, Associativity::None),
-    );
-    ops.insert(
-        "≥",
-        OperatorInfo::new("≥", Precedence::CMP, Associativity::None),
+        "∧".to_string(),
+        OperatorInfo {
+            symbol: "∧".to_string(),
+            precedence: Precedence(35),
+            associativity: Associativity::Right,
+        },
     );
 
-    // Arithmetic
+    // Comparison operators
     ops.insert(
-        "+",
-        OperatorInfo::new("+", Precedence::ADD, Associativity::Left),
+        "=".to_string(),
+        OperatorInfo {
+            symbol: "=".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
     );
     ops.insert(
-        "-",
-        OperatorInfo::new("-", Precedence::ADD, Associativity::Left),
+        "==".to_string(),
+        OperatorInfo {
+            symbol: "==".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
     );
     ops.insert(
-        "*",
-        OperatorInfo::new("*", Precedence::MUL, Associativity::Left),
+        "≠".to_string(),
+        OperatorInfo {
+            symbol: "≠".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
     );
     ops.insert(
-        "/",
-        OperatorInfo::new("/", Precedence::MUL, Associativity::Left),
+        "!=".to_string(),
+        OperatorInfo {
+            symbol: "!=".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
     );
     ops.insert(
-        "^",
-        OperatorInfo::new("^", Precedence::POW, Associativity::Right),
+        "<".to_string(),
+        OperatorInfo {
+            symbol: "<".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        ">".to_string(),
+        OperatorInfo {
+            symbol: ">".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "≤".to_string(),
+        OperatorInfo {
+            symbol: "≤".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "≥".to_string(),
+        OperatorInfo {
+            symbol: "≥".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "<=".to_string(),
+        OperatorInfo {
+            symbol: "<=".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        ">=".to_string(),
+        OperatorInfo {
+            symbol: ">=".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+
+    // Arrow operators
+    ops.insert(
+        "->".to_string(),
+        OperatorInfo {
+            symbol: "->".to_string(),
+            precedence: Precedence(25),
+            associativity: Associativity::Right,
+        },
+    );
+    ops.insert(
+        "→".to_string(),
+        OperatorInfo {
+            symbol: "→".to_string(),
+            precedence: Precedence(25),
+            associativity: Associativity::Right,
+        },
+    );
+    ops.insert(
+        "=>".to_string(),
+        OperatorInfo {
+            symbol: "=>".to_string(),
+            precedence: Precedence(25),
+            associativity: Associativity::Right,
+        },
+    );
+
+    // Type ascription
+    ops.insert(
+        ":".to_string(),
+        OperatorInfo {
+            symbol: ":".to_string(),
+            precedence: Precedence(20),
+            associativity: Associativity::None,
+        },
+    );
+
+    // List cons
+    ops.insert(
+        "::".to_string(),
+        OperatorInfo {
+            symbol: "::".to_string(),
+            precedence: Precedence(55),
+            associativity: Associativity::Right,
+        },
+    );
+
+    // Append
+    ops.insert(
+        "++".to_string(),
+        OperatorInfo {
+            symbol: "++".to_string(),
+            precedence: Precedence(65),
+            associativity: Associativity::Right,
+        },
+    );
+
+    // Arithmetic operators
+    ops.insert(
+        "+".to_string(),
+        OperatorInfo {
+            symbol: "+".to_string(),
+            precedence: Precedence(65),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "-".to_string(),
+        OperatorInfo {
+            symbol: "-".to_string(),
+            precedence: Precedence(65),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "*".to_string(),
+        OperatorInfo {
+            symbol: "*".to_string(),
+            precedence: Precedence(70),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "/".to_string(),
+        OperatorInfo {
+            symbol: "/".to_string(),
+            precedence: Precedence(70),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "%".to_string(),
+        OperatorInfo {
+            symbol: "%".to_string(),
+            precedence: Precedence(70),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "^".to_string(),
+        OperatorInfo {
+            symbol: "^".to_string(),
+            precedence: Precedence(80),
+            associativity: Associativity::Right,
+        },
     );
 
     // Function composition
     ops.insert(
-        "∘",
-        OperatorInfo::new("∘", Precedence::COMPOSE, Associativity::Right),
+        "∘".to_string(),
+        OperatorInfo {
+            symbol: "∘".to_string(),
+            precedence: Precedence(90),
+            associativity: Associativity::Right,
+        },
     );
     ops.insert(
-        ">>",
-        OperatorInfo::new(">>", Precedence::COMPOSE, Associativity::Left),
-    );
-    ops.insert(
-        "<<",
-        OperatorInfo::new("<<", Precedence::COMPOSE, Associativity::Right),
-    );
-
-    // List operations
-    ops.insert(
-        "::",
-        OperatorInfo::new("::", Precedence(67), Associativity::Right),
-    );
-    ops.insert(
-        "++",
-        OperatorInfo::new("++", Precedence(65), Associativity::Right),
+        "○".to_string(),
+        OperatorInfo {
+            symbol: "○".to_string(),
+            precedence: Precedence(90),
+            associativity: Associativity::Right,
+        },
     );
 
-    // Option operations
+    // Pipe operators
     ops.insert(
-        "??",
-        OperatorInfo::new("??", Precedence(60), Associativity::Right),
+        "|>".to_string(),
+        OperatorInfo {
+            symbol: "|>".to_string(),
+            precedence: Precedence(10),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "<|".to_string(),
+        OperatorInfo {
+            symbol: "<|".to_string(),
+            precedence: Precedence(10),
+            associativity: Associativity::Right,
+        },
+    );
+
+    // Dollar operator (low precedence application)
+    ops.insert(
+        "$".to_string(),
+        OperatorInfo {
+            symbol: "$".to_string(),
+            precedence: Precedence(10),
+            associativity: Associativity::Right,
+        },
+    );
+
+    // Member access
+    ops.insert(
+        ".".to_string(),
+        OperatorInfo {
+            symbol: ".".to_string(),
+            precedence: Precedence(100),
+            associativity: Associativity::Left,
+        },
     );
 
     ops
 });
 
-pub static UNARY_OPERATORS: Lazy<HashMap<&'static str, OperatorInfo>> = Lazy::new(|| {
+static UNARY_OPERATORS: Lazy<HashMap<String, OperatorInfo>> = Lazy::new(|| {
     let mut ops = HashMap::new();
 
+    // Negation
     ops.insert(
-        "!",
-        OperatorInfo::new("!", Precedence(100), Associativity::None),
+        "-".to_string(),
+        OperatorInfo {
+            symbol: "-".to_string(),
+            precedence: Precedence(75),
+            associativity: Associativity::None,
+        },
+    );
+
+    // Logical not
+    ops.insert(
+        "¬".to_string(),
+        OperatorInfo {
+            symbol: "¬".to_string(),
+            precedence: Precedence(40),
+            associativity: Associativity::None,
+        },
     );
     ops.insert(
-        "¬",
-        OperatorInfo::new("¬", Precedence(100), Associativity::None),
-    );
-    ops.insert(
-        "-",
-        OperatorInfo::new("-", Precedence(100), Associativity::None),
+        "!".to_string(),
+        OperatorInfo {
+            symbol: "!".to_string(),
+            precedence: Precedence(75),
+            associativity: Associativity::None,
+        },
     );
 
     ops
 });
 
-/// Check if a string is a known binary operator
-pub fn is_binary_operator(s: &str) -> bool {
-    BINARY_OPERATORS.contains_key(s)
+/// Get information about a binary operator
+pub fn get_binary_operator(symbol: &str) -> Option<&'static OperatorInfo> {
+    BINARY_OPERATORS.get(symbol)
 }
 
-/// Check if a string is a known unary operator
-pub fn is_unary_operator(s: &str) -> bool {
-    UNARY_OPERATORS.contains_key(s)
+/// Get information about a unary operator
+pub fn get_unary_operator(symbol: &str) -> Option<&'static OperatorInfo> {
+    UNARY_OPERATORS.get(symbol)
 }
 
-/// Get binary operator info
-pub fn get_binary_operator(s: &str) -> Option<&'static OperatorInfo> {
-    BINARY_OPERATORS.get(s)
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Get unary operator info
-pub fn get_unary_operator(s: &str) -> Option<&'static OperatorInfo> {
-    UNARY_OPERATORS.get(s)
+    #[test]
+    fn test_binary_operators() {
+        assert!(get_binary_operator("+").is_some());
+        assert!(get_binary_operator("*").is_some());
+        assert!(get_binary_operator("->").is_some());
+        assert!(get_binary_operator("&&").is_some());
+    }
+
+    #[test]
+    fn test_unary_operators() {
+        assert!(get_unary_operator("-").is_some());
+        assert!(get_unary_operator("!").is_some());
+        assert!(get_unary_operator("¬").is_some());
+    }
+
+    #[test]
+    fn test_precedence_ordering() {
+        assert!(Precedence(10) < Precedence(20));
+        assert!(Precedence(50) < Precedence(70));
+        assert!(Precedence::MIN < Precedence::MAX);
+    }
 }

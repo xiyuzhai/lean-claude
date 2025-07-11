@@ -8,6 +8,7 @@ pub mod custom_syntax;
 pub mod diagnostic;
 pub mod error;
 pub mod expansion;
+pub mod implicits;
 pub mod input;
 pub mod lexical;
 pub mod r#macro;
@@ -19,6 +20,7 @@ pub mod precedence;
 pub mod recovery;
 pub mod tactic;
 pub mod term;
+pub mod universe;
 
 pub use error::{ParseError, ParseErrorKind};
 pub use expansion::ExpandingParser;

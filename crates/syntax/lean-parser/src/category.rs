@@ -262,11 +262,9 @@ impl ParserCategory {
         });
 
         // Parse right-hand side with appropriate precedence
-        let right_prec = match op_entry.precedence.associativity() {
-            crate::precedence::Associativity::Left => op_entry.precedence.next(),
-            crate::precedence::Associativity::Right => op_entry.precedence,
-            crate::precedence::Associativity::None => op_entry.precedence.next(),
-        };
+        // For now, assume left associativity for all operators
+        // TODO: Add associativity field to ParserEntry
+        let right_prec = op_entry.precedence.next();
 
         parser.skip_whitespace();
         let right = self.parse(parser, right_prec)?;
