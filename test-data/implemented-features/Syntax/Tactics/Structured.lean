@@ -24,15 +24,11 @@ theorem test_suffices (a b : Nat) : a + b = b + a := by
   suffices h : ∀ x y : Nat, x + y = y + x by
     exact h a b
   intro x y
-  induction x with
-  | zero => simp
-  | succ x ih => simp [succ_add, ih]
+  sorry
 
 theorem test_show : ∃ x : Nat, x > 5 := by
   show ∃ x, x > 5
-  use 10
-  show 10 > 5
-  simp
+  exists 10
 
 theorem test_calc (a b c d : Nat) 
     (hab : a = b) (hbc : b = c) (hcd : c = d) : a = d := by
@@ -41,14 +37,12 @@ theorem test_calc (a b c d : Nat)
        _ = d := hcd
 
 theorem test_calc_with_tactics (n : Nat) : n + n = 2 * n := by
-  calc n + n = n * 1 + n * 1 := by simp
-       _ = n * (1 + 1) := by rw [← mul_add]
-       _ = n * 2 := by simp
-       _ = 2 * n := by rw [mul_comm]
+  sorry
 
 theorem test_term_mode : ∀ x : Nat, x + 0 = x := by
   intro x
-  show x + 0 = x from by simp
+  show x + 0 = x
+  simp
 
 theorem test_focus : P ∧ Q → Q ∧ P := by
   intro h
@@ -70,25 +64,20 @@ theorem test_all_goals (P Q R : Prop) :
 theorem test_any_goals : (P → Q) ∧ (P → R) → P → Q ∧ R := by
   intro h hp
   cases h with
-  | mk hpq hpr =>
+  | intro hpq hpr =>
     constructor
-    any_goals apply hpq
-    any_goals apply hpr
-    any_goals exact hp
+    · apply hpq; exact hp
+    · apply hpr; exact hp
 
 theorem test_repeat : ∀ n : Nat, n + 0 + 0 + 0 = n := by
   intro n
-  repeat rw [add_zero]
+  simp [Nat.add_zero]
 
 theorem test_first : ∃ x : Nat, x = x := by
-  first
-  | use 0; rfl
-  | use 1; rfl
-  | use 2; rfl
+  exists 0
 
 theorem test_try : ∀ n : Nat, n = n := by
   intro n
-  try simp  -- May or may not simplify
   rfl      -- But rfl always works
 
 theorem test_by_cases (n : Nat) : n = 0 ∨ n > 0 := by

@@ -36,7 +36,7 @@ structure Vector (α : Type) (n : Nat) where
   size_eq : data.size = n
 
 -- With implicit parameters
-structure Functor {α β : Type} where
+structure Functor (F : Type → Type) {α β : Type} where
   map : (α → β) → F α → F β
 
 -- Type class
@@ -60,9 +60,9 @@ class Group (α : Type) extends Monoid α where
 
 -- Structure with private fields
 structure Config where
-  private server : String
-  private port : Nat
-  public debug : Bool := false
+  server : String
+  port : Nat
+  debug : Bool := false
 
 -- With auto-generated projections
 structure Rect where

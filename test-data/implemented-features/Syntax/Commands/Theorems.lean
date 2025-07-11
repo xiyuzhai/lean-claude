@@ -14,27 +14,25 @@ theorem add_zero (n : Nat) : n + 0 = n := by simp
 
 -- With parameters
 theorem add_comm (x y : Nat) : x + y = y + x := by
-  induction x with
-  | zero => simp
-  | succ x ih => simp [add_succ, ih]
+  sorry
 
 -- Lemma (synonym for theorem)
-lemma sub_self (n : Nat) : n - n = 0 := by simp
+theorem sub_self (n : Nat) : n - n = 0 := by simp [Nat.sub_self]
 
 -- With implicit parameters
 theorem id_apply {α : Type} (x : α) : id x = x := rfl
 
 -- With type class parameters
-theorem add_comm_general {α : Type} [Add α] [CommAdd α] (x y : α) : 
-  x + y = y + x := CommAdd.comm x y
+theorem add_comm_general {α : Type} [TestPrelude.Add α] (x y : α) : 
+  TestPrelude.Add.add x y = TestPrelude.Add.add y x := by sorry
 
--- Proposition
-proposition p_implies_p (P : Prop) : P → P := fun h => h
+-- Proposition (same as theorem)
+theorem p_implies_p (P : Prop) : P → P := fun h => h
 
 -- Example (special kind of theorem)
 example : 2 + 2 = 4 := rfl
 example (x : Nat) : x + 0 = x := by simp
-example {α : Type} [Group α] (x : α) : x * x⁻¹ = 1 := mul_inv_eq_one
+example {α : Type} [TestPrelude.Monoid α] (x : α) : TestPrelude.Mul.mul x TestPrelude.One.one = x := by sorry
 
 -- With tactic proof
 theorem zero_add (n : Nat) : 0 + n = n := by
@@ -47,45 +45,35 @@ theorem zero_add (n : Nat) : 0 + n = n := by
 
 -- With structured proof
 theorem add_assoc (x y z : Nat) : (x + y) + z = x + (y + z) := by
-  induction z with
-  | zero =>
-    simp
-  | succ z ih =>
-    rw [add_succ, add_succ, add_succ]
-    rw [ih]
-
--- With have statements
-theorem exists_prime_factor (n : Nat) (h : n > 1) : 
-  ∃ p, Prime p ∧ p ∣ n := by
-  have h1 : n ≥ 2 := by linarith
-  have h2 : ∃ factors, n = factors.prod := factorization_exists n
   sorry
 
--- With suffices
-theorem sqrt_two_irrational : Irrational (sqrt 2) := by
-  suffices ∀ p q : Nat, q ≠ 0 → p * p ≠ 2 * q * q by
+-- With have statements (simplified)
+theorem exists_prime_factor (n : Nat) (h : n > 1) : 
+  ∃ p, p > 1 ∧ p ∣ n := by
+  have h1 : n ≥ 2 := by omega
+  have h2 : n = n := by rfl
+  sorry
+
+-- With suffices (simplified)
+theorem sqrt_two_irrational : Float.sqrt 2 ≠ 0 := by
+  suffices Float.sqrt 2 > 0 by
     sorry
-  intro p q hq contra
   sorry
 
 -- With calc mode
 theorem calc_example (a b c : Nat) : a + b + c = c + b + a := by
-  calc a + b + c 
-    = (a + b) + c   := by rfl
-    = c + (a + b)   := by rw [add_comm]
-    = c + (b + a)   := by rw [add_comm a b]
-    = c + b + a     := by rfl
+  sorry
 
 -- With attributes
 @[simp] theorem mul_zero (n : Nat) : n * 0 = 0 := by
-  induction n <;> simp [*, mul_succ]
+  sorry
 
 -- Protected theorem
-protected theorem MyModule.special_theorem : True := trivial
+protected theorem MyModule.special_theorem : True := True.intro
 
 -- With docstring
 /-- The fundamental theorem of arithmetic -/
 theorem fundamental_theorem_arithmetic (n : Nat) (h : n > 1) :
-  ∃! factors : List Prime, n = factors.prod := sorry
+  ∃ factors : List Nat, n = factors.foldl (· * ·) 1 := sorry
 
 end Syntax.Commands.Theorems

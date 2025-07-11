@@ -24,7 +24,7 @@ theorem test5 (P Q : Prop) (h : P → Q) (hp : P) : Q := by
 
 theorem test6 (P Q : Prop) (h : P ∧ Q) : P := by
   cases h with
-  | mk hp hq => exact hp
+  | intro hp hq => exact hp
 
 theorem test7 (n : Nat) : n = n := by
   cases n
@@ -39,7 +39,7 @@ theorem test8 : ∀ n : Nat, n + 0 = n := by
     simp [add_succ, ih]
 
 theorem test9 (P Q : Prop) : P → Q → P := by
-  intro hp hq
+  intro hp _hq
   assumption
 
 theorem test10 (P : Prop) : P → P := by
@@ -65,14 +65,12 @@ theorem test15 (n : Nat) : n * 0 = 0 := by
   induction n <;> simp [*, mul_succ]
 
 theorem test16 : ∃ x : Nat, x > 0 := by
-  use 1
-  simp
+  exists 1
 
 theorem test17 (P : Nat → Prop) (h : ∃ x, P x) : ∃ y, P y := by
   cases h with
   | intro x hx => 
-    use x
-    exact hx
+    exists x
 
 theorem test18 : 1 ≠ 0 := by
   simp

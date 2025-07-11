@@ -143,6 +143,12 @@ impl Elaborator {
             SyntaxKind::StringLit => self.elab_string_lit(node),
             SyntaxKind::Projection => self.elab_projection(node),
             SyntaxKind::Arrow => self.elab_arrow(node),
+            SyntaxKind::Have => self.elab_have(node),
+            SyntaxKind::Show => self.elab_show(node),
+            SyntaxKind::Match => self.elab_match(node),
+            SyntaxKind::CharLit => self.elab_char_lit(node),
+            SyntaxKind::BinOp => self.elab_binop(node),
+            SyntaxKind::UnaryOp => self.elab_unary_op(node),
             _ => Err(ElabError::UnsupportedSyntax(node.kind)),
         }
     }
@@ -497,6 +503,154 @@ impl Elaborator {
             }
             _ => expr,
         }
+    }
+
+    /// Elaborate a have expression: have h : P := proof, body
+    fn elab_have(&mut self, node: &lean_syn_expr::SyntaxNode) -> Result<Expr, ElabError> {
+        if node.children.len() < 3 {
+            return Err(ElabError::InvalidSyntax(
+                "Have requires name, type, proof, and body".into(),
+            ));
+        }
+
+        // have name : type := proof, body
+        let name_syntax = &node.children[0];
+        let type_syntax = &node.children[1];
+        let proof_syntax = &node.children[2];
+        let body_syntax = &node.children[3];
+
+        // Get the hypothesis name
+        let name = match name_syntax {
+            Syntax::Atom(atom) => Name::mk_simple(atom.value.as_str()),
+            _ => Name::mk_simple("this"), // Default name
+        };
+
+        // Elaborate the type and proof
+        let ty = self.elaborate(type_syntax)?;
+        let proof = self.elaborate_with_type(proof_syntax, &ty)?;
+
+        // Add the hypothesis to the local context
+        let fvar_id = self.state.lctx.push_local_decl(name.clone(), ty.clone());
+
+        // Elaborate the body in the extended context
+        let body = self.elaborate(body_syntax)?;
+
+        // Abstract the fvar from the body and create let expression
+        let body_abs = self.abstract_fvar_core(body, &fvar_id, 0, 0);
+        self.state.lctx.pop();
+
+        // have is syntactic sugar for let
+        Ok(Expr::let_expr(name, ty, proof, body_abs))
+    }
+
+    /// Elaborate a show expression: show P from proof
+    fn elab_show(&mut self, node: &lean_syn_expr::SyntaxNode) -> Result<Expr, ElabError> {
+        if node.children.len() < 2 {
+            return Err(ElabError::InvalidSyntax(
+                "Show requires type and proof".into(),
+            ));
+        }
+
+        let type_syntax = &node.children[0];
+        let proof_syntax = &node.children[1];
+
+        // Elaborate the type
+        let ty = self.elaborate(type_syntax)?;
+
+        // Elaborate the proof with the expected type
+        self.elaborate_with_type(proof_syntax, &ty)
+    }
+
+    /// Elaborate a match expression: match x with | p1 => e1 | p2 => e2
+    fn elab_match(&mut self, _node: &lean_syn_expr::SyntaxNode) -> Result<Expr, ElabError> {
+        // For now, match expressions are not fully implemented
+        // This would require pattern matching compilation
+        Err(ElabError::UnsupportedSyntax(SyntaxKind::Match))
+    }
+
+    /// Elaborate a character literal
+    fn elab_char_lit(&mut self, node: &lean_syn_expr::SyntaxNode) -> Result<Expr, ElabError> {
+        if let Some(Syntax::Atom(atom)) = node.children.first() {
+            let s = atom.value.as_str();
+
+            // Parse character literal format: 'c'
+            if s.starts_with('\'') && s.ends_with('\'') && s.len() >= 3 {
+                let char_content = &s[1..s.len() - 1];
+
+                // Handle escape sequences
+                let ch = match char_content {
+                    "\\n" => '\n',
+                    "\\t" => '\t',
+                    "\\r" => '\r',
+                    "\\\\" => '\\',
+                    "\\'" => '\'',
+                    "\\\"" => '"',
+                    _ if char_content.len() == 1 => char_content.chars().next().unwrap(),
+                    _ => return Err(ElabError::InvalidSyntax("Invalid character literal".into())),
+                };
+
+                // Convert to Char expression (represented as natural number)
+                Ok(Expr::nat(ch as u64))
+            } else {
+                Err(ElabError::InvalidSyntax(
+                    "Invalid character literal format".into(),
+                ))
+            }
+        } else {
+            Err(ElabError::InvalidSyntax(
+                "Character literal missing content".into(),
+            ))
+        }
+    }
+
+    /// Elaborate a binary operation
+    fn elab_binop(&mut self, node: &lean_syn_expr::SyntaxNode) -> Result<Expr, ElabError> {
+        if node.children.len() != 3 {
+            return Err(ElabError::InvalidSyntax(
+                "Binary operation requires left operand, operator, and right operand".into(),
+            ));
+        }
+
+        let left_syntax = &node.children[0];
+        let op_syntax = &node.children[1];
+        let right_syntax = &node.children[2];
+
+        let left = self.elaborate(left_syntax)?;
+        let right = self.elaborate(right_syntax)?;
+
+        // Get operator name
+        let op_name = match op_syntax {
+            Syntax::Atom(atom) => Name::mk_simple(atom.value.as_str()),
+            _ => return Err(ElabError::InvalidSyntax("Invalid operator".into())),
+        };
+
+        // Binary operation is application: op left right
+        let op_expr = Expr::const_expr(op_name, vec![]);
+        Ok(Expr::app(Expr::app(op_expr, left), right))
+    }
+
+    /// Elaborate a unary operation
+    fn elab_unary_op(&mut self, node: &lean_syn_expr::SyntaxNode) -> Result<Expr, ElabError> {
+        if node.children.len() != 2 {
+            return Err(ElabError::InvalidSyntax(
+                "Unary operation requires operator and operand".into(),
+            ));
+        }
+
+        let op_syntax = &node.children[0];
+        let operand_syntax = &node.children[1];
+
+        let operand = self.elaborate(operand_syntax)?;
+
+        // Get operator name
+        let op_name = match op_syntax {
+            Syntax::Atom(atom) => Name::mk_simple(atom.value.as_str()),
+            _ => return Err(ElabError::InvalidSyntax("Invalid operator".into())),
+        };
+
+        // Unary operation is application: op operand
+        let op_expr = Expr::const_expr(op_name, vec![]);
+        Ok(Expr::app(op_expr, operand))
     }
 }
 
@@ -860,6 +1014,209 @@ mod tests {
                 assert_eq!(instances.len(), 1);
                 assert_eq!(instances[0].name.to_string(), "Add.Nat");
             }
+        }
+    }
+
+    #[test]
+    fn test_elab_have_expression() {
+        use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
+
+        let mut elab = Elaborator::new();
+
+        let dummy_range = SourceRange {
+            start: SourcePos::new(0, 0, 0),
+            end: SourcePos::new(0, 0, 0),
+        };
+
+        // Create syntax for: have h : Nat := 42, h
+        let have_syntax = Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Have,
+            range: dummy_range,
+            children: vec![
+                // name: h
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: eterned::BaseCoword::new("h".to_string()),
+                }),
+                // type: Nat
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: eterned::BaseCoword::new("Nat".to_string()),
+                }),
+                // proof: 42
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: eterned::BaseCoword::new("42".to_string()),
+                }),
+                // body: h
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: eterned::BaseCoword::new("h".to_string()),
+                }),
+            ]
+            .into(),
+        }));
+
+        let result = elab.elaborate(&have_syntax);
+        assert!(
+            result.is_ok(),
+            "Have expression should elaborate successfully: {:?}",
+            result.err()
+        );
+
+        // The result should be a let expression
+        match &result.unwrap().kind {
+            lean_kernel::expr::ExprKind::Let(name, _ty, _val, _body) => {
+                assert_eq!(name.to_string(), "h");
+            }
+            _ => panic!("Expected let expression"),
+        }
+    }
+
+    #[test]
+    fn test_elab_show_expression() {
+        use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
+
+        let mut elab = Elaborator::new();
+
+        let dummy_range = SourceRange {
+            start: SourcePos::new(0, 0, 0),
+            end: SourcePos::new(0, 0, 0),
+        };
+
+        // Create syntax for: show Nat from 42
+        let show_syntax = Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Show,
+            range: dummy_range,
+            children: vec![
+                // type: Nat
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: eterned::BaseCoword::new("Nat".to_string()),
+                }),
+                // proof: 42
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: eterned::BaseCoword::new("42".to_string()),
+                }),
+            ]
+            .into(),
+        }));
+
+        let result = elab.elaborate(&show_syntax);
+        assert!(
+            result.is_ok(),
+            "Show expression should elaborate successfully: {:?}",
+            result.err()
+        );
+
+        // The result should be the proof term (42 as Nat)
+        match &result.unwrap().kind {
+            lean_kernel::expr::ExprKind::Lit(lean_kernel::expr::Literal::Nat(n)) => {
+                assert_eq!(*n, 42);
+            }
+            _ => panic!("Expected natural number literal"),
+        }
+    }
+
+    #[test]
+    fn test_elab_char_literal() {
+        use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
+
+        let mut elab = Elaborator::new();
+
+        let dummy_range = SourceRange {
+            start: SourcePos::new(0, 0, 0),
+            end: SourcePos::new(0, 0, 0),
+        };
+
+        // Create syntax for character literal 'a'
+        let char_syntax = Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::CharLit,
+            range: dummy_range,
+            children: vec![Syntax::Atom(SyntaxAtom {
+                range: dummy_range,
+                value: eterned::BaseCoword::new("'a'".to_string()),
+            })]
+            .into(),
+        }));
+
+        let result = elab.elaborate(&char_syntax);
+        assert!(
+            result.is_ok(),
+            "Character literal should elaborate successfully: {:?}",
+            result.err()
+        );
+
+        // The result should be a natural number (ASCII code of 'a' = 97)
+        match &result.unwrap().kind {
+            lean_kernel::expr::ExprKind::Lit(lean_kernel::expr::Literal::Nat(n)) => {
+                assert_eq!(*n, 97); // ASCII code of 'a'
+            }
+            _ => panic!("Expected natural number literal"),
+        }
+    }
+
+    #[test]
+    fn test_elab_binary_operation() {
+        use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
+
+        let mut elab = Elaborator::new();
+
+        let dummy_range = SourceRange {
+            start: SourcePos::new(0, 0, 0),
+            end: SourcePos::new(0, 0, 0),
+        };
+
+        // Create syntax for: 1 + 2
+        let binop_syntax = Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::BinOp,
+            range: dummy_range,
+            children: vec![
+                // left: 1
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: eterned::BaseCoword::new("1".to_string()),
+                }),
+                // operator: +
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: eterned::BaseCoword::new("+".to_string()),
+                }),
+                // right: 2
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: eterned::BaseCoword::new("2".to_string()),
+                }),
+            ]
+            .into(),
+        }));
+
+        let result = elab.elaborate(&binop_syntax);
+        assert!(
+            result.is_ok(),
+            "Binary operation should elaborate successfully: {:?}",
+            result.err()
+        );
+
+        // The result should be an application: (+ 1) 2
+        match &result.unwrap().kind {
+            lean_kernel::expr::ExprKind::App(f, _arg) => {
+                // f should be (+ 1)
+                match &f.kind {
+                    lean_kernel::expr::ExprKind::App(op, _left) => {
+                        // op should be the + constant
+                        match &op.kind {
+                            lean_kernel::expr::ExprKind::Const(name, _) => {
+                                assert_eq!(name.to_string(), "+");
+                            }
+                            _ => panic!("Expected constant for operator"),
+                        }
+                    }
+                    _ => panic!("Expected application for binary operation"),
+                }
+            }
+            _ => panic!("Expected application for binary operation result"),
         }
     }
 }

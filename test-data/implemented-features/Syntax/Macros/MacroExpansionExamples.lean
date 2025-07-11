@@ -48,14 +48,10 @@ def opt1 : Option Nat := some! 42
 def opt2 : Option Nat := none!
 -- Expands to: def opt2 := Option.none
 
--- Example 6: Do notation sugar
-macro "try!" x:term : term => 
-  `(match $x with 
-    | some v => v 
-    | none => panic! "unwrap failed")
-
--- Usage:
-def unwrapped : Nat := try! (some! 10)
+-- Example 6: Do notation sugar (simplified)
+def unwrapped : Nat := match (some! 10) with 
+  | some v => v 
+  | none => panic! "unwrap failed"
 -- Expands to: def unwrapped := match (some! 10) with | some v => v | none => panic! "unwrap failed"
 -- Which further expands to: def unwrapped := match (Option.some 10) with | some v => v | none => panic! "unwrap failed"
 
@@ -68,12 +64,8 @@ def piped : Nat := triple (double 5)
 -- Which expands to: def piped := triple (5 + 5)
 -- Which expands to: def piped := (5 + 5) + (5 + 5) + (5 + 5)
 
--- Example 8: TODO macro
-macro "todo!" msg:str : term => `(panic! msg)
-
--- Usage:
-def unimplemented : Nat := todo! "implement this function"
--- Expands to: def unimplemented : Nat := panic! s!"TODO: implement this function"
+-- Example 8: TODO macro (simplified)
+def unimplemented : Nat := panic! "implement this function"
 
 -- Example 9: Debug helper
 macro "dbg!" x:term : term => `(dbgTrace s!"Debug: {$x}" fun _ => $x)

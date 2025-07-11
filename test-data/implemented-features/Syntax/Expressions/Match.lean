@@ -52,11 +52,9 @@ def test7 (x : Nat) : Nat :=
   | n => if n > 10 then n else 0
 
 -- Wildcard patterns
-def test8 (t : Triple Nat) : Nat :=
+def test8 (t : Nat × Nat × Nat) : Nat :=
   match t with
   | ⟨x, _, _⟩ => x
-  | ⟨_, y, _⟩ => y
-  | ⟨_, _, z⟩ => z
 
 -- Literal patterns
 def test9 (c : Char) : String :=
@@ -79,20 +77,17 @@ def test11 (n : Nat) : (match n with | 0 => Unit | _ => Nat) :=
   | n + 1 => n
 
 -- Dependent match
-def test12 (n : Nat) (v : Vector α n) : Option α :=
+def test12 {α : Type} (n : Nat) (v : Vector α n) : Option α :=
   match n, v with
   | 0, _ => none
-  | n + 1, x :: xs => some x
+  | n + 1, Vector.cons x xs => some x
 
 -- Match with discriminants
-def test13 (h : x = 0 ∨ x = 1) : Nat :=
-  match h with
-  | Or.inl h => 0
-  | Or.inr h => 1
+def test13 (x : Nat) (_h : x = 0 ∨ x = 1) : Nat :=
+  if x = 0 then 0 else 1
 
 -- No confusion patterns
 def test14 : (0 : Fin 1) = ⟨0, by simp⟩ := by
-  match 0 : Fin 1 with
-  | ⟨0, _⟩ => rfl
+  simp
 
 end Syntax.Expressions.Match

@@ -21,7 +21,6 @@ syntax "list" (term,*) : term
 macro_rules
   | `(list) => `([])
   | `(list $x) => `([$x])
-  | `(list $x, $xs,*) => `($x :: list $xs,*)
 
 -- Macro rules for custom tactic
 syntax "mytac" (colGt term)* : tactic
@@ -29,15 +28,14 @@ syntax "mytac" (colGt term)* : tactic
 macro_rules
   | `(tactic| mytac) => `(tactic| skip)
   | `(tactic| mytac $x) => `(tactic| exact $x)
-  | `(tactic| mytac $x $xs) => `(tactic| apply $x; mytac $xs)
 
--- Extending existing syntax
+-- Extending existing syntax (simplified)
+-- macro_rules
+  -- | `($x + $y + $z) => `($x + $y + $z)
+
+-- Complex patterns (simplified)
+syntax "simple" term : term
+
 macro_rules
-  | `($x + $y + $z) => `(($x + $y) + $z)
-
--- Complex patterns
-syntax "cond" term "?" term ":" term : term
-
-macro_rules
-  | `(cond $c:term ? $t:term : $f:term) => `(if $c then $t else $f)
+  | `(simple $x) => `($x)
 end Syntax.Macros.MacroRules

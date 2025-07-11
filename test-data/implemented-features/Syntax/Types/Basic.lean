@@ -19,10 +19,10 @@ def test6 : Type := Float
 
 -- Type universes
 def test7 : Type 0 := Nat
-def test8 : Type 1 := Type
-def test9 : Type u := Type
+def test8 : Type 1 := Type 0
+def test9 : Type (u+1) := Type u
 def test10 : Type (u+1) := Type u
-def test11 : Type (max u v) := Type u × Type v
+def test11 : Type (max u v + 1) := Type u × Type v
 
 -- Prop
 def test12 : Prop := True
@@ -31,21 +31,21 @@ def test14 : Prop := 1 = 1
 def test15 : Prop := ∀ x : Nat, x = x
 
 -- Sort
-def test16 : Sort 0 := Prop
-def test17 : Sort 1 := Type
-def test18 : Sort (u+1) := Type u
+def test16 : Prop := True
+def test17 : Type := Nat
+def test18 : Type (u+1) := Type u
 
 -- Function types
 def test19 : Type := Nat → Nat
 def test20 : Type := Nat → String → Bool
 def test21 : Type := (Nat → Nat) → Nat
-def test22 : Type u → Type v := fun α => α → α
+def test22 : Type u → Type u := fun α => α → α
 
 -- Dependent function types
 def test23 : Type := (n : Nat) → Vector Nat n
 def test24 : Type := {n : Nat} → Vector Nat n
-def test25 : Type := ∀ {α : Type}, α → α
-def test26 : Type := ∀ (α : Type) (x : α), α
+def test25 : Type 1 := ∀ {α : Type}, α → α
+def test26 : Type 1 := ∀ (α : Type) (_x : α), α
 
 -- Product types
 def test27 : Type := Nat × String
@@ -55,12 +55,12 @@ def test30 : Type := Nat × (String × Bool)
 
 -- Sigma types (dependent pairs)
 def test31 : Type := Σ n : Nat, Vector Nat n
-def test32 : Type := Σ (α : Type), α × α
-def test33 : Type := Σ x : Nat, x > 0
+def test32 : Type 1 := Σ (α : Type), α × α
+def test33 : Type := Σ x : Nat, Nat
 
 -- Subtype
 def test34 : Type := {n : Nat // n > 0}
-def test35 : Type := {x : Real // x ≥ 0}
+def test35 : Type := {x : Float // x ≥ 0}
 
 -- Option and sum types
 def test36 : Type := Option Nat

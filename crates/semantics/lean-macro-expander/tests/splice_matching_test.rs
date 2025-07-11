@@ -5,32 +5,71 @@ use lean_parser::Parser;
 use lean_syn_expr::Syntax;
 
 #[test]
-#[ignore] // TODO: Implement splice pattern matching in pattern matcher
+#[ignore] // TODO: Advanced splice pattern matching needs more sophisticated
+          // implementation
 fn test_splice_pattern_matching() {
     // Test that splice patterns match correctly
-    let pattern_str = "`(wrap $xs,*)";
-    let syntax_str = "wrap a b c";
+    // For now, create a simpler test to isolate the issue
 
-    let mut pattern_parser = Parser::new(pattern_str);
-    let pattern = pattern_parser
-        .parse_syntax_quotation()
-        .expect("Failed to parse pattern");
+    // Create pattern manually: App(wrap, SyntaxSplice(xs))
+    use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxKind, SyntaxNode};
 
-    let mut syntax_parser = Parser::new(syntax_str);
-    let syntax = syntax_parser.term().expect("Failed to parse syntax");
-
-    println!("Pattern: {pattern:?}");
-    println!("Syntax: {syntax:?}");
-
-    // Extract the inner pattern (unwrap the quotation)
-    let inner_pattern = if let Syntax::Node(node) = &pattern {
-        node.children.first().cloned().unwrap_or(pattern.clone())
-    } else {
-        pattern.clone()
+    let dummy_range = SourceRange {
+        start: SourcePos::new(0, 0, 0),
+        end: SourcePos::new(0, 0, 0),
     };
 
+    let pattern = Syntax::Node(Box::new(SyntaxNode {
+        kind: SyntaxKind::App,
+        range: dummy_range,
+        children: vec![
+            Syntax::Atom(SyntaxAtom {
+                range: dummy_range,
+                value: BaseCoword::new("wrap".to_string()),
+            }),
+            Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::SyntaxSplice,
+                range: dummy_range,
+                children: vec![Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: BaseCoword::new("xs".to_string()),
+                })]
+                .into(),
+            })),
+        ]
+        .into(),
+    }));
+
+    // Create syntax manually: App(wrap, a, b, c)
+    let syntax = Syntax::Node(Box::new(SyntaxNode {
+        kind: SyntaxKind::App,
+        range: dummy_range,
+        children: vec![
+            Syntax::Atom(SyntaxAtom {
+                range: dummy_range,
+                value: BaseCoword::new("wrap".to_string()),
+            }),
+            Syntax::Atom(SyntaxAtom {
+                range: dummy_range,
+                value: BaseCoword::new("a".to_string()),
+            }),
+            Syntax::Atom(SyntaxAtom {
+                range: dummy_range,
+                value: BaseCoword::new("b".to_string()),
+            }),
+            Syntax::Atom(SyntaxAtom {
+                range: dummy_range,
+                value: BaseCoword::new("c".to_string()),
+            }),
+        ]
+        .into(),
+    }));
+
+    println!("Manual pattern: {pattern:?}");
+    println!("Manual syntax: {syntax:?}");
+
     let match_result =
-        PatternMatcher::match_pattern(&inner_pattern, &syntax).expect("Pattern matching failed");
+        PatternMatcher::match_pattern(&pattern, &syntax).expect("Pattern matching failed");
 
     println!("Match result: {match_result:?}");
 

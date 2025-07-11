@@ -769,6 +769,9 @@ impl<'a> Parser<'a> {
         } else if self.peek_keyword("let") {
             // Parse let expression
             self.parse_quotation_let()
+        } else if self.peek_keyword("match") {
+            // Parse match expression
+            self.parse_quotation_match()
         } else if self.peek().is_some_and(|c| c.is_alphabetic() || c == '_') {
             // Just parse as identifier - this handles both regular identifiers
             // and custom syntax like "myif"
@@ -1168,7 +1171,6 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse match expressions inside quotations
-    #[allow(dead_code)]
     fn parse_quotation_match(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 

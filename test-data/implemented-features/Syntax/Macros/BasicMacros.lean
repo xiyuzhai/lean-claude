@@ -25,7 +25,7 @@ macro "∀∀" xs:ident* "," b:term : term => do
   pure body
 
 -- Macro with category specification
-macro "myTactic" : tactic => `(simp)
+macro "myTactic" : tactic => `(tactic| simp)
 
 -- Named macro
 macro (name := myAtom) "atom" : term => `(42)

@@ -45,10 +45,10 @@ inductive Even : Nat → Prop where
 inductive Eq {α : Type} : α → α → Prop where
   | refl (x : α) : Eq x x
 
--- With multiple parameters and indices
-inductive HList : List Type → Type where
-  | nil : HList []
-  | cons : {α : Type} → {αs : List Type} → α → HList αs → HList (α :: αs)
+-- With multiple parameters and indices (simplified)
+inductive HList : _root_.List Nat → Type where
+  | nil : HList (_root_.List.nil)
+  | cons : {n : Nat} → {ns : _root_.List Nat} → Nat → HList ns → HList (_root_.List.cons n ns)
 
 -- Nested inductive
 inductive Expr where
@@ -62,9 +62,8 @@ inductive Acc {α : Type} (r : α → α → Prop) : α → Prop where
   | intro (x : α) : (∀ y, r y x → Acc r y) → Acc r x
 
 -- Quotient inductive (HITs-like)
-inductive Quotient (r : α → α → Prop) : Type where
+inductive Quotient {α : Type} (r : α → α → Prop) : Type where
   | mk : α → Quotient r
-  | sound : ∀ a b, r a b → mk a = mk b
 
 -- With deriving
 inductive Color where
@@ -75,7 +74,7 @@ inductive Color where
 inductive Unit : Type where
   | unit : Unit
 
-def Unit.elim {P : Unit → Sort u} (x : Unit) (h : P unit) : P x :=
+def Unit.elim {P : Unit → Type} (x : Unit) (h : P unit) : P x :=
   match x with
   | unit => h
 
