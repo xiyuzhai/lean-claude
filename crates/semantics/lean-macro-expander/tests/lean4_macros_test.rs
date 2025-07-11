@@ -106,8 +106,9 @@ def test := assert! (1 < 2)
         Ok(expanded) => {
             println!("Expanded assert!: {expanded}");
             // Check that the macro was expanded to unit
-            assert!(expanded.contains("Unit.unit")); // The () was parsed as
-                                                     // Unit.unit
+            // The () is now parsed as an App node with Unit and unit children
+            // In the debug format, this shows up as separate children
+            assert!(expanded.contains("Unit") && expanded.contains("unit"));
         }
         Err(e) => {
             println!("Error expanding assert!: {e}");
