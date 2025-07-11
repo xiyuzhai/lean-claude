@@ -22,7 +22,7 @@ fn parse_macro_file(path: &str) -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_parse_basic_macros() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../test-data/syntax/macros/basic_macros.lean");
+        .join("../../../test-data/implemented-features/Syntax/Macros/BasicMacros.lean");
 
     parse_macro_file(path.to_str().unwrap()).unwrap();
 }
@@ -30,7 +30,7 @@ fn test_parse_basic_macros() {
 #[test]
 fn test_parse_macro_rules() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../test-data/syntax/macros/macro_rules.lean");
+        .join("../../../test-data/implemented-features/Syntax/Macros/MacroRules.lean");
 
     parse_macro_file(path.to_str().unwrap()).unwrap();
 }
@@ -38,7 +38,7 @@ fn test_parse_macro_rules() {
 #[test]
 fn test_parse_notation() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../test-data/syntax/macros/notation.lean");
+        .join("../../../test-data/implemented-features/Syntax/Macros/Notation.lean");
 
     parse_macro_file(path.to_str().unwrap()).unwrap();
 }
@@ -46,7 +46,7 @@ fn test_parse_notation() {
 #[test]
 fn test_parse_syntax_declarations() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../test-data/syntax/macros/syntax_declarations.lean");
+        .join("../../../test-data/implemented-features/Syntax/Macros/SyntaxDeclarations.lean");
 
     parse_macro_file(path.to_str().unwrap()).unwrap();
 }
@@ -54,7 +54,7 @@ fn test_parse_syntax_declarations() {
 #[test]
 fn test_parse_syntax_quotations() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../test-data/syntax/macros/syntax_quotations.lean");
+        .join("../../../test-data/implemented-features/Syntax/Macros/SyntaxQuotations.lean");
 
     parse_macro_file(path.to_str().unwrap()).unwrap();
 }
@@ -63,7 +63,7 @@ fn test_parse_syntax_quotations() {
 #[ignore = "Advanced macros require full implementation"]
 fn test_parse_advanced_macros() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../test-data/syntax/macros/advanced_macros.lean");
+        .join("../../../test-data/implemented-features/Syntax/Macros/AdvancedMacros.lean");
 
     parse_macro_file(path.to_str().unwrap()).unwrap();
 }
@@ -71,14 +71,15 @@ fn test_parse_advanced_macros() {
 #[test]
 fn test_parse_elab_macros() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../test-data/syntax/macros/elab_macros.lean");
+        .join("../../../test-data/implemented-features/Syntax/Macros/ElabMacros.lean");
 
     parse_macro_file(path.to_str().unwrap()).unwrap();
 }
 
 #[test]
 fn test_all_macro_files() {
-    let macro_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../test-data/syntax/macros");
+    let macro_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../test-data/implemented-features/Syntax/Macros");
 
     let mut total = 0;
     let mut passed = 0;
@@ -92,7 +93,7 @@ fn test_all_macro_files() {
                     let path_str = path.to_str().unwrap();
 
                     // Skip known complex files
-                    if path_str.contains("advanced_macros") {
+                    if path_str.contains("AdvancedMacros") {
                         println!("⚠ Skipping complex file: {path_str}");
                         continue;
                     }

@@ -14,20 +14,21 @@ fn test_all_syntax_files() {
         .parent().unwrap()  // tests  
         .parent().unwrap()  // crates
         .join("test-data")
-        .join("syntax");
+        .join("implemented-features")
+        .join("Syntax");
     let mut results = TestResults::default();
 
     // Test each category
-    test_category(&test_data_path.join("basic"), &mut results);
-    test_category(&test_data_path.join("expressions"), &mut results);
-    test_category(&test_data_path.join("types"), &mut results);
-    test_category(&test_data_path.join("commands"), &mut results);
-    test_category(&test_data_path.join("tactics"), &mut results);
-    test_category(&test_data_path.join("patterns"), &mut results);
-    test_category(&test_data_path.join("unicode"), &mut results);
+    test_category(&test_data_path.join("Basic"), &mut results);
+    test_category(&test_data_path.join("Expressions"), &mut results);
+    test_category(&test_data_path.join("Types"), &mut results);
+    test_category(&test_data_path.join("Commands"), &mut results);
+    test_category(&test_data_path.join("Tactics"), &mut results);
+    test_category(&test_data_path.join("Patterns"), &mut results);
+    test_category(&test_data_path.join("Unicode"), &mut results);
 
     // Errors should fail to parse
-    test_errors(&test_data_path.join("errors"), &mut results);
+    test_errors(&test_data_path.join("Errors"), &mut results);
 
     results.print_summary();
 

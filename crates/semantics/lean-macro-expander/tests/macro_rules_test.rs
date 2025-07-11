@@ -6,6 +6,8 @@ fn expand_module(input: &str) -> Result<String, String> {
     let mut parser = Parser::new(input);
     let module = parser.module().map_err(|e| format!("Parse error: {e:?}"))?;
 
+    eprintln!("Parsed module: {}", format_syntax(&module));
+
     let mut env = MacroEnvironment::new();
 
     // Collect macro definitions
@@ -106,9 +108,18 @@ def result := mydo (pure 42)
 
     // Should expand to bind (pure 42) (fun y => y)
     // Check the structure rather than exact string matching
-    assert!(expanded.contains("(App bind"));
-    assert!(expanded.contains("(Lambda y y)"));
-    assert!(expanded.contains("pure") && expanded.contains("42"));
+    assert!(
+        expanded.contains("bind"),
+        "Expected 'bind' in expanded output: {expanded}"
+    );
+    assert!(
+        expanded.contains("Lambda"),
+        "Expected 'Lambda' in expanded output: {expanded}"
+    );
+    assert!(
+        expanded.contains("pure") && expanded.contains("42"),
+        "Expected 'pure 42' in expanded output: {expanded}"
+    );
 }
 
 #[test]

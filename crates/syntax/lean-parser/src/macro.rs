@@ -341,7 +341,7 @@ impl<'a> Parser<'a> {
 
         // Check if this is a syntax quotation (for macro_rules)
         if self.peek() == Some('`') && self.input().peek_nth(1) == Some('(') {
-            return self.parse_syntax_quotation();
+            return self.parse_syntax_quotation_impl(true); // true = is_pattern
         }
 
         // Try to parse multiple typed parameters
@@ -547,6 +547,11 @@ impl<'a> Parser<'a> {
 
     /// Parse syntax quotation: `` `(pattern) `` or `` `(category| pattern) ``
     pub fn parse_syntax_quotation(&mut self) -> ParserResult<Syntax> {
+        self.parse_syntax_quotation_impl(false)
+    }
+
+    /// Parse syntax quotation with control over whether it's a pattern
+    fn parse_syntax_quotation_impl(&mut self, is_pattern: bool) -> ParserResult<Syntax> {
         let start = self.position();
 
         self.expect_char('`')?;
@@ -582,7 +587,11 @@ impl<'a> Parser<'a> {
 
         // Parse the quoted syntax as a single term
         // (antiquotations will be handled during term parsing)
-        let quoted_term = self.parse_quotation_term()?;
+        let quoted_term = if is_pattern {
+            self.parse_quotation_pattern()?
+        } else {
+            self.parse_quotation_term()?
+        };
         children.push(quoted_term);
 
         self.expect_char(')')?;
@@ -702,21 +711,16 @@ impl<'a> Parser<'a> {
         } else if self.peek().is_some_and(|c| c.is_numeric()) {
             // Number
             self.number()
+        } else if self.peek_keyword("fun") || self.peek() == Some('λ') {
+            // Parse lambda
+            self.parse_quotation_lambda()
+        } else if self.peek_keyword("let") {
+            // Parse let expression
+            self.parse_quotation_let()
         } else if self.peek().is_some_and(|c| c.is_alphabetic() || c == '_') {
-            // Check for keywords first
-            if self.peek_keyword("fun") || self.peek_keyword("λ") {
-                // Parse lambda inside quotation
-                self.parse_quotation_lambda()
-            } else if self.peek_keyword("if") {
-                // Parse if-then-else
-                self.parse_quotation_if()
-            } else if self.peek_keyword("let") {
-                // Parse let expression
-                self.parse_quotation_let()
-            } else {
-                // Identifier (could be qualified like List.nil)
-                self.parse_qualified_identifier()
-            }
+            // Just parse as identifier - this handles both regular identifiers
+            // and custom syntax like "myif"
+            self.parse_qualified_identifier()
         } else {
             Err(ParseError::boxed(
                 ParseErrorKind::Expected("quotation term".to_string()),
@@ -909,6 +913,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse if-then-else inside quotation
+    #[allow(dead_code)]
     fn parse_quotation_if(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 
@@ -1045,6 +1050,134 @@ impl<'a> Parser<'a> {
             kind: SyntaxKind::List,
             range,
             children: elements.into(),
+        })))
+    }
+
+    /// Parse a pattern inside a quotation (for macro_rules patterns)
+    /// This is like parse_quotation_term but treats keywords as regular
+    /// identifiers
+    fn parse_quotation_pattern(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        // Parse tokens until we hit the closing paren
+        let mut tokens = Vec::new();
+
+        while self.peek() != Some(')') && !self.input().is_at_end() {
+            self.skip_whitespace();
+
+            if self.peek() == Some(')') {
+                break;
+            }
+
+            // Parse one token
+            if self.peek() == Some('$') {
+                // Antiquotation
+                tokens.push(self.parse_antiquotation()?);
+            } else if self.peek() == Some('(') {
+                // Nested parens
+                tokens.push(self.parse_quotation_paren()?);
+            } else if self.peek() == Some('[') {
+                // List
+                tokens.push(self.parse_list_pattern()?);
+            } else if self.peek().is_some_and(|c| c.is_numeric()) {
+                // Number
+                tokens.push(self.number()?);
+            } else if self.peek().is_some_and(|c| c.is_alphabetic() || c == '_') {
+                // Identifier (including keywords)
+                tokens.push(self.identifier()?);
+            } else {
+                // Single character token
+                if let Some(ch) = self.advance() {
+                    let range = self.input().range_from(self.position());
+                    tokens.push(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                        range,
+                        value: eterned::BaseCoword::new(ch.to_string()),
+                    }));
+                }
+            }
+        }
+
+        // If we have multiple tokens, wrap them in an App node
+        if tokens.is_empty() {
+            Err(ParseError::boxed(
+                ParseErrorKind::Expected("pattern content".to_string()),
+                start,
+            ))
+        } else if tokens.len() == 1 {
+            Ok(tokens.into_iter().next().unwrap())
+        } else {
+            let range = self.input().range_from(start);
+            Ok(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::App,
+                range,
+                children: tokens.into(),
+            })))
+        }
+    }
+
+    /// Parse match expressions inside quotations
+    #[allow(dead_code)]
+    fn parse_quotation_match(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
+
+        self.keyword("match")?;
+        self.skip_whitespace();
+
+        // Parse scrutinee
+        let scrutinee = self.parse_quotation_atom()?; // Changed from parse_quotation_term
+        self.skip_whitespace();
+
+        // Expect 'with'
+        self.keyword("with")?;
+        self.skip_whitespace();
+
+        // Parse arms
+        let mut arms = Vec::new();
+
+        loop {
+            // Optional leading |
+            if self.peek() == Some('|') {
+                self.advance();
+                self.skip_whitespace();
+            }
+
+            // Parse pattern (for now, just parse as term)
+            let pattern = self.parse_quotation_atom()?;
+            self.skip_whitespace();
+
+            // Expect =>
+            self.expect_char('=')?;
+            self.expect_char('>')?;
+            self.skip_whitespace();
+
+            // Parse body
+            let body = self.parse_quotation_atom()?;
+
+            // Create arm node
+            let arm_range = self.input().range_from(start);
+            let arm = Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::MatchArm,
+                range: arm_range,
+                children: smallvec![pattern, body],
+            }));
+            arms.push(arm);
+
+            self.skip_whitespace();
+
+            // Check if there's another arm
+            if self.peek() != Some('|') {
+                break;
+            }
+        }
+
+        let range = self.input().range_from(start);
+        let mut children = smallvec![scrutinee];
+        children.extend(arms);
+
+        Ok(Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Match,
+            range,
+            children,
         })))
     }
 }
