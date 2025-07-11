@@ -12,6 +12,7 @@ pub mod elab;
 pub mod error;
 pub mod instances;
 pub mod metavar;
+pub mod patterns;
 pub mod typeck;
 
 pub use context::{LevelContext, LocalContext, LocalDecl};

@@ -562,10 +562,83 @@ impl Elaborator {
     }
 
     /// Elaborate a match expression: match x with | p1 => e1 | p2 => e2
-    fn elab_match(&mut self, _node: &lean_syn_expr::SyntaxNode) -> Result<Expr, ElabError> {
-        // For now, match expressions are not fully implemented
-        // This would require pattern matching compilation
-        Err(ElabError::UnsupportedSyntax(SyntaxKind::Match))
+    fn elab_match(&mut self, node: &lean_syn_expr::SyntaxNode) -> Result<Expr, ElabError> {
+        use crate::patterns::{compile_match_arms, patterns_to_case_expr};
+
+        if node.children.is_empty() {
+            return Err(ElabError::InvalidSyntax("Empty match expression".into()));
+        }
+
+        // First children are discriminants (expressions to match on)
+        // Find where the match arms start (after "with" keyword)
+        let mut discriminants = Vec::new();
+        let mut arms_start_idx = 0;
+
+        for (i, child) in node.children.iter().enumerate() {
+            match child {
+                Syntax::Node(n) if n.kind == SyntaxKind::MatchArm => {
+                    arms_start_idx = i;
+                    break;
+                }
+                _ => {
+                    // This is a discriminant
+                    discriminants.push(self.elaborate(child)?);
+                }
+            }
+        }
+
+        if discriminants.is_empty() {
+            return Err(ElabError::InvalidSyntax(
+                "Match expression requires at least one discriminant".into(),
+            ));
+        }
+
+        // Compile the match arms
+        let arm_syntaxes = &node.children[arms_start_idx..];
+        let mut compiled_arms = compile_match_arms(arm_syntaxes, discriminants.len())?;
+
+        // Elaborate the body of each arm in the appropriate context
+        for (i, arm) in compiled_arms.iter_mut().enumerate() {
+            let arm_syntax = &arm_syntaxes[i];
+
+            // Get the body syntax from the match arm
+            let body_syntax = match arm_syntax {
+                Syntax::Node(n) if n.kind == SyntaxKind::MatchArm && n.children.len() >= 2 => {
+                    &n.children[n.children.len() - 1]
+                }
+                _ => {
+                    return Err(ElabError::InvalidSyntax("Invalid match arm".into()));
+                }
+            };
+
+            // Push bound variables to local context
+            let mut fvar_ids = Vec::new();
+            for var_name in &arm.bound_vars {
+                // Create a metavariable for the type (will be refined during pattern checking)
+                let var_type = self
+                    .state
+                    .mctx
+                    .mk_metavar(Expr::sort(Level::zero()), self.state.lctx.clone());
+                let fvar_id = self.state.lctx.push_local_decl(var_name.clone(), var_type);
+                fvar_ids.push(fvar_id);
+            }
+
+            // Elaborate the body
+            arm.body = self.elaborate(body_syntax)?;
+
+            // Abstract the bound variables
+            for (j, fvar_id) in fvar_ids.iter().enumerate() {
+                arm.body = self.abstract_fvar_core(arm.body.clone(), fvar_id, j as u32, 0);
+            }
+
+            // Pop the local context
+            for _ in &fvar_ids {
+                self.state.lctx.pop();
+            }
+        }
+
+        // Compile patterns to case expressions
+        patterns_to_case_expr(discriminants, compiled_arms, &mut self.state)
     }
 
     /// Elaborate a character literal
@@ -1154,6 +1227,105 @@ mod tests {
                 assert_eq!(*n, 97); // ASCII code of 'a'
             }
             _ => panic!("Expected natural number literal"),
+        }
+    }
+
+    #[test]
+    fn test_elab_simple_match() {
+        use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
+
+        let mut elab = Elaborator::new();
+
+        let dummy_range = SourceRange {
+            start: SourcePos::new(0, 0, 0),
+            end: SourcePos::new(0, 0, 0),
+        };
+
+        // Create syntax for: match x with | 0 => 1 | n => n + 1
+        let match_syntax = Syntax::Node(Box::new(SyntaxNode {
+            kind: SyntaxKind::Match,
+            range: dummy_range,
+            children: vec![
+                // discriminant: x
+                Syntax::Atom(SyntaxAtom {
+                    range: dummy_range,
+                    value: eterned::BaseCoword::new("x".to_string()),
+                }),
+                // First arm: | 0 => 1
+                Syntax::Node(Box::new(SyntaxNode {
+                    kind: SyntaxKind::MatchArm,
+                    range: dummy_range,
+                    children: vec![
+                        // pattern: 0
+                        Syntax::Atom(SyntaxAtom {
+                            range: dummy_range,
+                            value: eterned::BaseCoword::new("0".to_string()),
+                        }),
+                        // body: 1
+                        Syntax::Atom(SyntaxAtom {
+                            range: dummy_range,
+                            value: eterned::BaseCoword::new("1".to_string()),
+                        }),
+                    ]
+                    .into(),
+                })),
+                // Second arm: | n => n + 1
+                Syntax::Node(Box::new(SyntaxNode {
+                    kind: SyntaxKind::MatchArm,
+                    range: dummy_range,
+                    children: vec![
+                        // pattern: n
+                        Syntax::Atom(SyntaxAtom {
+                            range: dummy_range,
+                            value: eterned::BaseCoword::new("n".to_string()),
+                        }),
+                        // body: n + 1
+                        Syntax::Node(Box::new(SyntaxNode {
+                            kind: SyntaxKind::BinOp,
+                            range: dummy_range,
+                            children: vec![
+                                Syntax::Atom(SyntaxAtom {
+                                    range: dummy_range,
+                                    value: eterned::BaseCoword::new("n".to_string()),
+                                }),
+                                Syntax::Atom(SyntaxAtom {
+                                    range: dummy_range,
+                                    value: eterned::BaseCoword::new("+".to_string()),
+                                }),
+                                Syntax::Atom(SyntaxAtom {
+                                    range: dummy_range,
+                                    value: eterned::BaseCoword::new("1".to_string()),
+                                }),
+                            ]
+                            .into(),
+                        })),
+                    ]
+                    .into(),
+                })),
+            ]
+            .into(),
+        }));
+
+        // Add x to local context
+        let nat_type = Expr::const_expr("Nat".into(), vec![]);
+        let _x_id = elab
+            .state_mut()
+            .lctx
+            .push_local_decl(Name::mk_simple("x"), nat_type);
+
+        let result = elab.elaborate(&match_syntax);
+        assert!(
+            result.is_ok(),
+            "Match expression should elaborate successfully: {:?}",
+            result.err()
+        );
+
+        // The result should be a metavariable placeholder for now
+        match &result.unwrap().kind {
+            lean_kernel::expr::ExprKind::MVar(_) => {
+                // Expected - match compilation returns placeholder
+            }
+            _ => panic!("Expected metavariable placeholder for match result"),
         }
     }
 
