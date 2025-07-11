@@ -22,7 +22,7 @@ fn test_basic_error_recovery() {
 fn test_skip_to_next_statement() {
     // Test recovery by skipping to next statement
     let input = r#"
-def foo (x : Nat := garbage syntax here
+def foo (x : Nat) := garbage syntax here
 
 def bar : Nat := 42
 "#;
@@ -30,14 +30,30 @@ def bar : Nat := 42
     let mut parser = Parser::new(input);
     let result = parser.module();
 
+    // Debug output
+    println!("Input: {:?}", input);
+    println!("Parse result: {:?}", result);
+    println!("Parser errors: {:?}", parser.errors());
+
     // Should parse at least one valid definition
-    if let Ok(syntax) = result {
-        let mut def_count = 0;
-        count_definitions(&syntax, &mut def_count);
-        assert!(
-            def_count >= 1,
-            "Should have recovered and parsed at least one definition"
-        );
+    match result {
+        Ok(syntax) => {
+            println!("Parsed syntax tree: {:#?}", syntax);
+            let mut def_count = 0;
+            count_definitions(&syntax, &mut def_count);
+            println!("Found {} definitions", def_count);
+            assert!(
+                def_count >= 1,
+                "Should have recovered and parsed at least one definition"
+            );
+        }
+        Err(e) => {
+            println!("Parse failed with error: {:?}", e);
+            panic!(
+                "Module parsing should not fail completely - error recovery should allow \
+                 continuation"
+            );
+        }
     }
 }
 

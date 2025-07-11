@@ -56,7 +56,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // Parse definition - always expect ':='
+        // Parse definition - expect ':='
         self.skip_whitespace();
         self.expect_char(':')?;
         self.expect_char('=')?;

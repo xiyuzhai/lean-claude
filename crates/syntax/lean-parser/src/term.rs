@@ -25,6 +25,11 @@ impl<'a> Parser<'a> {
         loop {
             self.skip_whitespace();
 
+            // Stop at := which indicates definition/proof
+            if self.peek() == Some(':') && self.input().peek_nth(1) == Some('=') {
+                break;
+            }
+
             // Check for binary operator
             if let Some(op_info) = self.peek_binary_operator() {
                 if op_info.precedence < min_prec {
@@ -215,6 +220,8 @@ impl<'a> Parser<'a> {
                 || self.peek_keyword("end")
                 || self.peek_keyword("open")
                 || self.peek_keyword("universe")
+                // Stop at := which indicates definition
+                || (self.peek() == Some(':') && self.input().peek_nth(1) == Some('='))
             {
                 break;
             }

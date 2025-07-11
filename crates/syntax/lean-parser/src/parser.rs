@@ -386,7 +386,7 @@ impl<'a> Parser<'a> {
         }
 
         let num = if self.peek() == Some('0') {
-            match self.input.peek_nth(1) {
+            match self.input().peek_nth(1) {
                 Some('x') | Some('X') => {
                     // Hexadecimal
                     self.advance(); // consume '0'

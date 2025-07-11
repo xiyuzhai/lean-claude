@@ -60,6 +60,22 @@ path = "../../../tests/test_mutual.rs"
 name = "test_deriving"
 path = "../../../tests/test_deriving.rs"
 
+[[test]]
+name = "calc_conv_test"
+path = "../../../tests/integration/calc_conv_test.rs"
+
+[[test]]
+name = "metaprogramming_test"
+path = "../../../tests/integration/metaprogramming_test.rs"
+
+[[test]]
+name = "basic_metaprogramming_test"
+path = "../../../tests/integration/basic_metaprogramming_test.rs"
+
+[[test]]
+name = "mathlib4_constructs_test"
+path = "../../../tests/integration/mathlib4_constructs_test.rs"
+
 [dependencies]
 lean-parser = { path = "../../syntax/lean-parser" }
 lean-syn-expr = { path = "../../syntax/lean-syn-expr" }
