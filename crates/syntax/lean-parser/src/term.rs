@@ -194,6 +194,11 @@ impl<'a> Parser<'a> {
                 || self.peek_keyword("in")
                 || self.peek_keyword("from")
                 || self.peek_keyword("deriving")
+                // Stop at do-block keywords when in do context
+                || self.peek_keyword("return")
+                || self.peek_keyword("pure")
+                || self.peek_keyword("let")
+                || self.peek_keyword("for")
                 // Stop at command keywords
                 || self.peek_keyword("def")
                 || self.peek_keyword("theorem")
@@ -1141,9 +1146,9 @@ impl<'a> Parser<'a> {
 
     /// Check if we're at the start of a new line
     fn at_line_start(&self) -> bool {
-        // Simple heuristic: check if the previous non-whitespace character was a
-        // newline This is a simplified implementation
-        false
+        // Check if current position is at column 1
+        let current_pos = self.position();
+        current_pos.column == 1
     }
 
     /// Parse centered dot placeholder: `·`

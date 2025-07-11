@@ -5,6 +5,7 @@ use crate::parser::Parser;
 mod category_comprehensive_test;
 mod category_integration_test;
 mod category_test;
+mod do_bind_test;
 mod macro_test;
 mod module_tests;
 mod operator_category_test;
