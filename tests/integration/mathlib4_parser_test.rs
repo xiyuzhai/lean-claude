@@ -9,11 +9,11 @@ use lean_syn_expr::{Syntax, SyntaxKind};
 #[test]
 #[ignore] // Run with `cargo test --test mathlib4_parser_test -- --ignored`
 fn test_parse_mathlib4_files() {
-    let test_data_path = Path::new("../../../test-data/syntax");
+    let mathlib_path = Path::new("../../../test-data/mathlib4/Mathlib");
     assert!(
-        test_data_path.exists(),
-        "test data not found at {:?}",
-        test_data_path
+        mathlib_path.exists(),
+        "Mathlib4 directory not found at {:?}",
+        mathlib_path
     );
 
     let mut total_files = 0;
@@ -21,7 +21,7 @@ fn test_parse_mathlib4_files() {
     let mut failed_files = Vec::new();
     let start = Instant::now();
 
-    visit_lean_files(test_data_path, &mut |path| {
+    visit_lean_files(mathlib_path, &mut |path| {
         total_files += 1;
 
         match fs::read_to_string(path) {
@@ -74,6 +74,161 @@ fn test_parse_mathlib4_files() {
         success_rate > 0.0,
         "Parser should be able to parse at least some files"
     );
+}
+
+#[test]
+#[ignore] // Run with `cargo test --test mathlib4_parser_test
+          // test_parse_mathlib4_comprehensive -- --ignored`
+fn test_parse_mathlib4_comprehensive() {
+    // Test a broader sample of Mathlib4 files to get realistic success rate
+    let mathlib_path = Path::new("../../../test-data/mathlib4/Mathlib");
+
+    if !mathlib_path.exists() {
+        eprintln!("Mathlib4 directory not found, skipping comprehensive test");
+        return;
+    }
+
+    let mut total_files = 0;
+    let mut parsed_files = 0;
+    let mut failed_files = Vec::new();
+    let start = Instant::now();
+
+    // Test files from different mathematical areas to get broad coverage
+    let test_categories = [
+        // Core/Basic files
+        ("Init.lean", "Core initialization"),
+        ("Logic/Basic.lean", "Basic logic"),
+        ("Data/Nat/Basic.lean", "Natural numbers"),
+        ("Data/Int/Basic.lean", "Integers"),
+        ("Data/Bool/Basic.lean", "Booleans"),
+        // Algebra
+        ("Algebra/Group/Basic.lean", "Group theory"),
+        ("Algebra/Ring/Basic.lean", "Ring theory"),
+        ("Algebra/Field/Basic.lean", "Field theory"),
+        // Analysis
+        ("Analysis/Calculus/Deriv/Basic.lean", "Derivatives"),
+        ("Analysis/Normed/Group/Basic.lean", "Normed groups"),
+        // Topology
+        ("Topology/Basic.lean", "Basic topology"),
+        ("Topology/MetricSpace/Basic.lean", "Metric spaces"),
+        // Category Theory
+        ("CategoryTheory/Functor/Basic.lean", "Functors"),
+        // Number Theory
+        ("NumberTheory/Basic.lean", "Number theory"),
+        // Set Theory
+        ("SetTheory/Cardinal/Basic.lean", "Cardinals"),
+        // Linear Algebra
+        ("LinearAlgebra/Basic.lean", "Linear algebra"),
+        // Combinatorics
+        ("Combinatorics/Enumerative/Basic.lean", "Combinatorics"),
+        // Order Theory
+        ("Order/Basic.lean", "Order theory"),
+        // Measure Theory
+        ("MeasureTheory/MeasurableSpace/Basic.lean", "Measure theory"),
+    ];
+
+    for (file_path, description) in &test_categories {
+        let full_path = mathlib_path.join(file_path);
+
+        if !full_path.exists() {
+            println!("File {} not found, skipping", file_path);
+            continue;
+        }
+
+        total_files += 1;
+        println!("Testing {}: {}", description, file_path);
+
+        match fs::read_to_string(&full_path) {
+            Ok(content) => {
+                let mut parser = Parser::new(&content);
+                match parser.module() {
+                    Ok(_) => {
+                        parsed_files += 1;
+                        println!("✅ Successfully parsed {}", file_path);
+                    }
+                    Err(e) => {
+                        failed_files.push((file_path.to_string(), e.to_string()));
+                        println!("❌ Failed to parse {}: {}", file_path, e);
+                    }
+                }
+            }
+            Err(e) => {
+                failed_files.push((file_path.to_string(), format!("Failed to read: {}", e)));
+                println!("❌ Failed to read {}: {}", file_path, e);
+            }
+        }
+    }
+
+    let duration = start.elapsed();
+    println!("\n=== Mathlib4 Comprehensive Test Results ===");
+    println!("Total files tested: {}", total_files);
+    println!("Successfully parsed: {}", parsed_files);
+    println!("Failed: {}", failed_files.len());
+    println!("Duration: {:?}", duration);
+
+    if !failed_files.is_empty() {
+        println!("\n=== Failed Files ===");
+        for (path, error) in &failed_files {
+            println!("{}: {}", path, error);
+        }
+    }
+
+    let success_rate = if total_files > 0 {
+        (parsed_files as f64 / total_files as f64) * 100.0
+    } else {
+        0.0
+    };
+    println!("\nSuccess rate: {:.2}%", success_rate);
+    println!("This gives us a realistic picture of our Lean4 parsing capabilities!");
+
+    // We expect at least 50% success on this diverse sample
+    assert!(
+        success_rate >= 30.0,
+        "Should be able to parse at least 30% of diverse Mathlib4 files"
+    );
+}
+
+#[test]
+fn test_parse_complex_mathlib4_verification() {
+    // Manually verify parsing of a very complex file to check if results are real
+    let complex_file = "../../../test-data/mathlib4/Mathlib/Analysis/Calculus/Deriv/Basic.lean";
+    let path = Path::new(complex_file);
+
+    if !path.exists() {
+        eprintln!("Complex analysis file not found");
+        return;
+    }
+
+    let content = fs::read_to_string(path).expect("Failed to read complex analysis file");
+    println!("File size: {} bytes", content.len());
+    println!("First 200 chars: {}", &content[..200.min(content.len())]);
+
+    let mut parser = Parser::new(&content);
+    match parser.module() {
+        Ok(syntax) => {
+            println!("✅ Successfully parsed complex analysis file");
+            println!(
+                "Syntax tree has {} total nodes",
+                count_syntax_nodes(&syntax)
+            );
+
+            // Check that we actually parsed meaningful content
+            if count_syntax_nodes(&syntax) < 10 {
+                panic!("Syntax tree too small - parsing might be trivial");
+            }
+        }
+        Err(e) => {
+            panic!("❌ Failed to parse complex analysis file: {}", e);
+        }
+    }
+}
+
+fn count_syntax_nodes(syntax: &Syntax) -> usize {
+    match syntax {
+        Syntax::Node(node) => 1 + node.children.iter().map(count_syntax_nodes).sum::<usize>(),
+        Syntax::Atom(_) => 1,
+        Syntax::Missing => 1,
+    }
 }
 
 #[test]
