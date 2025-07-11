@@ -68,10 +68,39 @@ impl<'a> Parser<'a> {
         })))
     }
 
-    /// Parse parenthesized pattern: `(pattern)`
+    /// Parse parenthesized pattern: `(pattern)` or unit pattern `()`
     fn paren_pattern(&mut self) -> ParserResult<Syntax> {
+        let start = self.position();
         self.expect_char('(')?;
         self.skip_whitespace();
+
+        // Check for unit pattern ()
+        if self.peek() == Some(')') {
+            self.advance(); // consume ')'
+            let range = self.input().range_from(start);
+
+            // Create a proper qualified identifier node for Unit.unit
+            let unit_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                range,
+                value: eterned::BaseCoword::new("Unit"),
+            });
+            let unit_atom2 = Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                range,
+                value: eterned::BaseCoword::new("unit"),
+            });
+
+            return Ok(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::ConstructorPattern,
+                range,
+                children: vec![Syntax::Node(Box::new(SyntaxNode {
+                    kind: SyntaxKind::App,
+                    range,
+                    children: vec![unit_atom, unit_atom2].into(),
+                }))]
+                .into(),
+            })));
+        }
+
         let pattern = self.pattern()?;
         self.skip_whitespace();
         self.expect_char(')')?;

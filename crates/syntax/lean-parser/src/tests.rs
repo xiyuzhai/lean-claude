@@ -10,6 +10,7 @@ mod module_tests;
 mod operator_category_test;
 mod tactic_category_test;
 mod unicode_test;
+mod unit_syntax_test;
 
 fn check_parse(input: &str, expected: Expect) {
     let mut parser = Parser::new(input);

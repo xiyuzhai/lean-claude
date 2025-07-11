@@ -290,10 +290,22 @@ impl<'a> Parser<'a> {
         if self.peek() == Some(')') {
             self.advance(); // consume ')'
             let range = self.input().range_from(start);
-            return Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+
+            // Create a proper qualified identifier node for Unit.unit
+            let unit_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom {
                 range,
-                value: eterned::BaseCoword::new("Unit.unit"),
-            }));
+                value: eterned::BaseCoword::new("Unit"),
+            });
+            let unit_atom2 = Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                range,
+                value: eterned::BaseCoword::new("unit"),
+            });
+
+            return Ok(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::App,
+                range,
+                children: vec![unit_atom, unit_atom2].into(),
+            })));
         }
 
         let term = self.term()?;
