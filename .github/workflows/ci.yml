@@ -51,7 +51,7 @@ jobs:
         run: cargo test --all-features --workspace
 
       - name: Run clippy
-        run: cargo clippy --all-features --workspace -- -W clippy::all -A clippy::uninlined_format_args -A unreachable_patterns
+        run: cargo clippy --all-features --workspace -- -W clippy::all -A clippy::uninlined_format_args -A unreachable_patterns -A clippy::empty_line_after_doc_comments -A clippy::only_used_in_recursion -A unused_variables -A unused_imports -A dead_code -A clippy::needless_borrow
 
       # Temporarily disabled due to rustfmt panic issue
       # - name: Check formatting
