@@ -1,0 +1,264 @@
+{
+  "name": "lean-analyzer",
+  "displayName": "Lean Analyzer",
+  "description": "Advanced Lean 4 language support with superior error messages and rust-analyzer-like features",
+  "version": "0.1.0",
+  "publisher": "lean-analyzer",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xiyuzhai/lean-claude"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters",
+    "Snippets"
+  ],
+  "keywords": [
+    "lean",
+    "lean4",
+    "theorem-proving",
+    "mathematics",
+    "formal-verification"
+  ],
+  "activationEvents": [
+    "onLanguage:lean4",
+    "workspaceContains:**/*.lean"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "lean4",
+        "aliases": [
+          "Lean 4",
+          "lean4"
+        ],
+        "extensions": [
+          ".lean"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/lean-light.svg",
+          "dark": "./icons/lean-dark.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "lean4",
+        "scopeName": "source.lean4",
+        "path": "./syntaxes/lean4.tmLanguage.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "Lean Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/lean-dark.json"
+      },
+      {
+        "label": "Lean Light",
+        "uiTheme": "vs",
+        "path": "./themes/lean-light.json"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Lean Analyzer",
+      "properties": {
+        "leanAnalyzer.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable the Lean Analyzer language server"
+        },
+        "leanAnalyzer.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the lean-analyzer executable. If empty, will try to find in PATH"
+        },
+        "leanAnalyzer.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Trace communication between VS Code and the language server"
+        },
+        "leanAnalyzer.formatting.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic code formatting"
+        },
+        "leanAnalyzer.formatting.indentSize": {
+          "type": "number",
+          "default": 2,
+          "description": "Number of spaces for indentation"
+        },
+        "leanAnalyzer.formatting.maxLineLength": {
+          "type": "number",
+          "default": 100,
+          "description": "Maximum line length before wrapping"
+        },
+        "leanAnalyzer.codeActions.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable code actions and quick fixes"
+        },
+        "leanAnalyzer.diagnostics.enableEnhancedErrors": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable enhanced error messages for beginners"
+        },
+        "leanAnalyzer.completion.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable intelligent code completion"
+        },
+        "leanAnalyzer.hover.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable hover information"
+        },
+        "leanAnalyzer.inlayHints.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inlay hints for types and parameters"
+        },
+        "leanAnalyzer.importSuggestions.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic import suggestions"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "leanAnalyzer.restart",
+        "title": "Restart Lean Analyzer",
+        "category": "Lean Analyzer"
+      },
+      {
+        "command": "leanAnalyzer.showOutput",
+        "title": "Show Output",
+        "category": "Lean Analyzer"
+      },
+      {
+        "command": "leanAnalyzer.checkFile",
+        "title": "Check Current File",
+        "category": "Lean Analyzer"
+      },
+      {
+        "command": "leanAnalyzer.formatDocument",
+        "title": "Format Document",
+        "category": "Lean Analyzer"
+      },
+      {
+        "command": "leanAnalyzer.organizeImports",
+        "title": "Organize Imports",
+        "category": "Lean Analyzer"
+      },
+      {
+        "command": "leanAnalyzer.showErrorDetails",
+        "title": "Show Error Details",
+        "category": "Lean Analyzer"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "leanAnalyzer.restart",
+        "key": "ctrl+shift+p",
+        "mac": "cmd+shift+p",
+        "when": "editorLangId == lean4"
+      },
+      {
+        "command": "leanAnalyzer.formatDocument",
+        "key": "shift+alt+f",
+        "mac": "shift+option+f",
+        "when": "editorLangId == lean4"
+      },
+      {
+        "command": "leanAnalyzer.organizeImports",
+        "key": "shift+alt+o",
+        "mac": "shift+option+o",
+        "when": "editorLangId == lean4"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorLangId == lean4",
+          "command": "leanAnalyzer.checkFile",
+          "group": "leanAnalyzer@1"
+        },
+        {
+          "when": "editorLangId == lean4",
+          "command": "leanAnalyzer.formatDocument",
+          "group": "leanAnalyzer@2"
+        },
+        {
+          "when": "editorLangId == lean4",
+          "command": "leanAnalyzer.organizeImports",
+          "group": "leanAnalyzer@3"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "leanAnalyzer.restart",
+          "when": "editorLangId == lean4"
+        },
+        {
+          "command": "leanAnalyzer.showOutput",
+          "when": "editorLangId == lean4"
+        },
+        {
+          "command": "leanAnalyzer.checkFile",
+          "when": "editorLangId == lean4"
+        },
+        {
+          "command": "leanAnalyzer.formatDocument",
+          "when": "editorLangId == lean4"
+        },
+        {
+          "command": "leanAnalyzer.organizeImports",
+          "when": "editorLangId == lean4"
+        }
+      ]
+    },
+    "snippets": [
+      {
+        "language": "lean4",
+        "path": "./snippets/lean4.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "eslint": "^8.28.0",
+    "typescript": "^4.9.4",
+    "@vscode/test-electron": "^2.2.0",
+    "vsce": "^2.15.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.1.0"
+  }
+}

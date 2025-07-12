@@ -1,0 +1,222 @@
+{
+    "Function Definition": {
+        "prefix": "def",
+        "body": [
+            "def ${1:name} (${2:params}) : ${3:Type} := ${4:body}"
+        ],
+        "description": "Define a function"
+    },
+    "Theorem": {
+        "prefix": "theorem",
+        "body": [
+            "theorem ${1:name} (${2:params}) : ${3:statement} := by",
+            "  ${4:proof}"
+        ],
+        "description": "Define a theorem"
+    },
+    "Lemma": {
+        "prefix": "lemma",
+        "body": [
+            "lemma ${1:name} (${2:params}) : ${3:statement} := by",
+            "  ${4:proof}"
+        ],
+        "description": "Define a lemma"
+    },
+    "Example": {
+        "prefix": "example",
+        "body": [
+            "example (${1:params}) : ${2:statement} := by",
+            "  ${3:proof}"
+        ],
+        "description": "Create an example"
+    },
+    "Inductive Type": {
+        "prefix": "inductive",
+        "body": [
+            "inductive ${1:Name} where",
+            "| ${2:constructor} : ${3:Type}"
+        ],
+        "description": "Define an inductive type"
+    },
+    "Structure": {
+        "prefix": "structure",
+        "body": [
+            "structure ${1:Name} where",
+            "  ${2:field} : ${3:Type}"
+        ],
+        "description": "Define a structure"
+    },
+    "Class": {
+        "prefix": "class",
+        "body": [
+            "class ${1:Name} (${2:params}) where",
+            "  ${3:method} : ${4:Type}"
+        ],
+        "description": "Define a class"
+    },
+    "Instance": {
+        "prefix": "instance",
+        "body": [
+            "instance : ${1:Class} ${2:params} where",
+            "  ${3:implementation}"
+        ],
+        "description": "Define an instance"
+    },
+    "Match Expression": {
+        "prefix": "match",
+        "body": [
+            "match ${1:expr} with",
+            "| ${2:pattern} => ${3:result}"
+        ],
+        "description": "Pattern matching"
+    },
+    "If-Then-Else": {
+        "prefix": "if",
+        "body": [
+            "if ${1:condition} then ${2:then_branch} else ${3:else_branch}"
+        ],
+        "description": "Conditional expression"
+    },
+    "Let Binding": {
+        "prefix": "let",
+        "body": [
+            "let ${1:name} := ${2:value}",
+            "${3:body}"
+        ],
+        "description": "Let binding"
+    },
+    "Lambda Function": {
+        "prefix": "fun",
+        "body": [
+            "fun ${1:param} => ${2:body}"
+        ],
+        "description": "Lambda function"
+    },
+    "Have Statement": {
+        "prefix": "have",
+        "body": [
+            "have ${1:name} : ${2:type} := ${3:proof}",
+            "${4:body}"
+        ],
+        "description": "Have statement"
+    },
+    "Show Statement": {
+        "prefix": "show",
+        "body": [
+            "show ${1:type} from ${2:proof}"
+        ],
+        "description": "Show statement"
+    },
+    "Import": {
+        "prefix": "import",
+        "body": [
+            "import ${1:module}"
+        ],
+        "description": "Import a module"
+    },
+    "Namespace": {
+        "prefix": "namespace",
+        "body": [
+            "namespace ${1:Name}",
+            "",
+            "${2:content}",
+            "",
+            "end ${1:Name}"
+        ],
+        "description": "Define a namespace"
+    },
+    "Section": {
+        "prefix": "section",
+        "body": [
+            "section ${1:Name}",
+            "",
+            "${2:content}",
+            "",
+            "end ${1:Name}"
+        ],
+        "description": "Define a section"
+    },
+    "Variable": {
+        "prefix": "variable",
+        "body": [
+            "variable (${1:name} : ${2:Type})"
+        ],
+        "description": "Declare a variable"
+    },
+    "By Tactic": {
+        "prefix": "by",
+        "body": [
+            "by",
+            "  ${1:tactic}"
+        ],
+        "description": "Tactic proof"
+    },
+    "Simp": {
+        "prefix": "simp",
+        "body": [
+            "simp [${1:lemmas}]"
+        ],
+        "description": "Simplification tactic"
+    },
+    "Rw": {
+        "prefix": "rw",
+        "body": [
+            "rw [${1:lemmas}]"
+        ],
+        "description": "Rewrite tactic"
+    },
+    "Intro": {
+        "prefix": "intro",
+        "body": [
+            "intro ${1:name}"
+        ],
+        "description": "Introduction tactic"
+    },
+    "Apply": {
+        "prefix": "apply",
+        "body": [
+            "apply ${1:theorem}"
+        ],
+        "description": "Apply tactic"
+    },
+    "Cases": {
+        "prefix": "cases",
+        "body": [
+            "cases ${1:expr} with",
+            "| ${2:pattern} => ${3:proof}"
+        ],
+        "description": "Case analysis"
+    },
+    "Induction": {
+        "prefix": "induction",
+        "body": [
+            "induction ${1:expr} with",
+            "| ${2:base_case} => ${3:proof}",
+            "| ${4:inductive_case} => ${5:proof}"
+        ],
+        "description": "Induction tactic"
+    },
+    "Calc": {
+        "prefix": "calc",
+        "body": [
+            "calc ${1:expr}",
+            "  = ${2:step1} := by ${3:proof1}",
+            "  _ = ${4:step2} := by ${5:proof2}"
+        ],
+        "description": "Calculation proof"
+    },
+    "Conv": {
+        "prefix": "conv",
+        "body": [
+            "conv => ${1:conversion}"
+        ],
+        "description": "Conversion tactic"
+    },
+    "Sorry": {
+        "prefix": "sorry",
+        "body": [
+            "sorry"
+        ],
+        "description": "Proof placeholder"
+    }
+}

@@ -1,0 +1,197 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Lean 4",
+    "scopeName": "source.lean4",
+    "patterns": [
+        {
+            "include": "#comments"
+        },
+        {
+            "include": "#strings"
+        },
+        {
+            "include": "#numbers"
+        },
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#operators"
+        },
+        {
+            "include": "#identifiers"
+        },
+        {
+            "include": "#types"
+        },
+        {
+            "include": "#attributes"
+        },
+        {
+            "include": "#tactics"
+        }
+    ],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.block.lean4",
+                    "begin": "/-",
+                    "end": "-/",
+                    "captures": {
+                        "0": {
+                            "name": "punctuation.definition.comment.lean4"
+                        }
+                    }
+                },
+                {
+                    "name": "comment.line.lean4",
+                    "begin": "--",
+                    "end": "$",
+                    "captures": {
+                        "0": {
+                            "name": "punctuation.definition.comment.lean4"
+                        }
+                    }
+                }
+            ]
+        },
+        "strings": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.lean4",
+                    "begin": "\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.lean4",
+                            "match": "\\\\."
+                        }
+                    ]
+                },
+                {
+                    "name": "string.quoted.single.lean4",
+                    "begin": "'",
+                    "end": "'",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.lean4",
+                            "match": "\\\\."
+                        }
+                    ]
+                }
+            ]
+        },
+        "numbers": {
+            "patterns": [
+                {
+                    "name": "constant.numeric.decimal.lean4",
+                    "match": "\\b\\d+(\\.\\d+)?\\b"
+                },
+                {
+                    "name": "constant.numeric.hex.lean4",
+                    "match": "\\b0x[0-9a-fA-F]+\\b"
+                },
+                {
+                    "name": "constant.numeric.binary.lean4",
+                    "match": "\\b0b[01]+\\b"
+                }
+            ]
+        },
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.control.lean4",
+                    "match": "\\b(if|then|else|match|with|do|let|in|where|by|have|show|from|fun|λ|forall|∀|exists|∃)\\b"
+                },
+                {
+                    "name": "keyword.declaration.lean4",
+                    "match": "\\b(def|theorem|lemma|axiom|constant|variable|variables|parameter|parameters|universe|universes|inductive|structure|class|instance|namespace|section|end|open|export|hide|include|omit|precedence|reserve|infix|infixl|infixr|prefix|postfix|notation|syntax|macro|macro_rules|elab|attribute|run_cmd|check|eval|reduce|example)\\b"
+                },
+                {
+                    "name": "keyword.modifier.lean4",
+                    "match": "\\b(private|protected|public|export|noncomputable|partial|unsafe|opaque|abbrev|deriving|extends|mut)\\b"
+                },
+                {
+                    "name": "keyword.other.lean4",
+                    "match": "\\b(sorry|admit|undefined|unreachable)\\b"
+                }
+            ]
+        },
+        "operators": {
+            "patterns": [
+                {
+                    "name": "keyword.operator.arrow.lean4",
+                    "match": "→|←|↔|⟨|⟩"
+                },
+                {
+                    "name": "keyword.operator.logical.lean4",
+                    "match": "∧|∨|¬|⊥|⊤"
+                },
+                {
+                    "name": "keyword.operator.comparison.lean4",
+                    "match": "=|≠|<|>|≤|≥|⊂|⊆|∈|∉"
+                },
+                {
+                    "name": "keyword.operator.arithmetic.lean4",
+                    "match": "\\+|\\-|\\*|/|%|\\^"
+                },
+                {
+                    "name": "keyword.operator.assignment.lean4",
+                    "match": ":="
+                },
+                {
+                    "name": "keyword.operator.type.lean4",
+                    "match": ":"
+                },
+                {
+                    "name": "keyword.operator.other.lean4",
+                    "match": "\\||\\.|,|;|@|#|\\$|\\?|!"
+                }
+            ]
+        },
+        "identifiers": {
+            "patterns": [
+                {
+                    "name": "variable.other.lean4",
+                    "match": "\\b[a-zA-Z_][a-zA-Z0-9_']*\\b"
+                }
+            ]
+        },
+        "types": {
+            "patterns": [
+                {
+                    "name": "support.type.builtin.lean4",
+                    "match": "\\b(Prop|Type|Sort|Nat|Int|String|Char|Bool|Unit|Empty|True|False|List|Array|Option|Sum|Prod)\\b"
+                },
+                {
+                    "name": "support.type.universe.lean4",
+                    "match": "\\b(Type\\*|Type\\s+\\d+|Sort\\s+\\d+)\\b"
+                }
+            ]
+        },
+        "attributes": {
+            "patterns": [
+                {
+                    "name": "meta.attribute.lean4",
+                    "begin": "@\\[",
+                    "end": "\\]",
+                    "patterns": [
+                        {
+                            "name": "entity.name.function.attribute.lean4",
+                            "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+                        }
+                    ]
+                }
+            ]
+        },
+        "tactics": {
+            "patterns": [
+                {
+                    "name": "support.function.tactic.lean4",
+                    "match": "\\b(intro|intros|apply|exact|refine|rfl|simp|ring|norm_num|linarith|omega|tauto|decide|assumption|contradiction|exfalso|cases|induction|constructor|left|right|split|use|existsi|generalize|clear|revert|subst|rw|rewrite|calc|conv|repeat|first|try|all_goals|any_goals|focus|swap|rotate|iterate)\\b"
+                }
+            ]
+        }
+    }
+}
