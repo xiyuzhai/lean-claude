@@ -13,16 +13,12 @@ fn test_type_inference_basic() {
     let syntax = parser.term().unwrap();
     let expr = elab.elaborate(&syntax).unwrap();
 
-    // Debug: print the lambda expression
-    println!("Lambda expr: {:?}", expr);
-
     // Infer the type
     let ty = elab.infer_type(&expr).unwrap();
 
     // Should be a forall type: ∀ x : ?m, ?m
     match &ty.kind {
-        lean_kernel::expr::ExprKind::Forall(name, domain, codomain, _) => {
-            println!("Lambda type: ∀ {name} : {domain:?}, {codomain:?}");
+        lean_kernel::expr::ExprKind::Forall(_name, domain, codomain, _) => {
 
             // Domain should be a metavariable
             assert!(matches!(&domain.kind, lean_kernel::expr::ExprKind::MVar(_)));
