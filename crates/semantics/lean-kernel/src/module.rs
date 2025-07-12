@@ -44,8 +44,10 @@ pub struct Import {
 
 /// Module visibility
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum Visibility {
     /// Public - visible to all importers
+    #[default]
     Public,
     /// Protected - visible within the same namespace
     Protected,
@@ -177,11 +179,6 @@ impl Import {
     }
 }
 
-impl Default for Visibility {
-    fn default() -> Self {
-        Visibility::Public
-    }
-}
 
 /// Module path resolution utilities
 pub mod path {
@@ -196,7 +193,7 @@ pub mod path {
         let mut path = PathBuf::new();
         for (i, component) in components.iter().enumerate() {
             if i == components.len() - 1 {
-                path.push(format!("{}.lean", component));
+                path.push(format!("{component}.lean"));
             } else {
                 path.push(component);
             }

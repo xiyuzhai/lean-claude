@@ -8,7 +8,7 @@ use lean_kernel::{
     expr::{BinderInfo, ExprKind},
     Expr, Level, Name,
 };
-use lean_syn_expr::{Syntax, SyntaxAtom, SyntaxKind, SyntaxNode};
+use lean_syn_expr::{Syntax, SyntaxKind};
 
 use std::sync::Arc;
 

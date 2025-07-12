@@ -1,6 +1,6 @@
 use eterned::BaseCoword;
 use im::HashMap;
-use lean_syn_expr::{Syntax, SyntaxKind, SyntaxNode};
+use lean_syn_expr::{Syntax, SyntaxKind};
 
 use crate::error::{ExpansionError, ExpansionResult};
 

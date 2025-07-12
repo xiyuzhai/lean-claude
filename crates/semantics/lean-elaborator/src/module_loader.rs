@@ -251,7 +251,7 @@ impl ModuleLoader {
         // Import syntax should have at least one child with the module name
         if let Some(first_child) = import_node.children.first() {
             match first_child {
-                Syntax::Atom(atom) => Some(Name::mk_simple(atom.value.as_str())),
+                Syntax::Atom(atom) => self.parse_qualified_name_string(atom.value.as_str()),
                 Syntax::Node(node) if node.kind == SyntaxKind::Identifier => {
                     // Handle qualified names
                     self.extract_qualified_name(node)
@@ -265,13 +265,26 @@ impl ModuleLoader {
 
     /// Extract a qualified name from identifier node
     fn extract_qualified_name(&self, node: &lean_syn_expr::SyntaxNode) -> Option<Name> {
-        // For now, just take the first atom
-        // TODO: Properly handle qualified names like Foo.Bar.Baz
+        // Handle qualified names like Foo.Bar.Baz
         if let Some(Syntax::Atom(atom)) = node.children.first() {
-            Some(Name::mk_simple(atom.value.as_str()))
+            self.parse_qualified_name_string(atom.value.as_str())
         } else {
             None
         }
+    }
+
+    /// Parse a qualified name string into a proper Name structure
+    fn parse_qualified_name_string(&self, name_str: &str) -> Option<Name> {
+        let components: Vec<&str> = name_str.split('.').collect();
+        if components.is_empty() {
+            return None;
+        }
+
+        let mut name = Name::mk_simple(components[0]);
+        for component in &components[1..] {
+            name = Name::str(name, *component);
+        }
+        Some(name)
     }
 
     /// Elaborate module syntax

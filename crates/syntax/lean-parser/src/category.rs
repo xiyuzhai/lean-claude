@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use lean_syn_expr::{Syntax, SyntaxAtom, SyntaxNode};
+use lean_syn_expr::Syntax;
 
 use crate::{
     error::{ParseError, ParseErrorKind},

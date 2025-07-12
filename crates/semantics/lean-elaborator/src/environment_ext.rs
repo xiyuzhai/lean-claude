@@ -400,7 +400,7 @@ pub fn add_definition(
     };
 
     env.add_declaration(decl)
-        .map_err(|e| ElabError::ElaborationFailed(e))?;
+        .map_err(ElabError::ElaborationFailed)?;
 
     Ok(())
 }
@@ -421,7 +421,7 @@ pub fn add_axiom(
     };
 
     env.add_declaration(decl)
-        .map_err(|e| ElabError::ElaborationFailed(e))?;
+        .map_err(ElabError::ElaborationFailed)?;
 
     Ok(())
 }

@@ -58,7 +58,7 @@ impl Environment {
         decl: Declaration,
     ) -> Result<(), String> {
         if self.declarations.contains_key(&name) {
-            return Err(format!("declaration '{}' already exists", name));
+            return Err(format!("declaration '{name}' already exists"));
         }
 
         // Verify universe parameters are declared

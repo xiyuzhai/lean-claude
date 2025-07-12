@@ -3,7 +3,6 @@
 //! This module handles the elaboration and type checking of inductive types,
 //! including constructors, eliminators, and recursive functions.
 
-use std::collections::HashMap;
 
 use lean_kernel::{
     environment::{Declaration, Environment},
@@ -381,7 +380,7 @@ pub fn add_inductive_to_env(
         is_trusted: true,
     };
     env.add_declaration(type_decl)
-        .map_err(|e| ElabError::ElaborationFailed(e))?;
+        .map_err(ElabError::ElaborationFailed)?;
 
     // Add each constructor
     for ctor in &inductive.constructors {
@@ -393,7 +392,7 @@ pub fn add_inductive_to_env(
             is_trusted: true,
         };
         env.add_declaration(ctor_decl)
-            .map_err(|e| ElabError::ElaborationFailed(e))?;
+            .map_err(ElabError::ElaborationFailed)?;
     }
 
     // Generate and add the eliminator
@@ -406,7 +405,7 @@ pub fn add_inductive_to_env(
         is_trusted: true,
     };
     env.add_declaration(elim_decl)
-        .map_err(|e| ElabError::ElaborationFailed(e))?;
+        .map_err(ElabError::ElaborationFailed)?;
 
     // Generate other derived eliminators (like no-confusion)
     generate_derived_eliminators(&inductive, env, state)?;
@@ -430,7 +429,7 @@ fn generate_derived_eliminators(
         is_trusted: true,
     };
     env.add_declaration(no_confusion_decl)
-        .map_err(|e| ElabError::ElaborationFailed(e))?;
+        .map_err(ElabError::ElaborationFailed)?;
 
     // Generate injectivity lemmas for constructors
     for ctor in &inductive.constructors {
@@ -444,7 +443,7 @@ fn generate_derived_eliminators(
                 is_trusted: true,
             };
             env.add_declaration(inj_decl)
-                .map_err(|e| ElabError::ElaborationFailed(e))?;
+                .map_err(ElabError::ElaborationFailed)?;
         }
     }
 

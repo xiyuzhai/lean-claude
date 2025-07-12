@@ -88,8 +88,8 @@ impl UniverseConstraintSolver {
                 match constraint {
                     UniverseConstraint::Equal { left, right } => {
                         if let Some((name, level)) = self.try_unify_levels(left, right)? {
-                            if !self.assignments.contains_key(&name) {
-                                self.assignments.insert(name, level);
+                            if let std::collections::hash_map::Entry::Vacant(e) = self.assignments.entry(name) {
+                                e.insert(level);
                                 changed = true;
                             }
                         }
@@ -98,8 +98,8 @@ impl UniverseConstraintSolver {
                         // For now, just check if they can be made equal
                         if self.levels_could_be_equal(left, right) {
                             if let Some((name, level)) = self.try_unify_levels(left, right)? {
-                                if !self.assignments.contains_key(&name) {
-                                    self.assignments.insert(name, level);
+                                if let std::collections::hash_map::Entry::Vacant(e) = self.assignments.entry(name) {
+                                    e.insert(level);
                                     changed = true;
                                 }
                             }
