@@ -13,7 +13,8 @@ members = [
     "crates/mir/lean-codegen",
     "crates/utils/lean-driver",
     "crates/tests/integration-tests",
-    "apps/leanc-rs",
+    "crates/apps/leanc-rs",
+    "crates/apps/lean-analyzer",
 ]
 
 [workspace.package]
