@@ -559,8 +559,14 @@ mod tests {
     fn test_exact_tactic() {
         let mut state = ElabState::with_env(init_basic_environment());
 
-        // Goal: Prop (trivial)
-        let goal_type = Expr::const_expr("Prop".into(), vec![]);
+        // Add a hypothesis to the context
+        let prop = Expr::const_expr("Prop".into(), vec![]);
+        let h_name = Name::mk_simple("h");
+        let h_fvar_id = state.lctx.push_local_decl(h_name.clone(), prop.clone());
+        let h_fvar = Expr::fvar(h_fvar_id);
+
+        // Goal: Prop (which we can prove with h)
+        let goal_type = prop.clone();
         let goal_mvar = state.mctx.mk_metavar(goal_type.clone(), state.lctx.clone());
         let goal_mvar_name = if let lean_kernel::expr::ExprKind::MVar(name) = &goal_mvar.kind {
             name.clone()
@@ -571,11 +577,15 @@ mod tests {
         let goal = Goal {
             mvar: goal_mvar_name.clone(),
             target: goal_type,
-            hypotheses: vec![],
+            hypotheses: vec![Hypothesis {
+                name: h_name.clone(),
+                ty: prop.clone(),
+                value: None,
+            }],
         };
 
-        // Proof: Sort 0 (which has type Sort 1, but let's say it works for the test)
-        let proof = Expr::sort(Level::zero());
+        // Proof: h (the hypothesis)
+        let proof = h_fvar;
         let exact_tactic = ExactTactic { proof };
 
         match exact_tactic.apply(&goal, &mut state) {
