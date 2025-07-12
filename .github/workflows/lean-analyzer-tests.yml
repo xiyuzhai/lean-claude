@@ -140,7 +140,8 @@ jobs:
     - name: Test hover and completion
       run: |
         cd crates/apps/lean-analyzer
-        cargo test hover_tests completion_tests --verbose
+        cargo test hover_tests --verbose
+        cargo test completion_tests --verbose
     
     - name: Test navigation features
       run: |

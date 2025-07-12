@@ -52,6 +52,7 @@ ropey = "1.6"
 [dev-dependencies]
 expect-test.workspace = true
 tempfile = "3.8"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "test-util"] }
 tokio-test = "0.4"
 pretty_assertions = "1.4"
 criterion = "0.5"
