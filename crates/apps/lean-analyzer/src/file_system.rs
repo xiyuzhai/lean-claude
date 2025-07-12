@@ -249,40 +249,39 @@ impl FileSystem {
         let path_buf = path.to_path_buf();
 
         let mut watcher = RecommendedWatcher::new(
-            move |res: Result<Event, notify::Error>| {
-                match res {
-                    Ok(event) => {
-                        let fs_event = match event.kind {
-                            EventKind::Create(_) => {
-                                if let Some(path) = event.paths.first() {
-                                    if path.is_file() {
-                                        Some(FileSystemEvent::FileCreated(path.clone()))
-                                    } else {
-                                        Some(FileSystemEvent::DirectoryCreated(path.clone()))
-                                    }
+            move |res: Result<Event, notify::Error>| match res {
+                Ok(event) => {
+                    let fs_event = match event.kind {
+                        EventKind::Create(_) => {
+                            if let Some(path) = event.paths.first() {
+                                if path.is_file() {
+                                    Some(FileSystemEvent::FileCreated(path.clone()))
                                 } else {
-                                    None
+                                    Some(FileSystemEvent::DirectoryCreated(path.clone()))
                                 }
-                            }
-                            EventKind::Modify(_) => event
-                                .paths
-                                .first()
-                                .map(|path| FileSystemEvent::FileModified(path.clone())),
-                            EventKind::Remove(_) => {
-                                event.paths.first().map(|path| FileSystemEvent::FileDeleted(path.clone()))
-                            }
-                            _ => None,
-                        };
-
-                        if let Some(fs_event) = fs_event {
-                            if let Err(err) = sender.send(fs_event) {
-                                error!("Failed to send file system event: {}", err);
+                            } else {
+                                None
                             }
                         }
+                        EventKind::Modify(_) => event
+                            .paths
+                            .first()
+                            .map(|path| FileSystemEvent::FileModified(path.clone())),
+                        EventKind::Remove(_) => event
+                            .paths
+                            .first()
+                            .map(|path| FileSystemEvent::FileDeleted(path.clone())),
+                        _ => None,
+                    };
+
+                    if let Some(fs_event) = fs_event {
+                        if let Err(err) = sender.send(fs_event) {
+                            error!("Failed to send file system event: {}", err);
+                        }
                     }
-                    Err(err) => {
-                        error!("File watcher error: {}", err);
-                    }
+                }
+                Err(err) => {
+                    error!("File watcher error: {}", err);
                 }
             },
             Config::default(),

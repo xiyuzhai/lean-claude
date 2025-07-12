@@ -103,8 +103,8 @@ impl ErrorReporter {
         let message = format!("Expected {expected_str}");
 
         let explanation = Some(format!(
-            "The parser was expecting {expected_str} at this position. This usually indicates a syntax error \
-             or missing punctuation."
+            "The parser was expecting {expected_str} at this position. This usually indicates a \
+             syntax error or missing punctuation."
         ));
 
         let suggestions = self.suggest_token_fixes(expected, "", &range, source);
@@ -133,8 +133,8 @@ impl ErrorReporter {
         let message = format!("Expected '{expected}'");
 
         let explanation = Some(format!(
-            "The parser expected to find '{expected}' at this position. This token is required by Lean's \
-             syntax rules."
+            "The parser expected to find '{expected}' at this position. This token is required by \
+             Lean's syntax rules."
         ));
 
         let suggestions = vec![CodeSuggestion {
@@ -333,8 +333,8 @@ impl ErrorReporter {
         let message = format!("Type mismatch: expected '{expected}', got '{got}'");
 
         let explanation = Some(format!(
-            "The expression has type '{got}', but the context requires type '{expected}'. You may need to \
-             provide an explicit type conversion or fix the expression."
+            "The expression has type '{got}', but the context requires type '{expected}'. You may \
+             need to provide an explicit type conversion or fix the expression."
         ));
 
         EnhancedDiagnostic {
@@ -354,8 +354,8 @@ impl ErrorReporter {
         let message = format!("Unknown identifier '{name_str}'");
 
         let explanation = Some(format!(
-            "The identifier '{name_str}' is not defined in the current scope. Make sure it's spelled \
-             correctly and is in scope, or import the necessary module."
+            "The identifier '{name_str}' is not defined in the current scope. Make sure it's \
+             spelled correctly and is in scope, or import the necessary module."
         ));
 
         let suggestions = self.suggest_identifier_fixes(&name_str);

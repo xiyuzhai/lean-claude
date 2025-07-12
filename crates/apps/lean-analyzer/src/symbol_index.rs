@@ -1,6 +1,9 @@
 //! Symbol indexing for fast symbol search and navigation
 
-use std::{collections::HashMap, path::{Path, PathBuf}};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use dashmap::DashMap;
 use lean_kernel::Name;

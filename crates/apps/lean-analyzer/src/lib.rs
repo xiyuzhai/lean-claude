@@ -11,9 +11,11 @@
 //! - Symbol search and workspace navigation
 
 pub mod analysis;
+pub mod code_actions;
 pub mod diagnostics;
 pub mod error_reporting;
 pub mod file_system;
+pub mod formatting;
 pub mod lsp;
 pub mod project;
 pub mod symbol_index;

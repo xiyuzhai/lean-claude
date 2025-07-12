@@ -1,6 +1,10 @@
 //! Diagnostic collection and management
 
-use std::{collections::HashMap, path::{Path, PathBuf}, sync::Arc};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use lean_elaborator::ElabError;
 use lean_parser::ParseError;

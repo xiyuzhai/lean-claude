@@ -10,7 +10,9 @@ use tracing::{debug, error, info, warn};
 
 use crate::{
     analysis::{AnalysisHost, CompletionItem, HoverInfo, TextRange},
+    code_actions::CodeActionProvider,
     error_reporting::ErrorReporter,
+    formatting::LeanFormatter,
     workspace::Workspace,
 };
 
@@ -19,6 +21,8 @@ pub struct LeanLanguageServer {
     workspace: Arc<Workspace>,
     analysis_host: Arc<AnalysisHost>,
     error_reporter: ErrorReporter,
+    code_actions: CodeActionProvider,
+    formatter: LeanFormatter,
     #[allow(dead_code)]
     client_capabilities: RwLock<Option<ClientCapabilities>>,
     file_versions: RwLock<HashMap<Url, i32>>,
@@ -32,6 +36,8 @@ impl LeanLanguageServer {
             workspace,
             analysis_host,
             error_reporter: ErrorReporter::new(),
+            code_actions: CodeActionProvider::new(),
+            formatter: LeanFormatter::new(),
             client_capabilities: RwLock::new(None),
             file_versions: RwLock::new(HashMap::new()),
         }
@@ -90,6 +96,19 @@ impl LeanLanguageServer {
             "workspace/symbol" => {
                 let params: WorkspaceSymbolParams = serde_json::from_value(req.params).unwrap();
                 self.handle_workspace_symbols(params).await
+            }
+            "textDocument/codeAction" => {
+                let params: CodeActionParams = serde_json::from_value(req.params).unwrap();
+                self.handle_code_actions(params).await
+            }
+            "textDocument/formatting" => {
+                let params: DocumentFormattingParams = serde_json::from_value(req.params).unwrap();
+                self.handle_formatting(params).await
+            }
+            "textDocument/rangeFormatting" => {
+                let params: DocumentRangeFormattingParams =
+                    serde_json::from_value(req.params).unwrap();
+                self.handle_range_formatting(params).await
             }
             _ => {
                 warn!("Unhandled request method: {}", req.method);
@@ -469,6 +488,51 @@ impl LeanLanguageServer {
             crate::analysis::CompletionKind::Snippet => CompletionItemKind::SNIPPET,
         }
     }
+
+    /// Handle code action requests
+    async fn handle_code_actions(&self, params: CodeActionParams) -> anyhow::Result<Value> {
+        let file_path = params
+            .text_document
+            .uri
+            .to_file_path()
+            .map_err(|_| anyhow::anyhow!("Invalid file path"))?;
+
+        let content = std::fs::read_to_string(&file_path).unwrap_or_else(|_| String::new());
+
+        let actions = self.code_actions.get_code_actions(&params, &content);
+        Ok(serde_json::to_value(actions)?)
+    }
+
+    /// Handle document formatting requests
+    async fn handle_formatting(&self, params: DocumentFormattingParams) -> anyhow::Result<Value> {
+        let file_path = params
+            .text_document
+            .uri
+            .to_file_path()
+            .map_err(|_| anyhow::anyhow!("Invalid file path"))?;
+
+        let content = std::fs::read_to_string(&file_path).unwrap_or_else(|_| String::new());
+
+        let edits = self.formatter.format_document(&content);
+        Ok(serde_json::to_value(edits)?)
+    }
+
+    /// Handle range formatting requests
+    async fn handle_range_formatting(
+        &self,
+        params: DocumentRangeFormattingParams,
+    ) -> anyhow::Result<Value> {
+        let file_path = params
+            .text_document
+            .uri
+            .to_file_path()
+            .map_err(|_| anyhow::anyhow!("Invalid file path"))?;
+
+        let content = std::fs::read_to_string(&file_path).unwrap_or_else(|_| String::new());
+
+        let edits = self.formatter.format_range(&content, params.range);
+        Ok(serde_json::to_value(edits)?)
+    }
 }
 
 /// Returns the server capabilities for the LSP initialization
@@ -487,6 +551,18 @@ pub fn server_capabilities() -> ServerCapabilities {
         references_provider: Some(OneOf::Left(true)),
         document_symbol_provider: Some(OneOf::Left(true)),
         workspace_symbol_provider: Some(OneOf::Left(true)),
+        code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
+            code_action_kinds: Some(vec![
+                CodeActionKind::QUICKFIX,
+                CodeActionKind::REFACTOR,
+                CodeActionKind::SOURCE,
+                CodeActionKind::SOURCE_ORGANIZE_IMPORTS,
+            ]),
+            work_done_progress_options: WorkDoneProgressOptions::default(),
+            resolve_provider: Some(false),
+        })),
+        document_formatting_provider: Some(OneOf::Left(true)),
+        document_range_formatting_provider: Some(OneOf::Left(true)),
         semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
             SemanticTokensOptions {
                 work_done_progress_options: WorkDoneProgressOptions::default(),
