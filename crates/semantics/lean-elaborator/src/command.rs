@@ -3,7 +3,7 @@
 //! This module handles the elaboration of top-level commands like
 //! import, namespace, def, theorem, etc.
 
-use lean_kernel::{environment::Environment, module::Import, Name};
+use lean_kernel::{environment::Environment, module::Import, Expr, Level, Name};
 use lean_syn_expr::{Syntax, SyntaxKind};
 use smallvec::smallvec;
 
@@ -131,42 +131,222 @@ impl Elaborator {
 
     /// Elaborate def command
     fn elab_def(&mut self, node: &lean_syn_expr::SyntaxNode) -> Result<(), ElabError> {
-        // TODO: Implement full def elaboration
-        Err(ElabError::UnsupportedFeature(
-            "def elaboration not yet implemented".to_string(),
-        ))
+        use crate::environment_ext::add_definition;
+
+        if node.children.len() < 3 {
+            return Err(ElabError::InvalidSyntax(
+                "Def requires name, parameters/type, and value".to_string(),
+            ));
+        }
+
+        // Parse the definition name
+        let name_syntax = &node.children[0];
+        let def_name = self.parse_name(name_syntax)?;
+
+        // Make the name absolute in the current namespace
+        let full_name = Name::join_relative(self.state().ns_ctx.current_namespace(), &def_name);
+
+        // TODO: Parse parameters and type annotations
+        // For now, we'll use a simplified approach
+
+        // Find the value (after :=)
+        let mut value_idx = None;
+        for (i, child) in node.children.iter().enumerate() {
+            if let Syntax::Atom(atom) = child {
+                if atom.value.as_str() == ":=" && i + 1 < node.children.len() {
+                    value_idx = Some(i + 1);
+                    break;
+                }
+            }
+        }
+
+        let value_syntax = match value_idx {
+            Some(idx) => &node.children[idx],
+            None => return Err(ElabError::InvalidSyntax("Def missing := value".to_string())),
+        };
+
+        // Elaborate the value
+        let value = self.elaborate(value_syntax)?;
+
+        // Infer the type of the value
+        let ty = self.infer_type(&value)?;
+
+        // Add the definition to the environment
+        if let Some(env) = &mut self.state_mut().env {
+            add_definition(env, full_name.clone(), ty, Some(value), vec![])?;
+
+            // Add to exports if public
+            // TODO: Check visibility modifiers
+            self.state_mut().ns_ctx.add_export(full_name);
+        }
+
+        Ok(())
     }
 
     /// Elaborate theorem command
     fn elab_theorem(&mut self, node: &lean_syn_expr::SyntaxNode) -> Result<(), ElabError> {
-        // TODO: Implement theorem elaboration
-        Err(ElabError::UnsupportedFeature(
-            "theorem elaboration not yet implemented".to_string(),
-        ))
+        use crate::environment_ext::add_definition;
+
+        if node.children.len() < 4 {
+            return Err(ElabError::InvalidSyntax(
+                "Theorem requires name, type, and proof".to_string(),
+            ));
+        }
+
+        // Parse the theorem name
+        let name_syntax = &node.children[0];
+        let thm_name = self.parse_name(name_syntax)?;
+
+        // Make the name absolute in the current namespace
+        let full_name = Name::join_relative(self.state().ns_ctx.current_namespace(), &thm_name);
+
+        // Find the type (after :)
+        let mut type_idx = None;
+        let mut proof_idx = None;
+
+        for (i, child) in node.children.iter().enumerate() {
+            if let Syntax::Atom(atom) = child {
+                if atom.value.as_str() == ":" && type_idx.is_none() {
+                    type_idx = Some(i + 1);
+                } else if atom.value.as_str() == ":=" && i + 1 < node.children.len() {
+                    proof_idx = Some(i + 1);
+                    break;
+                }
+            }
+        }
+
+        let type_syntax = match type_idx {
+            Some(idx) if idx < node.children.len() => &node.children[idx],
+            _ => return Err(ElabError::InvalidSyntax("Theorem missing type".to_string())),
+        };
+
+        let proof_syntax = match proof_idx {
+            Some(idx) => &node.children[idx],
+            None => {
+                return Err(ElabError::InvalidSyntax(
+                    "Theorem missing := proof".to_string(),
+                ))
+            }
+        };
+
+        // Elaborate the type
+        let ty = self.elaborate(type_syntax)?;
+
+        // Elaborate the proof with the expected type
+        let proof = self.elaborate_with_type(proof_syntax, &ty)?;
+
+        // Add the theorem to the environment
+        if let Some(env) = &mut self.state_mut().env {
+            add_definition(env, full_name.clone(), ty, Some(proof), vec![])?;
+
+            // Add to exports if public
+            self.state_mut().ns_ctx.add_export(full_name);
+        }
+
+        Ok(())
     }
 
     /// Elaborate axiom command
     fn elab_axiom(&mut self, node: &lean_syn_expr::SyntaxNode) -> Result<(), ElabError> {
-        // TODO: Implement axiom elaboration
-        Err(ElabError::UnsupportedFeature(
-            "axiom elaboration not yet implemented".to_string(),
-        ))
+        use crate::environment_ext::add_axiom;
+
+        if node.children.len() < 2 {
+            return Err(ElabError::InvalidSyntax(
+                "Axiom requires name and type".to_string(),
+            ));
+        }
+
+        // Parse the axiom name
+        let name_syntax = &node.children[0];
+        let axiom_name = self.parse_name(name_syntax)?;
+
+        // Make the name absolute in the current namespace
+        let full_name = Name::join_relative(self.state().ns_ctx.current_namespace(), &axiom_name);
+
+        // Find the type (after :)
+        let mut type_idx = None;
+        for (i, child) in node.children.iter().enumerate() {
+            if let Syntax::Atom(atom) = child {
+                if atom.value.as_str() == ":" {
+                    type_idx = Some(i + 1);
+                    break;
+                }
+            }
+        }
+
+        let type_syntax = match type_idx {
+            Some(idx) if idx < node.children.len() => &node.children[idx],
+            _ => return Err(ElabError::InvalidSyntax("Axiom missing type".to_string())),
+        };
+
+        // Elaborate the type
+        let ty = self.elaborate(type_syntax)?;
+
+        // Add the axiom to the environment
+        if let Some(env) = &mut self.state_mut().env {
+            add_axiom(env, full_name.clone(), ty, vec![])?;
+
+            // Add to exports if public
+            self.state_mut().ns_ctx.add_export(full_name);
+        }
+
+        Ok(())
     }
 
     /// Elaborate constant command
     fn elab_constant(&mut self, node: &lean_syn_expr::SyntaxNode) -> Result<(), ElabError> {
-        // TODO: Implement constant elaboration
-        Err(ElabError::UnsupportedFeature(
-            "constant elaboration not yet implemented".to_string(),
-        ))
+        // Constants are basically axioms in Lean
+        self.elab_axiom(node)
     }
 
     /// Elaborate variable command
     fn elab_variable(&mut self, node: &lean_syn_expr::SyntaxNode) -> Result<(), ElabError> {
-        // TODO: Implement variable elaboration (section variables)
-        Err(ElabError::UnsupportedFeature(
-            "variable elaboration not yet implemented".to_string(),
-        ))
+        if node.children.is_empty() {
+            return Err(ElabError::InvalidSyntax(
+                "Variable requires at least one binder".to_string(),
+            ));
+        }
+
+        // Variables are section-local and are automatically added to
+        // definitions/theorems in the current section
+
+        // Parse binders
+        for child in &node.children {
+            match child {
+                Syntax::Node(binder_node) if self.is_binder_kind(binder_node.kind) => {
+                    // Parse binder group: (x y : Type) or {α : Type u}
+                    let (names, ty) = self.parse_binder_group(binder_node)?;
+
+                    // Add each variable to the current section
+                    for name in names {
+                        self.state_mut().ns_ctx.add_section_variable(name)?;
+                    }
+                }
+                _ => {
+                    return Err(ElabError::InvalidSyntax(
+                        "Invalid variable binder".to_string(),
+                    ));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Check if a syntax kind represents a binder
+    fn is_binder_kind(&self, kind: SyntaxKind) -> bool {
+        // For now, accept any parenthesized or bracketed expression as a binder
+        true
+    }
+
+    /// Parse a binder group into names and type
+    fn parse_binder_group(
+        &self,
+        node: &lean_syn_expr::SyntaxNode,
+    ) -> Result<(Vec<Name>, Expr), ElabError> {
+        // TODO: Implement full binder parsing
+        // For now, return a placeholder
+        Ok((vec![Name::mk_simple("x")], Expr::sort(Level::zero())))
     }
 
     /// Elaborate universe command

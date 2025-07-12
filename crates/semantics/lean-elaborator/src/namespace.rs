@@ -20,6 +20,8 @@ pub struct NamespaceContext {
     namespace_aliases: HashMap<Name, Name>,
     /// Section variables (for local scoping)
     section_vars: Vec<SectionScope>,
+    /// Exported names from the current module
+    exports: HashSet<Name>,
 }
 
 /// An opened namespace with its options
@@ -54,6 +56,7 @@ impl NamespaceContext {
             opened_namespaces: Vec::new(),
             namespace_aliases: HashMap::new(),
             section_vars: Vec::new(),
+            exports: HashSet::new(),
         }
     }
 
@@ -256,6 +259,16 @@ impl NamespaceContext {
             .iter()
             .flat_map(|s| s.universes.iter())
             .collect()
+    }
+
+    /// Add an exported name
+    pub fn add_export(&mut self, name: Name) {
+        self.exports.insert(name);
+    }
+
+    /// Get all exported names
+    pub fn exports(&self) -> &HashSet<Name> {
+        &self.exports
     }
 }
 
