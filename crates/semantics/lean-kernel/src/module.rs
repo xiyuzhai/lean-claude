@@ -229,8 +229,6 @@ pub mod path {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use super::*;
 
     #[test]
@@ -288,13 +286,16 @@ mod tests {
         let name = Name::str(Name::str(Name::mk_simple("Mathlib"), "Data"), "Nat");
         let path = path::module_name_to_path(&name);
 
-        assert_eq!(path, PathBuf::from("Mathlib/Data/Nat.lean"));
+        // Use platform-independent path construction for comparison
+        let expected = PathBuf::from("Mathlib").join("Data").join("Nat.lean");
+        assert_eq!(path, expected);
     }
 
     #[test]
     fn test_path_to_module_name() {
-        let path = Path::new("Mathlib/Data/Nat.lean");
-        let name = path::path_to_module_name(path).unwrap();
+        // Use PathBuf::from to create a platform-independent path
+        let path = PathBuf::from("Mathlib").join("Data").join("Nat.lean");
+        let name = path::path_to_module_name(&path).unwrap();
 
         let expected = Name::str(Name::str(Name::mk_simple("Mathlib"), "Data"), "Nat");
         assert_eq!(name, expected);
