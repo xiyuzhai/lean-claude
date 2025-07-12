@@ -6,7 +6,7 @@
 use lean_kernel::{environment::Environment, module::Import, Expr, Level, Name};
 use lean_syn_expr::{Syntax, SyntaxKind};
 use smallvec::smallvec;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{error::ElabError, namespace::OpenedNamespace, module_loader::ModuleLoader, ElabState, Elaborator};
 
@@ -47,8 +47,8 @@ impl Elaborator {
         // Parse the module path
         let module_name = self.parse_module_path(&node.children[0])?;
 
-        // Create import (TODO: handle import options)
-        let import = Import::simple(module_name.clone());
+        // Parse import options
+        let import = self.parse_import_options(node, module_name.clone())?;
 
         // Get the module loader from state
         let loader = &self.state().module_loader;
@@ -407,6 +407,125 @@ impl Elaborator {
         // Module paths are similar to qualified names
         self.parse_name(syntax)
     }
+
+    /// Parse import options (only, hiding, renaming)
+    fn parse_import_options(
+        &self,
+        node: &lean_syn_expr::SyntaxNode,
+        module_name: Name,
+    ) -> Result<Import, ElabError> {
+        let mut import = Import::simple(module_name);
+        
+        // Look for import options in the syntax tree
+        let mut i = 1; // Start after module name
+        while i < node.children.len() {
+            match &node.children[i] {
+                Syntax::Atom(atom) => match atom.value.as_str() {
+                    "only" => {
+                        // Parse "only" list: import M only (x, y, z)
+                        i += 1;
+                        if i < node.children.len() {
+                            import.only = Some(self.parse_name_list(&node.children[i])?);
+                        }
+                    }
+                    "hiding" => {
+                        // Parse "hiding" list: import M hiding (x, y, z)
+                        i += 1;
+                        if i < node.children.len() {
+                            import.hiding = self.parse_name_list(&node.children[i])?;
+                        }
+                    }
+                    "renaming" => {
+                        // Parse "renaming" list: import M renaming (x → y, a → b)
+                        i += 1;
+                        if i < node.children.len() {
+                            import.renaming = self.parse_renaming_list(&node.children[i])?;
+                        }
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+            i += 1;
+        }
+        
+        Ok(import)
+    }
+    
+    /// Parse a list of names in parentheses
+    fn parse_name_list(&self, syntax: &Syntax) -> Result<Vec<Name>, ElabError> {
+        match syntax {
+            Syntax::Node(node) => {
+                let mut names = Vec::new();
+                for child in &node.children {
+                    match child {
+                        Syntax::Atom(atom) if atom.value.as_str() != "," => {
+                            names.push(Name::mk_simple(atom.value.as_str()));
+                        }
+                        Syntax::Node(_) => {
+                            // Handle qualified names
+                            names.push(self.parse_name(child)?);
+                        }
+                        _ => {}
+                    }
+                }
+                Ok(names)
+            }
+            _ => Err(ElabError::InvalidSyntax(
+                "Expected parenthesized list of names".to_string(),
+            )),
+        }
+    }
+    
+    /// Parse a renaming list: (x → y, a → b)
+    fn parse_renaming_list(&self, syntax: &Syntax) -> Result<HashMap<Name, Name>, ElabError> {
+        match syntax {
+            Syntax::Node(node) => {
+                let mut renaming = HashMap::new();
+                let mut i = 0;
+                
+                while i < node.children.len() {
+                    // Parse "from" name
+                    let from = self.parse_name(&node.children[i])?;
+                    
+                    // Skip arrow (→ or ->)
+                    i += 1;
+                    if i < node.children.len() {
+                        if let Syntax::Atom(atom) = &node.children[i] {
+                            if atom.value.as_str() == "→" || atom.value.as_str() == "->" {
+                                i += 1;
+                            }
+                        }
+                    }
+                    
+                    // Parse "to" name
+                    if i < node.children.len() {
+                        let to = self.parse_name(&node.children[i])?;
+                        renaming.insert(from, to);
+                        i += 1;
+                        
+                        // Skip comma
+                        if i < node.children.len() {
+                            if let Syntax::Atom(atom) = &node.children[i] {
+                                if atom.value.as_str() == "," {
+                                    i += 1;
+                                }
+                            }
+                        }
+                    } else {
+                        return Err(ElabError::InvalidSyntax(
+                            "Expected target name after arrow in renaming".to_string(),
+                        ));
+                    }
+                }
+                
+                Ok(renaming)
+            }
+            _ => Err(ElabError::InvalidSyntax(
+                "Expected parenthesized renaming list".to_string(),
+            )),
+        }
+    }
 }
 
 /// Elaborate a module's commands
@@ -493,6 +612,75 @@ mod tests {
 
         let result = elaborator.elaborate_command(&syntax);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_import_options_parsing() {
+        let elaborator = Elaborator::new();
+        
+        // Test parsing "only" option
+        let import_node = lean_syn_expr::SyntaxNode::new(
+            SyntaxKind::Import,
+            lean_syn_expr::SourceRange {
+                start: lean_syn_expr::SourcePos::new(0, 0, 0),
+                end: lean_syn_expr::SourcePos::new(0, 0, 0),
+            },
+            smallvec![
+                Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                    lean_syn_expr::SourceRange {
+                start: lean_syn_expr::SourcePos::new(0, 0, 0),
+                end: lean_syn_expr::SourcePos::new(0, 0, 0),
+            },
+                    eterned::BaseCoword::from("Std.Data.List")
+                )),
+                Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                    lean_syn_expr::SourceRange {
+                start: lean_syn_expr::SourcePos::new(0, 0, 0),
+                end: lean_syn_expr::SourcePos::new(0, 0, 0),
+            },
+                    eterned::BaseCoword::from("only")
+                )),
+                Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+                    SyntaxKind::App,
+                    lean_syn_expr::SourceRange {
+                start: lean_syn_expr::SourcePos::new(0, 0, 0),
+                end: lean_syn_expr::SourcePos::new(0, 0, 0),
+            },
+                    smallvec![
+                        Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                            lean_syn_expr::SourceRange {
+                start: lean_syn_expr::SourcePos::new(0, 0, 0),
+                end: lean_syn_expr::SourcePos::new(0, 0, 0),
+            },
+                            eterned::BaseCoword::from("map")
+                        )),
+                        Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                            lean_syn_expr::SourceRange {
+                start: lean_syn_expr::SourcePos::new(0, 0, 0),
+                end: lean_syn_expr::SourcePos::new(0, 0, 0),
+            },
+                            eterned::BaseCoword::from(",")
+                        )),
+                        Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                            lean_syn_expr::SourceRange {
+                start: lean_syn_expr::SourcePos::new(0, 0, 0),
+                end: lean_syn_expr::SourcePos::new(0, 0, 0),
+            },
+                            eterned::BaseCoword::from("filter")
+                        )),
+                    ]
+                )))
+            ],
+        );
+        
+        let module_name = Name::mk_simple("Std.Data.List");
+        let import = elaborator.parse_import_options(&import_node, module_name).unwrap();
+        
+        assert!(import.only.is_some());
+        let only_list = import.only.unwrap();
+        assert_eq!(only_list.len(), 2);
+        assert_eq!(only_list[0], Name::mk_simple("map"));
+        assert_eq!(only_list[1], Name::mk_simple("filter"));
     }
 
     #[test]
