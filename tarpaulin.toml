@@ -1,0 +1,21 @@
+# Tarpaulin configuration
+[default]
+workspace = true
+all-features = true
+verbose = true
+out = ["Xml"]
+timeout = "300s"
+# Exclude packages with heavy async usage that cause issues with tarpaulin
+exclude = ["lean-analyzer"]
+# Exclude test files from coverage
+exclude-files = [
+    "*/tests/*",
+    "*/benches/*",
+    "*/examples/*",
+    "*/.cargo/*",
+    "*/target/*"
+]
+# Run tests in release mode to avoid timeout issues
+release = true
+# Use fewer threads to avoid conflicts
+test-threads = 1
