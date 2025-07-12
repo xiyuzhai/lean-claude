@@ -881,13 +881,13 @@ mod tests {
 
     #[test]
     fn test_compile_var_pattern() {
-        let pattern = compile_pattern(&Syntax::Atom(lean_syn_expr::SyntaxAtom {
-            range: lean_syn_expr::SourceRange {
+        let pattern = compile_pattern(&Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+            lean_syn_expr::SourceRange {
                 start: lean_syn_expr::SourcePos::new(0, 0, 0),
                 end: lean_syn_expr::SourcePos::new(0, 0, 0),
             },
-            value: eterned::BaseCoword::new("x"),
-        }))
+            eterned::BaseCoword::new("x"),
+        )))
         .unwrap();
 
         match pattern {
@@ -898,13 +898,13 @@ mod tests {
 
     #[test]
     fn test_compile_wildcard_pattern() {
-        let pattern = compile_pattern(&Syntax::Atom(lean_syn_expr::SyntaxAtom {
-            range: lean_syn_expr::SourceRange {
+        let pattern = compile_pattern(&Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+            lean_syn_expr::SourceRange {
                 start: lean_syn_expr::SourcePos::new(0, 0, 0),
                 end: lean_syn_expr::SourcePos::new(0, 0, 0),
             },
-            value: eterned::BaseCoword::new("_"),
-        }))
+            eterned::BaseCoword::new("_"),
+        )))
         .unwrap();
 
         matches!(pattern, Pattern::Wildcard);
@@ -913,13 +913,13 @@ mod tests {
     #[test]
     fn test_compile_literal_pattern() {
         // Number literal
-        let pattern = compile_pattern(&Syntax::Atom(lean_syn_expr::SyntaxAtom {
-            range: lean_syn_expr::SourceRange {
+        let pattern = compile_pattern(&Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+            lean_syn_expr::SourceRange {
                 start: lean_syn_expr::SourcePos::new(0, 0, 0),
                 end: lean_syn_expr::SourcePos::new(0, 0, 0),
             },
-            value: eterned::BaseCoword::new("42"),
-        }))
+            eterned::BaseCoword::new("42"),
+        )))
         .unwrap();
 
         match pattern {
@@ -1097,79 +1097,79 @@ mod tests {
         use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
 
         // Create a structure pattern: { x := a, y := b }
-        let pattern_node = SyntaxNode {
-            kind: SyntaxKind::StructurePattern,
-            range: SourceRange {
+        let pattern_node = SyntaxNode::new(
+            SyntaxKind::StructurePattern,
+            SourceRange {
                 start: SourcePos::new(0, 0, 0),
                 end: SourcePos::new(0, 0, 0),
             },
-            children: vec![
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+            vec![
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new("{"),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new("{"),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new("x"),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new("x"),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new(":="),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new(":="),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new("a"),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new("a"),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new(","),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new(","),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new("y"),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new("y"),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new(":="),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new(":="),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new("b"),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new("b"),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new("}"),
-                }),
+                    eterned::BaseCoword::new("}"),
+                )),
             ]
             .into(),
-        };
+        );
 
         let pattern = compile_structure_pattern(&pattern_node).unwrap();
 
@@ -1218,65 +1218,65 @@ mod tests {
         use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
 
         // Create a tuple pattern: (a, b, c)
-        let pattern_node = SyntaxNode {
-            kind: SyntaxKind::TuplePattern,
-            range: SourceRange {
+        let pattern_node = SyntaxNode::new(
+            SyntaxKind::TuplePattern,
+            SourceRange {
                 start: SourcePos::new(0, 0, 0),
                 end: SourcePos::new(0, 0, 0),
             },
-            children: vec![
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+            vec![
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new("("),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new("("),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new("a"),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new("a"),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new(","),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new(","),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new("b"),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new("b"),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new(","),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new(","),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new("c"),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new("c"),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new(")"),
-                }),
+                    eterned::BaseCoword::new(")"),
+                )),
             ]
             .into(),
-        };
+        );
 
         let pattern = compile_tuple_pattern(&pattern_node).unwrap();
 
@@ -1341,30 +1341,30 @@ mod tests {
         use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
 
         // Test unit pattern: ()
-        let pattern_node = SyntaxNode {
-            kind: SyntaxKind::TuplePattern,
-            range: SourceRange {
+        let pattern_node = SyntaxNode::new(
+            SyntaxKind::TuplePattern,
+            SourceRange {
                 start: SourcePos::new(0, 0, 0),
                 end: SourcePos::new(0, 0, 0),
             },
-            children: vec![
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+            vec![
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new("("),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                    eterned::BaseCoword::new("("),
+                )),
+                Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos::new(0, 0, 0),
                         end: SourcePos::new(0, 0, 0),
                     },
-                    value: eterned::BaseCoword::new(")"),
-                }),
+                    eterned::BaseCoword::new(")"),
+                )),
             ]
             .into(),
-        };
+        );
 
         let pattern = compile_tuple_pattern(&pattern_node).unwrap();
 
