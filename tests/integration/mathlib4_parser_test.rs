@@ -7,7 +7,6 @@ use lean_parser::Parser;
 use lean_syn_expr::{Syntax, SyntaxKind};
 
 #[test]
-#[ignore] // Run with `cargo test --test mathlib4_parser_test -- --ignored`
 fn test_parse_mathlib4_files() {
     let mathlib_path = Path::new("../../../test-data/mathlib4/Mathlib");
     assert!(
