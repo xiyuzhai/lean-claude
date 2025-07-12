@@ -12,8 +12,8 @@ use lean_analyzer::{analysis::AnalysisHost, formatting::LeanFormatter, workspace
 use lsp_types::Url;
 use tempfile::TempDir;
 
-#[test]
-fn test_hover_100ms() {
+#[tokio::test]
+async fn test_hover_100ms() {
     let temp_dir = TempDir::new().unwrap();
     let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
     let workspace = Arc::new(Workspace::new(Some(&root_uri)).unwrap());
@@ -24,7 +24,7 @@ fn test_hover_100ms() {
     std::fs::write(&file_path, content).unwrap();
 
     // Warm up
-    let _ = analysis_host.analyze_file(&file_path, content, 1);
+    let _ = analysis_host.analyze_file(&file_path, content, 1).await;
 
     let start = Instant::now();
     let _ = analysis_host.get_hover_info(&file_path, lean_analyzer::analysis::TextRange::new(4, 8));
@@ -32,13 +32,12 @@ fn test_hover_100ms() {
 
     assert!(
         duration < Duration::from_millis(100),
-        "Hover took {:?}, expected < 100ms",
-        duration
+        "Hover took {duration:?}, expected < 100ms"
     );
 }
 
-#[test]
-fn test_completion_100ms() {
+#[tokio::test]
+async fn test_completion_100ms() {
     let temp_dir = TempDir::new().unwrap();
     let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
     let workspace = Arc::new(Workspace::new(Some(&root_uri)).unwrap());
@@ -49,7 +48,7 @@ fn test_completion_100ms() {
     std::fs::write(&file_path, content).unwrap();
 
     // Warm up
-    let _ = analysis_host.analyze_file(&file_path, content, 1);
+    let _ = analysis_host.analyze_file(&file_path, content, 1).await;
 
     let start = Instant::now();
     let _ =
@@ -58,8 +57,7 @@ fn test_completion_100ms() {
 
     assert!(
         duration < Duration::from_millis(100),
-        "Completion took {:?}, expected < 100ms",
-        duration
+        "Completion took {duration:?}, expected < 100ms"
     );
 }
 
@@ -74,8 +72,7 @@ fn test_formatting_100ms() {
 
     assert!(
         duration < Duration::from_millis(100),
-        "Formatting took {:?}, expected < 100ms",
-        duration
+        "Formatting took {duration:?}, expected < 100ms"
     );
 }
 
@@ -90,13 +87,12 @@ fn test_symbol_search_100ms() {
 
     assert!(
         duration < Duration::from_millis(100),
-        "Simulated work took {:?}, expected < 100ms",
-        duration
+        "Simulated work took {duration:?}, expected < 100ms"
     );
 }
 
-#[test]
-fn test_diagnostics_100ms() {
+#[tokio::test]
+async fn test_diagnostics_100ms() {
     let temp_dir = TempDir::new().unwrap();
     let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
     let workspace = Arc::new(Workspace::new(Some(&root_uri)).unwrap());
@@ -107,12 +103,11 @@ fn test_diagnostics_100ms() {
     std::fs::write(&file_path, content).unwrap();
 
     let start = Instant::now();
-    let _ = analysis_host.analyze_file(&file_path, content, 1);
+    let _ = analysis_host.analyze_file(&file_path, content, 1).await;
     let duration = start.elapsed();
 
     assert!(
         duration < Duration::from_millis(100),
-        "Diagnostics took {:?}, expected < 100ms",
-        duration
+        "Diagnostics took {duration:?}, expected < 100ms"
     );
 }

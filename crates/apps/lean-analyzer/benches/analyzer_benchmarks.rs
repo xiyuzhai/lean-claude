@@ -62,7 +62,7 @@ fn benchmark_large_file(c: &mut Criterion) {
     // Generate a large file with many definitions
     let mut large_content = String::new();
     for i in 0..1000 {
-        large_content.push_str(&format!("def function_{} : Nat := {}\n", i, i));
+        large_content.push_str(&format!("def function_{i} : Nat := {i}\n"));
     }
 
     c.bench_function("parse_large_file", |b| {
