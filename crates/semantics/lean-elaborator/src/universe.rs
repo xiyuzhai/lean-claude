@@ -278,13 +278,13 @@ impl UniverseConstraintSolver {
             LevelKind::Max(l1, l2) => {
                 let norm_l1 = self.normalize_level(l1);
                 let norm_l2 = self.normalize_level(l2);
-                
+
                 // Normalize max expressions
                 // max(a, a) = a
                 if norm_l1 == norm_l2 {
                     return norm_l1;
                 }
-                
+
                 // max(0, a) = max(a, 0) = a if a ≥ 0 (which is always true)
                 if let LevelKind::Zero = &norm_l1.kind {
                     return norm_l2;
@@ -292,7 +292,7 @@ impl UniverseConstraintSolver {
                 if let LevelKind::Zero = &norm_l2.kind {
                     return norm_l1;
                 }
-                
+
                 if norm_l1 == **l1 && norm_l2 == **l2 {
                     level.clone()
                 } else {
