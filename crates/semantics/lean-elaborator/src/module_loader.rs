@@ -5,19 +5,19 @@
 
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{Arc, Mutex},
 };
 
 use lean_kernel::{
-    environment::{Declaration, Environment},
+    environment::Environment,
     module::{Import, Module, ModuleInfo, ModuleState},
     Name,
 };
 use lean_parser::ExpandingParser;
 use lean_syn_expr::{Syntax, SyntaxKind};
 
-use crate::{error::ElabError, ElabState, Elaborator};
+use crate::{error::ElabError, Elaborator};
 
 /// Module loader configuration
 #[derive(Debug, Clone)]
@@ -163,7 +163,7 @@ impl ModuleLoader {
             for imported_name in imported {
                 deps.reverse
                     .entry(imported_name)
-                    .or_insert_with(HashSet::new)
+                    .or_default()
                     .insert(name.clone());
             }
         }
@@ -195,7 +195,7 @@ impl ModuleLoader {
         for import in &module.imports {
             let imported_env = self.elaborate_module(&import.module, env.clone())?;
             // TODO: Merge imported environment based on import options
-            env = self.merge_environments(env, &imported_env, &import)?;
+            env = self.merge_environments(env, &imported_env, import)?;
         }
 
         // Elaborate this module's content
@@ -296,9 +296,9 @@ impl ModuleLoader {
         // Filter based on import options
         for (name, decl) in imported_decls {
             // Check if this declaration should be imported
-            if self.should_import_declaration(&name, &import) {
+            if self.should_import_declaration(name, import) {
                 // Apply renaming if needed
-                let imported_name = if let Some(renamed) = import.renaming.get(&name) {
+                let imported_name = if let Some(renamed) = import.renaming.get(name) {
                     renamed.clone()
                 } else {
                     name.clone()

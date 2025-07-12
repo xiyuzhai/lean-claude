@@ -6,9 +6,9 @@
 use lean_kernel::{environment::Environment, module::Import, Expr, Level, Name};
 use lean_syn_expr::{Syntax, SyntaxKind};
 use smallvec::smallvec;
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
-use crate::{error::ElabError, namespace::OpenedNamespace, module_loader::ModuleLoader, ElabState, Elaborator};
+use crate::{error::ElabError, namespace::OpenedNamespace, Elaborator};
 
 impl Elaborator {
     /// Elaborate a command
@@ -54,7 +54,7 @@ impl Elaborator {
         let loader = &self.state().module_loader;
         
         // Get current environment or create a new one
-        let base_env = self.state().env.clone().unwrap_or_else(Environment::new);
+        let base_env = self.state().env.clone().unwrap_or_default();
         
         // Load and elaborate the imported module
         let imported_env = loader.elaborate_module(&module_name, base_env.clone())?;
@@ -123,8 +123,7 @@ impl Elaborator {
         if let Some(expected) = expected_name {
             if popped != expected {
                 return Err(ElabError::NamespaceError(format!(
-                    "Expected to end namespace {}, but ended {}",
-                    expected, popped
+                    "Expected to end namespace {expected}, but ended {popped}"
                 )));
             }
         }
@@ -419,32 +418,31 @@ impl Elaborator {
         // Look for import options in the syntax tree
         let mut i = 1; // Start after module name
         while i < node.children.len() {
-            match &node.children[i] {
-                Syntax::Atom(atom) => match atom.value.as_str() {
-                    "only" => {
-                        // Parse "only" list: import M only (x, y, z)
-                        i += 1;
-                        if i < node.children.len() {
-                            import.only = Some(self.parse_name_list(&node.children[i])?);
-                        }
+            if let Syntax::Atom(atom) = &node.children[i] {
+                match atom.value.as_str() {
+                "only" => {
+                    // Parse "only" list: import M only (x, y, z)
+                    i += 1;
+                    if i < node.children.len() {
+                        import.only = Some(self.parse_name_list(&node.children[i])?);
                     }
-                    "hiding" => {
-                        // Parse "hiding" list: import M hiding (x, y, z)
-                        i += 1;
-                        if i < node.children.len() {
-                            import.hiding = self.parse_name_list(&node.children[i])?;
-                        }
+                }
+                "hiding" => {
+                    // Parse "hiding" list: import M hiding (x, y, z)
+                    i += 1;
+                    if i < node.children.len() {
+                        import.hiding = self.parse_name_list(&node.children[i])?;
                     }
-                    "renaming" => {
-                        // Parse "renaming" list: import M renaming (x → y, a → b)
-                        i += 1;
-                        if i < node.children.len() {
-                            import.renaming = self.parse_renaming_list(&node.children[i])?;
-                        }
+                }
+                "renaming" => {
+                    // Parse "renaming" list: import M renaming (x → y, a → b)
+                    i += 1;
+                    if i < node.children.len() {
+                        import.renaming = self.parse_renaming_list(&node.children[i])?;
                     }
-                    _ => {}
-                },
+                }
                 _ => {}
+                }
             }
             i += 1;
         }
