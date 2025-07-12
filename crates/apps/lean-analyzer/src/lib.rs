@@ -16,8 +16,10 @@ pub mod diagnostics;
 pub mod error_reporting;
 pub mod file_system;
 pub mod formatting;
+pub mod inlay_hints;
 pub mod lsp;
 pub mod project;
+pub mod semantic_highlighting;
 pub mod symbol_index;
 pub mod workspace;
 

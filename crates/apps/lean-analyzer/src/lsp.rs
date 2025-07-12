@@ -13,6 +13,8 @@ use crate::{
     code_actions::CodeActionProvider,
     error_reporting::ErrorReporter,
     formatting::LeanFormatter,
+    inlay_hints::{InlayHintConfig, InlayHintProvider},
+    semantic_highlighting::SemanticHighlighter,
     workspace::Workspace,
 };
 
@@ -23,6 +25,8 @@ pub struct LeanLanguageServer {
     error_reporter: ErrorReporter,
     code_actions: CodeActionProvider,
     formatter: LeanFormatter,
+    semantic_highlighter: Arc<RwLock<SemanticHighlighter>>,
+    inlay_hint_provider: Arc<RwLock<InlayHintProvider>>,
     #[allow(dead_code)]
     client_capabilities: RwLock<Option<ClientCapabilities>>,
     file_versions: RwLock<HashMap<Url, i32>>,
@@ -38,6 +42,10 @@ impl LeanLanguageServer {
             error_reporter: ErrorReporter::new(),
             code_actions: CodeActionProvider::new(),
             formatter: LeanFormatter::new(),
+            semantic_highlighter: Arc::new(RwLock::new(SemanticHighlighter::new())),
+            inlay_hint_provider: Arc::new(RwLock::new(InlayHintProvider::new(
+                InlayHintConfig::default(),
+            ))),
             client_capabilities: RwLock::new(None),
             file_versions: RwLock::new(HashMap::new()),
         }
@@ -109,6 +117,14 @@ impl LeanLanguageServer {
                 let params: DocumentRangeFormattingParams =
                     serde_json::from_value(req.params).unwrap();
                 self.handle_range_formatting(params).await
+            }
+            "textDocument/semanticTokens/full" => {
+                let params: SemanticTokensParams = serde_json::from_value(req.params).unwrap();
+                self.handle_semantic_tokens(params).await
+            }
+            "textDocument/inlayHint" => {
+                let params: InlayHintParams = serde_json::from_value(req.params).unwrap();
+                self.handle_inlay_hints(params).await
             }
             _ => {
                 warn!("Unhandled request method: {}", req.method);
@@ -329,6 +345,11 @@ impl LeanLanguageServer {
 
         if let Ok(path) = uri.to_file_path() {
             self.analysis_host.invalidate_file(&path);
+            // Invalidate caches for semantic highlighting
+            self.semantic_highlighter
+                .write()
+                .await
+                .invalidate_file(&path);
         }
     }
 
@@ -533,6 +554,53 @@ impl LeanLanguageServer {
         let edits = self.formatter.format_range(&content, params.range);
         Ok(serde_json::to_value(edits)?)
     }
+
+    /// Handle semantic tokens requests
+    async fn handle_semantic_tokens(&self, params: SemanticTokensParams) -> anyhow::Result<Value> {
+        let file_path = params
+            .text_document
+            .uri
+            .to_file_path()
+            .map_err(|_| anyhow::anyhow!("Invalid file path"))?;
+
+        let content = std::fs::read_to_string(&file_path).unwrap_or_else(|_| String::new());
+
+        // Parse the file to get syntax tree
+        let mut parser = lean_parser::Parser::new(&content);
+        let parse_result = parser.module();
+
+        // Generate semantic tokens
+        let mut highlighter = self.semantic_highlighter.write().await;
+        let tokens = highlighter.analyze_file(&file_path, &content, &parse_result);
+        let lsp_tokens = highlighter.to_lsp_tokens(&tokens);
+
+        Ok(serde_json::to_value(lsp_tokens)?)
+    }
+
+    /// Handle inlay hints requests
+    async fn handle_inlay_hints(&self, params: InlayHintParams) -> anyhow::Result<Value> {
+        let file_path = params
+            .text_document
+            .uri
+            .to_file_path()
+            .map_err(|_| anyhow::anyhow!("Invalid file path"))?;
+
+        let content = std::fs::read_to_string(&file_path).unwrap_or_else(|_| String::new());
+
+        // Parse the file to get syntax tree
+        let mut parser = lean_parser::Parser::new(&content);
+        let parse_result = parser.module();
+
+        // Generate inlay hints
+        let mut hint_provider = self.inlay_hint_provider.write().await;
+        let hints =
+            hint_provider.get_hints(&file_path, &content, &parse_result, Some(params.range));
+
+        // Convert to LSP format
+        let lsp_hints: Vec<InlayHint> = hints.into_iter().map(|h| h.into()).collect();
+
+        Ok(serde_json::to_value(lsp_hints)?)
+    }
 }
 
 /// Returns the server capabilities for the LSP initialization
@@ -608,6 +676,7 @@ pub fn server_capabilities() -> ServerCapabilities {
                 full: Some(SemanticTokensFullOptions::Bool(true)),
             },
         )),
+        inlay_hint_provider: Some(OneOf::Left(true)),
         ..Default::default()
     }
 }
