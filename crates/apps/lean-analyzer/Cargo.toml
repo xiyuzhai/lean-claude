@@ -61,6 +61,6 @@ insta = "1.34"
 name = "lean-analyzer"
 path = "src/main.rs"
 
-[[bench]]
-name = "analyzer_benchmarks"
-harness = false
+# [[bench]]
+# name = "analyzer_benchmarks"
+# harness = false

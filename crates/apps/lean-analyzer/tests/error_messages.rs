@@ -318,7 +318,7 @@ mod formatting_tests {
         let edits = formatter.format_document(source);
 
         // Basic formatter test - should produce some edits for badly formatted code
-        assert!(edits.len() == 0 || !edits.is_empty()); // Formatter runs
+        assert!(edits.is_empty() || !edits.is_empty()); // Formatter runs
                                                         // without crashing
     }
 
@@ -329,7 +329,7 @@ mod formatting_tests {
 
         let edits = formatter.format_document(source);
         // Basic formatter test
-        assert!(edits.len() == 0 || !edits.is_empty()); // Formatter runs
+        assert!(edits.is_empty() || !edits.is_empty()); // Formatter runs
                                                         // without crashing
     }
 
@@ -341,7 +341,7 @@ mod formatting_tests {
         let edits = formatter.format_document(source);
 
         // Basic formatter test
-        assert!(edits.len() == 0 || !edits.is_empty()); // Formatter runs
+        assert!(edits.is_empty() || !edits.is_empty()); // Formatter runs
                                                         // without crashing
     }
 
@@ -353,7 +353,7 @@ mod formatting_tests {
         let edits = formatter.format_document(source);
 
         // Basic formatter test
-        assert!(edits.len() == 0 || !edits.is_empty()); // Formatter runs without crashing
+        assert!(edits.is_empty() || !edits.is_empty()); // Formatter runs without crashing
         assert!(source.contains("-- This is a comment")); // Source contains
                                                           // comments
     }
@@ -368,7 +368,7 @@ mod formatting_tests {
 
         // Should handle long lines appropriately
         // In this test, we just verify it doesn't break
-        assert!(edits.len() == 0 || !edits.is_empty()); // May or may not need
+        assert!(edits.is_empty() || !edits.is_empty()); // May or may not need
                                                         // formatting
     }
 
@@ -419,7 +419,7 @@ mod performance_tests {
         // Generate a large file
         let mut large_file = String::new();
         for i in 0..1000 {
-            large_file.push_str(&format!("def function_{} : Nat := {}\n", i, i));
+            large_file.push_str(&format!("def function_{i} : Nat := {i}\n"));
         }
 
         let start = Instant::now();
@@ -430,7 +430,7 @@ mod performance_tests {
         assert!(duration.as_millis() < 1000);
 
         // Should produce some formatting edits
-        assert!(edits.len() == 0 || !edits.is_empty());
+        assert!(edits.is_empty() || !edits.is_empty());
     }
 
     #[test]

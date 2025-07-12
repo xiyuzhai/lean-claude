@@ -35,6 +35,12 @@ pub struct TestWorkspaceBuilder {
     config: TestConfig,
 }
 
+impl Default for TestWorkspaceBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestWorkspaceBuilder {
     pub fn new() -> Self {
         Self {
@@ -58,7 +64,7 @@ impl TestWorkspaceBuilder {
         let filename = if name.ends_with(".lean") {
             name.to_string()
         } else {
-            format!("{}.lean", name)
+            format!("{name}.lean")
         };
         self.add_file(&filename, content)
     }
@@ -239,12 +245,9 @@ theorem broken_proof (x : Nat) : x = x + 1 := by
         content.push_str("import Std.Data.List.Basic\nimport Std.Data.Array.Basic\n\n");
 
         for i in 0..num_functions {
-            content.push_str(&format!(
-                "def function_{} (x : Nat) : Nat := x + {}\n\n",
-                i, i
-            ));
+            content.push_str(&format!("def function_{i} (x : Nat) : Nat := x + {i}\n\n"));
 
-            if i % 5 == 0 {
+            if i.is_multiple_of(5) {
                 content.push_str(&format!(
                     "def list_function_{} : List Nat := List.replicate {} {}\n\n",
                     i,
@@ -253,10 +256,9 @@ theorem broken_proof (x : Nat) : x = x + 1 := by
                 ));
             }
 
-            if i % 10 == 0 {
+            if i.is_multiple_of(10) {
                 content.push_str(&format!(
-                    "theorem theorem_{} : function_{} 0 = {} := by simp [function_{}]\n\n",
-                    i, i, i, i
+                    "theorem theorem_{i} : function_{i} 0 = {i} := by simp [function_{i}]\n\n"
                 ));
             }
         }
@@ -353,10 +355,7 @@ impl TestAssertions {
     pub fn assert_performance(duration_ms: u64, operation: &str, max_ms: u64) {
         assert!(
             duration_ms <= max_ms,
-            "{} took {}ms, should be under {}ms",
-            operation,
-            duration_ms,
-            max_ms
+            "{operation} took {duration_ms}ms, should be under {max_ms}ms"
         );
     }
 

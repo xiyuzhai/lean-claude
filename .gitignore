@@ -53,3 +53,11 @@ criterion/
 
 # Documentation
 docs/_build/
+
+# Editor integrations
+editors/vscode/node_modules/
+editors/vscode/out/
+editors/vscode/*.vsix
+
+# Disabled benchmarks
+crates/apps/lean-analyzer/benches.disabled/

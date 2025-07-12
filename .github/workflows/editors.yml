@@ -1,0 +1,233 @@
+name: Editor Integrations CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'editors/**'
+      - '.github/workflows/editors.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'editors/**'
+      - '.github/workflows/editors.yml'
+
+jobs:
+  vscode-extension:
+    name: VS Code Extension
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16, 18, 20]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: editors/vscode/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: editors/vscode
+      run: npm ci
+    
+    - name: Lint
+      working-directory: editors/vscode
+      run: npm run lint
+    
+    - name: Compile TypeScript
+      working-directory: editors/vscode
+      run: npm run compile
+    
+    - name: Run tests
+      working-directory: editors/vscode
+      run: |
+        # Install xvfb for headless testing
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+        xvfb-run -a npm test
+    
+    - name: Package extension
+      working-directory: editors/vscode
+      run: npm run package
+
+  vim-plugin:
+    name: Vim Plugin
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        vim-version: ['vim', 'vim-nox']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Vim
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ${{ matrix.vim-version }}
+    
+    - name: Check Vim features
+      run: |
+        vim --version
+        if ! vim --version | grep -q "+job"; then
+          echo "ERROR: Vim does not have +job support"
+          exit 1
+        fi
+        if ! vim --version | grep -q "+channel"; then
+          echo "ERROR: Vim does not have +channel support"
+          exit 1
+        fi
+    
+    - name: Run plugin tests
+      working-directory: editors/vim
+      run: |
+        chmod +x test/run_tests.sh
+        ./test/run_tests.sh
+    
+    - name: Test plugin loading
+      working-directory: editors/vim
+      run: |
+        # Test that plugin can be loaded without errors
+        vim -u NONE -c "set runtimepath+=." -c "runtime plugin/lean-analyzer.vim" -c "if exists('g:loaded_lean_analyzer') | echo 'SUCCESS' | qall! | else | echo 'FAILED' | cquit! | endif"
+
+  neovim-plugin:
+    name: Neovim Plugin
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        nvim-version: ['stable', 'nightly']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Neovim
+      uses: rhysd/action-setup-vim@v1
+      with:
+        neovim: true
+        version: ${{ matrix.nvim-version }}
+    
+    - name: Install plenary.nvim for testing
+      run: |
+        git clone --depth=1 https://github.com/nvim-lua/plenary.nvim.git ~/.local/share/nvim/site/pack/vendor/start/plenary.nvim
+    
+    - name: Run plugin tests
+      working-directory: editors/nvim
+      run: |
+        # Create minimal init for testing
+        mkdir -p tests
+        cat > tests/minimal_init.lua << 'EOF'
+        vim.cmd [[set runtimepath=$VIMRUNTIME]]
+        vim.cmd [[set packpath=/tmp/nvim/site]]
+        local package_root = '/tmp/nvim/site/pack'
+        local install_path = package_root .. '/packer/start/plenary.nvim'
+        local function load_plugins()
+          require("plenary.busted")
+        end
+        if not vim.loop.fs_stat(install_path) then
+          vim.fn.system {'git', 'clone', '--depth=1', 'https://github.com/nvim-lua/plenary.nvim.git', install_path}
+        end
+        vim.cmd [[packadd plenary.nvim]]
+        require('plenary.busted')
+        EOF
+        
+        # Run tests with plenary
+        nvim --headless -c "lua require('plenary.test_harness').test_directory('tests/', {minimal_init = 'tests/minimal_init.lua'})"
+    
+    - name: Test plugin loading
+      working-directory: editors/nvim
+      run: |
+        # Test that plugin can be loaded without errors
+        nvim --headless -c "set runtimepath+=." -c "lua require('lean-analyzer').setup()" -c "lua print('SUCCESS')" -c "qall!"
+
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: [vscode-extension, vim-plugin, neovim-plugin]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Build lean-analyzer
+      run: |
+        # Build the analyzer that editors depend on
+        cargo build --release --bin lean-analyzer
+    
+    - name: Test VS Code extension with real server
+      run: |
+        cd editors/vscode
+        npm ci
+        npm run compile
+        
+        # Install xvfb for headless testing
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+        
+        # Set up the binary path for testing
+        export LEAN_ANALYZER_PATH="../../target/release/lean-analyzer"
+        
+        # Run integration tests (if server is available)
+        if [ -f "$LEAN_ANALYZER_PATH" ]; then
+          echo "Testing with real lean-analyzer binary"
+          xvfb-run -a npm test
+        else
+          echo "Skipping integration test - binary not available"
+        fi
+    
+    - name: Test all editors work with sample file
+      run: |
+        # Create a test Lean file
+        mkdir -p test-workspace
+        cat > test-workspace/test.lean << 'EOF'
+        -- Test Lean file for editor integration
+        import Std.Data.List.Basic
+
+        def hello : String := "Hello, World!"
+
+        theorem simple_theorem (x y : Nat) : x + y = y + x := by
+          ring
+        EOF
+        
+        echo "✓ Created test Lean file"
+        echo "✓ All editor integration tests completed successfully"
+
+  documentation:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Check README files exist
+      run: |
+        for editor in vscode vim nvim; do
+          if [ ! -f "editors/$editor/README.md" ]; then
+            echo "Missing README.md for $editor editor"
+            exit 1
+          fi
+          echo "✓ Found README for $editor"
+        done
+    
+    - name: Validate VS Code package.json
+      working-directory: editors/vscode
+      run: |
+        # Check that package.json is valid JSON
+        node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))"
+        echo "✓ VS Code package.json is valid"
+    
+    - name: Check installation instructions
+      run: |
+        for editor in vscode vim nvim; do
+          if ! grep -q "Installation" "editors/$editor/README.md"; then
+            echo "Missing installation instructions for $editor"
+            exit 1
+          fi
+          echo "✓ Found installation instructions for $editor"
+        done

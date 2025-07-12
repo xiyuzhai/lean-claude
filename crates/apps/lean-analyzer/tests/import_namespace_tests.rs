@@ -25,6 +25,7 @@ struct NamespaceTestCase {
     description: &'static str,
     source_code: &'static str,
     error_message: &'static str,
+    #[allow(dead_code)]
     expected_suggestions: Vec<&'static str>,
     error_line: u32,
     error_start: u32,
@@ -227,13 +228,13 @@ mod import_error_tests {
             partial_result_params: Default::default(),
         };
 
-        let actions = code_actions.get_code_actions(&params, source);
+        let _actions = code_actions.get_code_actions(&params, source);
 
         // Should suggest correct case imports
-        // Note: This would require more sophisticated fuzzy matching in the real
-        // implementation
-        assert!(actions.len() == 0 || !actions.is_empty()); // At minimum,
-                                                            // should not crash
+        // Note: This would require more sophisticated fuzzy matching in the
+        // real implementation
+        // Should not crash and produce valid actions
+        // The actual content of actions depends on implementation
     }
 
     #[test]
@@ -270,11 +271,12 @@ mod import_error_tests {
             partial_result_params: Default::default(),
         };
 
-        let actions = code_actions.get_code_actions(&params, source);
+        let _actions = code_actions.get_code_actions(&params, source);
 
         // Should suggest completing the import path
         // This would require module discovery in a real implementation
-        assert!(actions.len() == 0 || !actions.is_empty());
+        // Should not crash and produce valid actions
+        // The actual content of actions depends on implementation
     }
 
     #[test]
@@ -463,8 +465,9 @@ mod namespace_error_tests {
             })
             .collect();
 
-        // Should have some suggestions (may not be qualified in basic implementation)
-        assert!(actions.len() == 0 || !actions.is_empty());
+        // Should have some suggestions (may not be qualified in basic
+        // implementation) Should not crash and produce valid actions
+        // The actual content of actions depends on implementation
     }
 
     #[test]
@@ -513,11 +516,12 @@ mod namespace_error_tests {
             partial_result_params: Default::default(),
         };
 
-        let actions = code_actions.get_code_actions(&params, source);
+        let _actions = code_actions.get_code_actions(&params, source);
 
         // Should suggest module aliasing
         // This would be a refactoring suggestion in a real implementation
-        assert!(actions.len() == 0 || !actions.is_empty());
+        // Should not crash and produce valid actions
+        // The actual content of actions depends on implementation
     }
 }
 
@@ -552,7 +556,7 @@ mod advanced_import_scenarios {
         let code_actions = CodeActionProvider::new();
 
         for (description, source, identifier, _expected_imports) in test_cases {
-            println!("Testing: {}", description);
+            println!("Testing: {description}");
 
             let uri = Url::parse("file:///test.lean").unwrap();
             let diagnostic = Diagnostic {
@@ -564,7 +568,7 @@ mod advanced_import_scenarios {
                 code: None,
                 code_description: None,
                 source: Some("lean-analyzer".to_string()),
-                message: format!("Unknown identifier '{}'", identifier),
+                message: format!("Unknown identifier '{identifier}'"),
                 related_information: None,
                 tags: None,
                 data: None,
@@ -582,14 +586,11 @@ mod advanced_import_scenarios {
                 partial_result_params: Default::default(),
             };
 
-            let actions = code_actions.get_code_actions(&params, source);
+            let _actions = code_actions.get_code_actions(&params, source);
 
             // Should suggest appropriate imports for mathematical constructs
-            assert!(
-                actions.len() == 0 || !actions.is_empty(),
-                "Actions should be valid for: {}",
-                description
-            );
+            // Should not crash and produce valid actions
+            // The actual content of actions depends on implementation
         }
     }
 
@@ -626,7 +627,7 @@ mod advanced_import_scenarios {
             ),
         ];
 
-        for (description, source, identifier, _version, _expected_imports) in version_tests {
+        for (_description, source, identifier, _version, _expected_imports) in version_tests {
             // In a real implementation, this would check Lean version and suggest
             // appropriate imports
             let code_actions = CodeActionProvider::new();
@@ -641,7 +642,7 @@ mod advanced_import_scenarios {
                 code: None,
                 code_description: None,
                 source: Some("lean-analyzer".to_string()),
-                message: format!("Unknown identifier '{}'", identifier),
+                message: format!("Unknown identifier '{identifier}'"),
                 related_information: None,
                 tags: None,
                 data: None,
@@ -659,12 +660,9 @@ mod advanced_import_scenarios {
                 partial_result_params: Default::default(),
             };
 
-            let actions = code_actions.get_code_actions(&params, source);
-            assert!(
-                actions.len() == 0 || !actions.is_empty(),
-                "Actions should be valid for: {}",
-                description
-            );
+            let _actions = code_actions.get_code_actions(&params, source);
+            // Should not crash and produce valid actions
+            // The actual content of actions depends on implementation
         }
     }
 }
@@ -707,8 +705,7 @@ mod error_message_quality_tests {
             // For this test, we just validate the source content
             assert!(
                 !source.is_empty(),
-                "Source should not be empty for: {}",
-                description
+                "Source should not be empty for: {description}"
             );
             let _ = _error_reporter; // Use the error reporter
         }
@@ -754,7 +751,7 @@ mod error_message_quality_tests {
             ),
         ];
 
-        for (description, source, error_msg, _expected_suggestions) in contexts {
+        for (_description, source, error_msg, _expected_suggestions) in contexts {
             let uri = Url::parse("file:///test.lean").unwrap();
             let diagnostic = Diagnostic {
                 range: Range {
@@ -783,14 +780,11 @@ mod error_message_quality_tests {
                 partial_result_params: Default::default(),
             };
 
-            let actions = code_actions.get_code_actions(&params, source);
+            let _actions = code_actions.get_code_actions(&params, source);
 
             // Should provide contextually appropriate suggestions
-            assert!(
-                actions.len() == 0 || !actions.is_empty(),
-                "Actions should be valid for: {}",
-                description
-            );
+            // Should not crash and produce valid actions
+            // The actual content of actions depends on implementation
         }
     }
 }

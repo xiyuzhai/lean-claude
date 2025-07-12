@@ -13,8 +13,8 @@ use lean_analyzer::{
     workspace::Workspace,
 };
 use lsp_types::{
-    ClientCapabilities, CodeActionContext, CodeActionParams, Diagnostic, DiagnosticSeverity,
-    Position, Range, TextDocumentIdentifier, Url,
+    ClientCapabilities, CodeActionContext, CodeActionParams, Position, Range,
+    TextDocumentIdentifier, Url,
 };
 use tempfile::TempDir;
 
@@ -132,7 +132,7 @@ mod initialization_tests {
         let capabilities_tests = vec![("Basic capabilities", ClientCapabilities::default())];
 
         for (name, capabilities) in capabilities_tests {
-            println!("Testing capabilities: {}", name);
+            println!("Testing capabilities: {name}");
 
             // In a real implementation, this would test capability negotiation
             // For now, just verify we can handle different capability sets
@@ -550,7 +550,7 @@ mod code_action_integration_tests {
                 if let Some(changes) = &edit.changes {
                     assert!(!changes.is_empty(), "Should have text edits");
 
-                    for (_, edits) in changes {
+                    for edits in changes.values() {
                         for text_edit in edits {
                             assert!(
                                 text_edit.new_text.contains("import"),
@@ -651,7 +651,7 @@ mod performance_integration_tests {
         // Generate a large file
         let mut large_content = String::new();
         for i in 0..1000 {
-            large_content.push_str(&format!("def function_{} : Nat := {}\n", i, i));
+            large_content.push_str(&format!("def function_{i} : Nat := {i}\n"));
         }
 
         let analysis_host = AnalysisHost::new(fixture.workspace.file_system());
@@ -666,8 +666,7 @@ mod performance_integration_tests {
         // Should handle large files reasonably quickly
         assert!(
             duration.as_secs() < 5,
-            "Large file analysis took too long: {:?}",
-            duration
+            "Large file analysis took too long: {duration:?}"
         );
 
         // Should not crash
@@ -697,8 +696,7 @@ mod performance_integration_tests {
         // Should handle multiple files efficiently
         assert!(
             duration.as_secs() < 3,
-            "Multi-file analysis took too long: {:?}",
-            duration
+            "Multi-file analysis took too long: {duration:?}"
         );
     }
 }
@@ -751,7 +749,7 @@ mod real_world_scenarios {
                     }
                 }
                 Err(e) => {
-                    println!("  Analysis error (expected for incomplete code): {:?}", e);
+                    println!("  Analysis error (expected for incomplete code): {e:?}");
                 }
             }
         }
@@ -785,7 +783,7 @@ mod real_world_scenarios {
         let code_actions = CodeActionProvider::new();
 
         for (description, content, _expected_issues) in import_scenarios {
-            println!("Testing scenario: {}", description);
+            println!("Testing scenario: {description}");
 
             let file_path = fixture.temp_dir.path().join("import_scenario.lean");
 
@@ -826,8 +824,7 @@ mod real_world_scenarios {
                         // Should provide helpful import suggestions
                         assert!(
                             actions.len() >= 0,
-                            "Should provide actions for: {}",
-                            description
+                            "Should provide actions for: {description}"
                         );
                     }
                 }

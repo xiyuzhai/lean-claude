@@ -266,7 +266,7 @@ function setupStatusBar(context: vscode.ExtensionContext) {
 }
 
 function updateStatusBar(status: 'starting' | 'ready' | 'error' | 'restarting') {
-    if (!statusBarItem) return;
+    if (!statusBarItem) {return;}
     
     switch (status) {
         case 'starting':
