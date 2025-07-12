@@ -26,11 +26,31 @@ pub struct SourceRange {
     pub end: SourcePos,
 }
 
+/// Represents trivia (whitespace and comments) attached to syntax nodes
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Trivia {
+    pub kind: TriviaKind,
+    pub range: SourceRange,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TriviaKind {
+    Whitespace,
+    LineComment,    // -- comment
+    BlockComment,   // /- comment -/
+    DocComment,     // /-- doc comment -/ or /-! doc comment -/
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SyntaxNode {
     pub kind: SyntaxKind,
     pub range: SourceRange,
     pub children: SmallVec<[Syntax; 4]>,
+    /// Leading trivia (whitespace and comments before this node)
+    pub leading_trivia: Vec<Trivia>,
+    /// Trailing trivia (whitespace and comments after this node)
+    pub trailing_trivia: Vec<Trivia>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,6 +64,10 @@ pub enum Syntax {
 pub struct SyntaxAtom {
     pub range: SourceRange,
     pub value: BaseCoword,
+    /// Leading trivia (whitespace and comments before this atom)
+    pub leading_trivia: Vec<Trivia>,
+    /// Trailing trivia (whitespace and comments after this atom)
+    pub trailing_trivia: Vec<Trivia>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -252,10 +276,122 @@ impl Syntax {
             _ => "",
         }
     }
+
+    /// Get leading trivia for this syntax node
+    pub fn leading_trivia(&self) -> &[Trivia] {
+        match self {
+            Syntax::Missing => &[],
+            Syntax::Node(node) => &node.leading_trivia,
+            Syntax::Atom(atom) => &atom.leading_trivia,
+        }
+    }
+
+    /// Get trailing trivia for this syntax node
+    pub fn trailing_trivia(&self) -> &[Trivia] {
+        match self {
+            Syntax::Missing => &[],
+            Syntax::Node(node) => &node.trailing_trivia,
+            Syntax::Atom(atom) => &atom.trailing_trivia,
+        }
+    }
+}
+
+impl SyntaxNode {
+    /// Create a new syntax node with empty trivia
+    pub fn new(kind: SyntaxKind, range: SourceRange, children: SmallVec<[Syntax; 4]>) -> Self {
+        Self {
+            kind,
+            range,
+            children,
+            leading_trivia: Vec::new(),
+            trailing_trivia: Vec::new(),
+        }
+    }
+
+    /// Create a new syntax node with specified trivia
+    pub fn with_trivia(
+        kind: SyntaxKind,
+        range: SourceRange,
+        children: SmallVec<[Syntax; 4]>,
+        leading_trivia: Vec<Trivia>,
+        trailing_trivia: Vec<Trivia>,
+    ) -> Self {
+        Self {
+            kind,
+            range,
+            children,
+            leading_trivia,
+            trailing_trivia,
+        }
+    }
+}
+
+impl SyntaxAtom {
+    /// Create a new syntax atom with empty trivia
+    pub fn new(range: SourceRange, value: BaseCoword) -> Self {
+        Self {
+            range,
+            value,
+            leading_trivia: Vec::new(),
+            trailing_trivia: Vec::new(),
+        }
+    }
+
+    /// Create a new syntax atom with specified trivia
+    pub fn with_trivia(
+        range: SourceRange,
+        value: BaseCoword,
+        leading_trivia: Vec<Trivia>,
+        trailing_trivia: Vec<Trivia>,
+    ) -> Self {
+        Self {
+            range,
+            value,
+            leading_trivia,
+            trailing_trivia,
+        }
+    }
+}
+
+impl Trivia {
+    /// Create a new trivia item
+    pub fn new(kind: TriviaKind, range: SourceRange, text: String) -> Self {
+        Self { kind, range, text }
+    }
+
+    /// Check if this trivia is whitespace
+    pub fn is_whitespace(&self) -> bool {
+        matches!(self.kind, TriviaKind::Whitespace)
+    }
+
+    /// Check if this trivia is a comment
+    pub fn is_comment(&self) -> bool {
+        matches!(
+            self.kind,
+            TriviaKind::LineComment | TriviaKind::BlockComment | TriviaKind::DocComment
+        )
+    }
+
+    /// Check if this trivia is a documentation comment
+    pub fn is_doc_comment(&self) -> bool {
+        matches!(self.kind, TriviaKind::DocComment)
+    }
 }
 
 #[cfg(test)]
 mod tests;
+
+impl fmt::Display for TriviaKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            TriviaKind::Whitespace => "whitespace",
+            TriviaKind::LineComment => "line comment",
+            TriviaKind::BlockComment => "block comment",
+            TriviaKind::DocComment => "doc comment",
+        };
+        write!(f, "{s}")
+    }
+}
 
 impl fmt::Display for SyntaxKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

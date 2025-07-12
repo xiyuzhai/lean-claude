@@ -21,11 +21,11 @@ impl<'a> Parser<'a> {
         let tactic = self.with_mode(ParsingMode::Tactic, |p| p.tactic())?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::By,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::By,
             range,
-            children: smallvec![tactic],
-        })))
+            smallvec![tactic],
+        ))))
     }
 
     /// Parse a single tactic or tactic sequence
@@ -67,19 +67,19 @@ impl<'a> Parser<'a> {
                     tactics.into_iter().next().unwrap()
                 } else {
                     let left_range = self.input().range_from(start);
-                    Syntax::Node(Box::new(SyntaxNode {
-                        kind: SyntaxKind::TacticSeq,
-                        range: left_range,
-                        children: tactics.into(),
-                    }))
+                    Syntax::Node(Box::new(SyntaxNode::new(
+                        SyntaxKind::TacticSeq,
+                        left_range,
+                        tactics.into(),
+                    )))
                 };
 
                 let range = self.input().range_from(start);
-                return Ok(Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::TacticAlt,
+                return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::TacticAlt,
                     range,
-                    children: smallvec![left, right],
-                })));
+                    smallvec![left, right],
+                ))));
             } else {
                 break;
             }
@@ -89,11 +89,11 @@ impl<'a> Parser<'a> {
             Ok(tactics.into_iter().next().unwrap())
         } else {
             let range = self.input().range_from(start);
-            Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::TacticSeq,
+            Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::TacticSeq,
                 range,
-                children: tactics.into(),
-            })))
+                tactics.into(),
+            ))))
         }
     }
 
@@ -251,11 +251,11 @@ impl<'a> Parser<'a> {
         let term = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Exact,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Exact,
             range,
-            children: smallvec![term],
-        })))
+            smallvec![term],
+        ))))
     }
 
     /// Parse apply tactic: `apply term`
@@ -268,11 +268,11 @@ impl<'a> Parser<'a> {
         let term = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Apply,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Apply,
             range,
-            children: smallvec![term],
-        })))
+            smallvec![term],
+        ))))
     }
 
     /// Parse intro tactic: `intro name`
@@ -295,11 +295,11 @@ impl<'a> Parser<'a> {
             smallvec![]
         };
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Intro,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Intro,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse intros tactic: `intros [names]`
@@ -316,11 +316,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Intros,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Intros,
             range,
-            children: names.into(),
-        })))
+            names.into(),
+        ))))
     }
 
     /// Parse cases tactic: `cases term [with pattern*]`
@@ -354,11 +354,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Cases,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Cases,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse induction tactic: `induction term [with pattern*] [generalizing
@@ -403,11 +403,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Induction,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Induction,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse simp tactic: `simp [args]`
@@ -443,11 +443,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Simp,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Simp,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse rewrite tactic: `rw [lemmas]` or `rewrite [lemmas]`
@@ -478,10 +478,10 @@ impl<'a> Parser<'a> {
                     self.advance(); // <
                     self.advance(); // -
                 }
-                children.push(Syntax::Atom(SyntaxAtom {
-                    range: self.input().range_from(start),
-                    value: eterned::BaseCoword::new("←"),
-                }));
+                children.push(Syntax::Atom(SyntaxAtom::new(
+                    self.input().range_from(start),
+                    eterned::BaseCoword::new("←"),
+                )));
                 self.skip_whitespace();
             }
 
@@ -502,11 +502,11 @@ impl<'a> Parser<'a> {
         self.expect_char(']')?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Rewrite,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Rewrite,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse rfl tactic
@@ -516,11 +516,11 @@ impl<'a> Parser<'a> {
         self.keyword("rfl")?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Rfl,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Rfl,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Parse sorry tactic
@@ -530,11 +530,11 @@ impl<'a> Parser<'a> {
         self.keyword("sorry")?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Sorry,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Sorry,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Parse assumption tactic
@@ -544,11 +544,11 @@ impl<'a> Parser<'a> {
         self.keyword("assumption")?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Assumption,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Assumption,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Parse contradiction tactic
@@ -558,11 +558,11 @@ impl<'a> Parser<'a> {
         self.keyword("contradiction")?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Contradiction,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Contradiction,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Parse calc tactic
@@ -622,10 +622,10 @@ impl<'a> Parser<'a> {
                 ))
             }
         };
-        let rel = Syntax::Atom(SyntaxAtom {
-            range: self.input().range_from(rel_start),
-            value: eterned::BaseCoword::new(rel_op),
-        });
+        let rel = Syntax::Atom(SyntaxAtom::new(
+            self.input().range_from(rel_start),
+            eterned::BaseCoword::new(rel_op),
+        ));
         self.skip_whitespace();
 
         let rhs = self.term()?;
@@ -640,11 +640,11 @@ impl<'a> Parser<'a> {
             self.term()?
         };
 
-        steps.push(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CalcStep,
-            range: self.input().range_from(start),
-            children: smallvec![lhs, rel, rhs, proof],
-        })));
+        steps.push(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CalcStep,
+            self.input().range_from(start),
+            smallvec![lhs, rel, rhs, proof],
+        ))));
 
         // Additional steps
         self.skip_whitespace_and_comments();
@@ -697,10 +697,10 @@ impl<'a> Parser<'a> {
                     ))
                 }
             };
-            let rel = Syntax::Atom(SyntaxAtom {
-                range: self.input().range_from(rel_start),
-                value: eterned::BaseCoword::new(rel_op),
-            });
+            let rel = Syntax::Atom(SyntaxAtom::new(
+                self.input().range_from(rel_start),
+                eterned::BaseCoword::new(rel_op),
+            ));
             self.skip_whitespace();
 
             let rhs = self.term()?;
@@ -715,21 +715,21 @@ impl<'a> Parser<'a> {
                 self.term()?
             };
 
-            steps.push(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::CalcStep,
-                range: self.input().range_from(step_start),
-                children: smallvec![rel, rhs, proof],
-            })));
+            steps.push(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::CalcStep,
+                self.input().range_from(step_start),
+                smallvec![rel, rhs, proof],
+            ))));
 
             self.skip_whitespace_and_comments();
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Calc,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Calc,
             range,
-            children: steps.into(),
-        })))
+            steps.into(),
+        ))))
     }
 
     /// Parse have tactic: `have name : type := proof`
@@ -769,11 +769,11 @@ impl<'a> Parser<'a> {
         children.push(ty);
         children.push(proof);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::TacticHave,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::TacticHave,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse let tactic: `let name := value`
@@ -793,11 +793,11 @@ impl<'a> Parser<'a> {
         let value = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::TacticLet,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::TacticLet,
             range,
-            children: smallvec![name, value],
-        })))
+            smallvec![name, value],
+        ))))
     }
 
     /// Parse show tactic: `show type`
@@ -810,11 +810,11 @@ impl<'a> Parser<'a> {
         let ty = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::TacticShow,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::TacticShow,
             range,
-            children: smallvec![ty],
-        })))
+            smallvec![ty],
+        ))))
     }
 
     /// Parse parenthesized tactic: `(tactic)`
@@ -837,11 +837,11 @@ impl<'a> Parser<'a> {
         self.keyword("constructor")?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Constructor,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Constructor,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// These are placeholders for category-based parsing
@@ -901,11 +901,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse case pattern for cases/induction
@@ -923,11 +923,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CasePattern,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CasePattern,
             range,
-            children: vars.into(),
-        })))
+            vars.into(),
+        ))))
     }
 
     /// Parse simp argument (can be a lemma name or -lemma to exclude)
@@ -945,11 +945,11 @@ impl<'a> Parser<'a> {
 
         if exclude {
             let range = self.input().range_from(start);
-            Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::SimpExclude,
+            Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::SimpExclude,
                 range,
-                children: smallvec![lemma],
-            })))
+                smallvec![lemma],
+            ))))
         } else {
             Ok(lemma)
         }

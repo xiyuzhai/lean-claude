@@ -1,4 +1,4 @@
-use lean_syn_expr::{Syntax, SyntaxKind, SyntaxNode};
+use lean_syn_expr::{Syntax, SyntaxAtom, SyntaxKind, SyntaxNode};
 use smallvec::smallvec;
 
 use crate::{
@@ -199,11 +199,11 @@ impl MacroExpander {
             new_children.push(expanded);
         }
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: node.kind,
-            range: node.range,
-            children: new_children.into(),
-        })))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            node.kind,
+            node.range,
+            new_children.into(),
+        ))))
     }
 
     /// Check if a pattern is from macro_rules (contains SyntaxQuotation)
@@ -334,43 +334,34 @@ impl MacroExpander {
         };
 
         // panic! macro: panic! msg => panic msg
-        let panic_pattern = Syntax::Node(Box::new(SyntaxNode {
-            kind: lean_syn_expr::SyntaxKind::App,
-            range: dummy_range,
-            children: smallvec![
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: BaseCoword::new("msg")
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: BaseCoword::new("term")
-                }),
+        let panic_pattern = Syntax::Node(Box::new(SyntaxNode::new(
+            lean_syn_expr::SyntaxKind::App,
+            dummy_range,
+            smallvec![
+                Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("msg"))),
+                Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("term"))),
             ],
-        }));
+        )));
 
-        let panic_template = Syntax::Node(Box::new(SyntaxNode {
-            kind: lean_syn_expr::SyntaxKind::SyntaxQuotation,
-            range: dummy_range,
-            children: smallvec![Syntax::Node(Box::new(SyntaxNode {
-                kind: lean_syn_expr::SyntaxKind::App,
-                range: dummy_range,
-                children: smallvec![
-                    Syntax::Atom(SyntaxAtom {
-                        range: dummy_range,
-                        value: BaseCoword::new("panic")
-                    }),
-                    Syntax::Node(Box::new(SyntaxNode {
-                        kind: lean_syn_expr::SyntaxKind::SyntaxAntiquotation,
-                        range: dummy_range,
-                        children: smallvec![Syntax::Atom(SyntaxAtom {
-                            range: dummy_range,
-                            value: BaseCoword::new("msg")
-                        }),],
-                    })),
+        let panic_template = Syntax::Node(Box::new(SyntaxNode::new(
+            lean_syn_expr::SyntaxKind::SyntaxQuotation,
+            dummy_range,
+            smallvec![Syntax::Node(Box::new(SyntaxNode::new(
+                lean_syn_expr::SyntaxKind::App,
+                dummy_range,
+                smallvec![
+                    Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("panic"))),
+                    Syntax::Node(Box::new(SyntaxNode::new(
+                        lean_syn_expr::SyntaxKind::SyntaxAntiquotation,
+                        dummy_range,
+                        smallvec![Syntax::Atom(SyntaxAtom::new(
+                            dummy_range,
+                            BaseCoword::new("msg")
+                        )),],
+                    ))),
                 ],
-            })),],
-        }));
+            ))),],
+        )));
 
         let panic_macro = crate::environment::MacroDefinition {
             name: BaseCoword::new("panic!"),
@@ -383,24 +374,21 @@ impl MacroExpander {
         self.env.register_macro(panic_macro);
 
         // unreachable! macro: unreachable! => panic "unreachable code"
-        let unreachable_template = Syntax::Node(Box::new(SyntaxNode {
-            kind: lean_syn_expr::SyntaxKind::SyntaxQuotation,
-            range: dummy_range,
-            children: smallvec![Syntax::Node(Box::new(SyntaxNode {
-                kind: lean_syn_expr::SyntaxKind::App,
-                range: dummy_range,
-                children: smallvec![
-                    Syntax::Atom(SyntaxAtom {
-                        range: dummy_range,
-                        value: BaseCoword::new("panic")
-                    }),
-                    Syntax::Atom(SyntaxAtom {
-                        range: dummy_range,
-                        value: BaseCoword::new("\"unreachable code\"")
-                    }),
+        let unreachable_template = Syntax::Node(Box::new(SyntaxNode::new(
+            lean_syn_expr::SyntaxKind::SyntaxQuotation,
+            dummy_range,
+            smallvec![Syntax::Node(Box::new(SyntaxNode::new(
+                lean_syn_expr::SyntaxKind::App,
+                dummy_range,
+                smallvec![
+                    Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("panic"))),
+                    Syntax::Atom(SyntaxAtom::new(
+                        dummy_range,
+                        BaseCoword::new("\"unreachable code\"")
+                    )),
                 ],
-            })),],
-        }));
+            ))),],
+        )));
 
         // unreachable! has no parameters
         let unreachable_pattern = Syntax::Missing;
@@ -416,69 +404,48 @@ impl MacroExpander {
         self.env.register_macro(unreachable_macro);
 
         // assert! macro: assert! cond => if cond then () else panic "assertion failed"
-        let assert_pattern = Syntax::Node(Box::new(SyntaxNode {
-            kind: lean_syn_expr::SyntaxKind::App,
-            range: dummy_range,
-            children: smallvec![
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: BaseCoword::new("cond")
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: BaseCoword::new("term")
-                }),
+        let assert_pattern = Syntax::Node(Box::new(SyntaxNode::new(
+            lean_syn_expr::SyntaxKind::App,
+            dummy_range,
+            smallvec![
+                Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("cond"))),
+                Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("term"))),
             ],
-        }));
+        )));
 
-        let assert_template = Syntax::Node(Box::new(SyntaxNode {
-            kind: lean_syn_expr::SyntaxKind::SyntaxQuotation,
-            range: dummy_range,
-            children: smallvec![Syntax::Node(Box::new(SyntaxNode {
-                kind: lean_syn_expr::SyntaxKind::App,
-                range: dummy_range,
-                children: smallvec![
-                    Syntax::Atom(SyntaxAtom {
-                        range: dummy_range,
-                        value: BaseCoword::new("if")
-                    }),
-                    Syntax::Node(Box::new(SyntaxNode {
-                        kind: lean_syn_expr::SyntaxKind::SyntaxAntiquotation,
-                        range: dummy_range,
-                        children: smallvec![Syntax::Atom(SyntaxAtom {
-                            range: dummy_range,
-                            value: BaseCoword::new("cond")
-                        }),],
-                    })),
-                    Syntax::Atom(SyntaxAtom {
-                        range: dummy_range,
-                        value: BaseCoword::new("then")
-                    }),
-                    Syntax::Atom(SyntaxAtom {
-                        range: dummy_range,
-                        value: BaseCoword::new("()")
-                    }),
-                    Syntax::Atom(SyntaxAtom {
-                        range: dummy_range,
-                        value: BaseCoword::new("else")
-                    }),
-                    Syntax::Node(Box::new(SyntaxNode {
-                        kind: lean_syn_expr::SyntaxKind::App,
-                        range: dummy_range,
-                        children: smallvec![
-                            Syntax::Atom(SyntaxAtom {
-                                range: dummy_range,
-                                value: BaseCoword::new("panic")
-                            }),
-                            Syntax::Atom(SyntaxAtom {
-                                range: dummy_range,
-                                value: BaseCoword::new("\"assertion failed\"")
-                            }),
+        let assert_template = Syntax::Node(Box::new(SyntaxNode::new(
+            lean_syn_expr::SyntaxKind::SyntaxQuotation,
+            dummy_range,
+            smallvec![Syntax::Node(Box::new(SyntaxNode::new(
+                lean_syn_expr::SyntaxKind::App,
+                dummy_range,
+                smallvec![
+                    Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("if"))),
+                    Syntax::Node(Box::new(SyntaxNode::new(
+                        lean_syn_expr::SyntaxKind::SyntaxAntiquotation,
+                        dummy_range,
+                        smallvec![Syntax::Atom(SyntaxAtom::new(
+                            dummy_range,
+                            BaseCoword::new("cond")
+                        )),],
+                    ))),
+                    Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("then"))),
+                    Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("()"))),
+                    Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("else"))),
+                    Syntax::Node(Box::new(SyntaxNode::new(
+                        lean_syn_expr::SyntaxKind::App,
+                        dummy_range,
+                        smallvec![
+                            Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("panic"))),
+                            Syntax::Atom(SyntaxAtom::new(
+                                dummy_range,
+                                BaseCoword::new("\"assertion failed\"")
+                            )),
                         ],
-                    })),
+                    ))),
                 ],
-            })),],
-        }));
+            ))),],
+        )));
 
         let assert_macro = crate::environment::MacroDefinition {
             name: BaseCoword::new("assert!"),
@@ -492,35 +459,29 @@ impl MacroExpander {
 
         // dbg! macro: dbg! expr => let tmp := expr; trace! tmp; tmp
         // The dbg! macro prints the expression and returns its value
-        let dbg_pattern = Syntax::Node(Box::new(SyntaxNode {
-            kind: lean_syn_expr::SyntaxKind::App,
-            range: dummy_range,
-            children: smallvec![
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: BaseCoword::new("expr")
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: BaseCoword::new("term")
-                }),
+        let dbg_pattern = Syntax::Node(Box::new(SyntaxNode::new(
+            lean_syn_expr::SyntaxKind::App,
+            dummy_range,
+            smallvec![
+                Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("expr"))),
+                Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("term"))),
             ],
-        }));
+        )));
 
         // For now, just return the expression itself since we don't have trace! yet
         // In a full implementation, this would: let tmp := expr; trace! tmp; tmp
-        let dbg_template = Syntax::Node(Box::new(SyntaxNode {
-            kind: lean_syn_expr::SyntaxKind::SyntaxQuotation,
-            range: dummy_range,
-            children: smallvec![Syntax::Node(Box::new(SyntaxNode {
-                kind: lean_syn_expr::SyntaxKind::SyntaxAntiquotation,
-                range: dummy_range,
-                children: smallvec![Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: BaseCoword::new("expr")
-                }),],
-            })),],
-        }));
+        let dbg_template = Syntax::Node(Box::new(SyntaxNode::new(
+            lean_syn_expr::SyntaxKind::SyntaxQuotation,
+            dummy_range,
+            smallvec![Syntax::Node(Box::new(SyntaxNode::new(
+                lean_syn_expr::SyntaxKind::SyntaxAntiquotation,
+                dummy_range,
+                smallvec![Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    BaseCoword::new("expr")
+                )),],
+            ))),],
+        )));
 
         let dbg_macro = crate::environment::MacroDefinition {
             name: BaseCoword::new("dbg!"),

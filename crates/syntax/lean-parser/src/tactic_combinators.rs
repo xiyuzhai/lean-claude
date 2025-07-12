@@ -22,11 +22,11 @@ impl<'a> Parser<'a> {
         let tactic = self.tactic()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Repeat,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Repeat,
             range,
-            children: smallvec![tactic],
-        })))
+            smallvec![tactic],
+        ))))
     }
 
     /// Parse `try` tactic combinator
@@ -39,11 +39,11 @@ impl<'a> Parser<'a> {
         let tactic = self.tactic()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Try,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Try,
             range,
-            children: smallvec![tactic],
-        })))
+            smallvec![tactic],
+        ))))
     }
 
     /// Parse `first` tactic combinator
@@ -70,11 +70,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::First,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::First,
             range,
-            children: tactics.into(),
-        })))
+            tactics.into(),
+        ))))
     }
 
     /// Parse `all_goals` tactic combinator
@@ -87,11 +87,11 @@ impl<'a> Parser<'a> {
         let tactic = self.tactic()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::AllGoals,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::AllGoals,
             range,
-            children: smallvec![tactic],
-        })))
+            smallvec![tactic],
+        ))))
     }
 
     /// Parse `any_goals` tactic combinator
@@ -104,11 +104,11 @@ impl<'a> Parser<'a> {
         let tactic = self.tactic()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::AllGoals, // Reuse AllGoals for now
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::AllGoals, // Reuse AllGoals for now
             range,
-            children: smallvec![tactic],
-        })))
+            smallvec![tactic],
+        ))))
     }
 
     /// Parse `focus` tactic combinator
@@ -121,11 +121,11 @@ impl<'a> Parser<'a> {
         let tactic = self.tactic()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Focus,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Focus,
             range,
-            children: smallvec![tactic],
-        })))
+            smallvec![tactic],
+        ))))
     }
 
     /// Parse `fail_if_success` tactic
@@ -138,11 +138,11 @@ impl<'a> Parser<'a> {
         let tactic = self.tactic()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic, // Use CustomTactic for now
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic, // Use CustomTactic for now
             range,
-            children: smallvec![tactic],
-        })))
+            smallvec![tactic],
+        ))))
     }
 
     /// Parse `guard` tactics (guard_hyp, guard_target, guard_expr)
@@ -164,11 +164,11 @@ impl<'a> Parser<'a> {
             let guard_expr = self.term()?;
 
             let range = self.input().range_from(start);
-            Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::CustomTactic,
+            Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::CustomTactic,
                 range,
-                children: smallvec![hyp, guard_expr],
-            })))
+                smallvec![hyp, guard_expr],
+            ))))
         } else if self.peek_keyword("guard_target") {
             self.keyword("guard_target")?;
             self.skip_whitespace();
@@ -177,11 +177,11 @@ impl<'a> Parser<'a> {
             let target = self.term()?;
 
             let range = self.input().range_from(start);
-            Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::CustomTactic,
+            Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::CustomTactic,
                 range,
-                children: smallvec![target],
-            })))
+                smallvec![target],
+            ))))
         } else if self.peek_keyword("guard_expr") {
             self.keyword("guard_expr")?;
             self.skip_whitespace();
@@ -197,11 +197,11 @@ impl<'a> Parser<'a> {
             let expected = self.term()?;
 
             let range = self.input().range_from(start);
-            Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::CustomTactic,
+            Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::CustomTactic,
                 range,
-                children: smallvec![expr, expected],
-            })))
+                smallvec![expr, expected],
+            ))))
         } else {
             Err(ParseError::boxed(
                 ParseErrorKind::Expected("guard tactic".to_string()),
@@ -253,11 +253,11 @@ impl<'a> Parser<'a> {
         }
         children.push(conv_tactics);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse conversion tactics inside conv mode
@@ -315,11 +315,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::TacticSeq,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::TacticSeq,
             range,
-            children: tactics.into(),
-        })))
+            tactics.into(),
+        ))))
     }
 
     /// Parse `suffices` tactic
@@ -367,20 +367,20 @@ impl<'a> Parser<'a> {
         children.push(ty);
         children.push(proof);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Helper to create an atom
     fn make_tactic_atom(&self, s: &str, start: lean_syn_expr::SourcePos) -> Syntax {
         let range = self.input().range_from(start);
-        Syntax::Atom(lean_syn_expr::SyntaxAtom {
+        Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
             range,
-            value: eterned::BaseCoword::new(s),
-        })
+            eterned::BaseCoword::new(s),
+        ))
     }
 }
 

@@ -40,11 +40,11 @@ impl<'a> Parser<'a> {
         self.expect_char(']')?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::AttributeList,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::AttributeList,
             range,
-            children: attributes,
-        })))
+            attributes,
+        ))))
     }
 
     /// Parse a single attribute: `attr` or `attr value` or `attr := value`
@@ -68,11 +68,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Attribute,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Attribute,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse attribute value (can be identifier, string, number, or

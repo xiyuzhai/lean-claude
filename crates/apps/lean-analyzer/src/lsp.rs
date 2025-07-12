@@ -126,6 +126,21 @@ impl LeanLanguageServer {
                 let params: InlayHintParams = serde_json::from_value(req.params).unwrap();
                 self.handle_inlay_hints(params).await
             }
+            "textDocument/prepareCallHierarchy" => {
+                let params: CallHierarchyPrepareParams =
+                    serde_json::from_value(req.params).unwrap();
+                self.handle_prepare_call_hierarchy(params).await
+            }
+            "callHierarchy/incomingCalls" => {
+                let params: CallHierarchyIncomingCallsParams =
+                    serde_json::from_value(req.params).unwrap();
+                self.handle_incoming_calls(params).await
+            }
+            "callHierarchy/outgoingCalls" => {
+                let params: CallHierarchyOutgoingCallsParams =
+                    serde_json::from_value(req.params).unwrap();
+                self.handle_outgoing_calls(params).await
+            }
             _ => {
                 warn!("Unhandled request method: {}", req.method);
                 Err(anyhow::anyhow!("Unimplemented method: {}", req.method))
@@ -264,12 +279,19 @@ impl LeanLanguageServer {
         Ok(serde_json::to_value(lsp_references)?)
     }
 
-    async fn handle_document_symbols(
-        &self,
-        _params: DocumentSymbolParams,
-    ) -> anyhow::Result<Value> {
-        // TODO: Implement document symbols
-        Ok(serde_json::to_value(Vec::<DocumentSymbol>::new())?)
+    async fn handle_document_symbols(&self, params: DocumentSymbolParams) -> anyhow::Result<Value> {
+        let uri = params.text_document.uri;
+        let path = uri
+            .to_file_path()
+            .map_err(|_| anyhow::anyhow!("Invalid file path"))?;
+
+        let document_symbols = self.analysis_host.get_document_symbols(&path);
+        let lsp_symbols: Vec<DocumentSymbol> = document_symbols
+            .into_iter()
+            .map(|symbol| self.document_symbol_to_lsp(symbol))
+            .collect();
+
+        Ok(serde_json::to_value(lsp_symbols)?)
     }
 
     async fn handle_workspace_symbols(
@@ -598,6 +620,195 @@ impl LeanLanguageServer {
 
         Ok(serde_json::to_value(lsp_hints)?)
     }
+
+    /// Handle call hierarchy preparation
+    async fn handle_prepare_call_hierarchy(
+        &self,
+        params: CallHierarchyPrepareParams,
+    ) -> anyhow::Result<Value> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        let path = uri
+            .to_file_path()
+            .map_err(|_| anyhow::anyhow!("Invalid file path"))?;
+        let text_range = self.lsp_position_to_text_range(position, &path).await?;
+
+        if let Some(item) = self.analysis_host.prepare_call_hierarchy(&path, text_range) {
+            let lsp_item = self.call_hierarchy_item_to_lsp(item);
+            Ok(serde_json::to_value(vec![lsp_item])?)
+        } else {
+            Ok(serde_json::to_value(
+                Vec::<lsp_types::CallHierarchyItem>::new(),
+            )?)
+        }
+    }
+
+    /// Handle incoming calls request
+    async fn handle_incoming_calls(
+        &self,
+        params: CallHierarchyIncomingCallsParams,
+    ) -> anyhow::Result<Value> {
+        let item = self.call_hierarchy_item_from_lsp(params.item);
+        let calls = self.analysis_host.get_incoming_calls(&item);
+        let lsp_calls: Vec<CallHierarchyIncomingCall> = calls
+            .into_iter()
+            .map(|call| self.call_hierarchy_incoming_call_to_lsp(call))
+            .collect();
+
+        Ok(serde_json::to_value(lsp_calls)?)
+    }
+
+    /// Handle outgoing calls request
+    async fn handle_outgoing_calls(
+        &self,
+        params: CallHierarchyOutgoingCallsParams,
+    ) -> anyhow::Result<Value> {
+        let item = self.call_hierarchy_item_from_lsp(params.item);
+        let calls = self.analysis_host.get_outgoing_calls(&item);
+        let lsp_calls: Vec<CallHierarchyOutgoingCall> = calls
+            .into_iter()
+            .map(|call| self.call_hierarchy_outgoing_call_to_lsp(call))
+            .collect();
+
+        Ok(serde_json::to_value(lsp_calls)?)
+    }
+
+    // Helper methods for type conversions
+
+    fn document_symbol_to_lsp(
+        &self,
+        symbol: crate::analysis::DocumentSymbolItem,
+    ) -> DocumentSymbol {
+        DocumentSymbol {
+            name: symbol.name,
+            detail: symbol.detail,
+            kind: self.symbol_kind_to_lsp(&symbol.kind),
+            tags: None,
+            #[allow(deprecated)]
+            deprecated: None,
+            range: self.text_range_to_lsp_range_sync(symbol.range),
+            selection_range: self.text_range_to_lsp_range_sync(symbol.selection_range),
+            children: Some(
+                symbol
+                    .children
+                    .into_iter()
+                    .map(|child| self.document_symbol_to_lsp(child))
+                    .collect(),
+            ),
+        }
+    }
+
+    fn call_hierarchy_item_to_lsp(
+        &self,
+        item: crate::analysis::CallHierarchyItem,
+    ) -> lsp_types::CallHierarchyItem {
+        lsp_types::CallHierarchyItem {
+            name: item.name,
+            kind: self.symbol_kind_to_lsp(&item.kind),
+            tags: None,
+            detail: item.detail,
+            uri: Url::parse(&format!("file://{}", item.uri)).unwrap(),
+            range: self.text_range_to_lsp_range_sync(item.range),
+            selection_range: self.text_range_to_lsp_range_sync(item.selection_range),
+            data: None,
+        }
+    }
+
+    fn call_hierarchy_item_from_lsp(
+        &self,
+        item: lsp_types::CallHierarchyItem,
+    ) -> crate::analysis::CallHierarchyItem {
+        crate::analysis::CallHierarchyItem {
+            name: item.name,
+            kind: self.symbol_kind_from_lsp(item.kind),
+            uri: item.uri.to_string(),
+            range: self.lsp_range_to_text_range_sync(item.range),
+            selection_range: self.lsp_range_to_text_range_sync(item.selection_range),
+            detail: item.detail,
+        }
+    }
+
+    fn call_hierarchy_incoming_call_to_lsp(
+        &self,
+        call: crate::analysis::CallHierarchyCall,
+    ) -> CallHierarchyIncomingCall {
+        CallHierarchyIncomingCall {
+            from: self.call_hierarchy_item_to_lsp(call.from),
+            from_ranges: call
+                .from_ranges
+                .into_iter()
+                .map(|range| self.text_range_to_lsp_range_sync(range))
+                .collect(),
+        }
+    }
+
+    fn call_hierarchy_outgoing_call_to_lsp(
+        &self,
+        call: crate::analysis::CallHierarchyCall,
+    ) -> CallHierarchyOutgoingCall {
+        CallHierarchyOutgoingCall {
+            to: self.call_hierarchy_item_to_lsp(call.from),
+            from_ranges: call
+                .from_ranges
+                .into_iter()
+                .map(|range| self.text_range_to_lsp_range_sync(range))
+                .collect(),
+        }
+    }
+
+    fn symbol_kind_to_lsp(&self, kind: &crate::analysis::SymbolKind) -> SymbolKind {
+        match kind {
+            crate::analysis::SymbolKind::Definition => SymbolKind::FUNCTION,
+            crate::analysis::SymbolKind::Theorem => SymbolKind::FUNCTION,
+            crate::analysis::SymbolKind::Lemma => SymbolKind::FUNCTION,
+            crate::analysis::SymbolKind::Axiom => SymbolKind::CONSTANT,
+            crate::analysis::SymbolKind::Inductive => SymbolKind::ENUM,
+            crate::analysis::SymbolKind::Constructor => SymbolKind::CONSTRUCTOR,
+            crate::analysis::SymbolKind::Structure => SymbolKind::STRUCT,
+            crate::analysis::SymbolKind::Field => SymbolKind::FIELD,
+            crate::analysis::SymbolKind::Instance => SymbolKind::OBJECT,
+            crate::analysis::SymbolKind::Variable => SymbolKind::VARIABLE,
+            crate::analysis::SymbolKind::Namespace => SymbolKind::NAMESPACE,
+            crate::analysis::SymbolKind::Module => SymbolKind::MODULE,
+        }
+    }
+
+    fn symbol_kind_from_lsp(&self, kind: SymbolKind) -> crate::analysis::SymbolKind {
+        match kind {
+            SymbolKind::FUNCTION => crate::analysis::SymbolKind::Definition,
+            SymbolKind::CONSTANT => crate::analysis::SymbolKind::Axiom,
+            SymbolKind::ENUM => crate::analysis::SymbolKind::Inductive,
+            SymbolKind::CONSTRUCTOR => crate::analysis::SymbolKind::Constructor,
+            SymbolKind::STRUCT => crate::analysis::SymbolKind::Structure,
+            SymbolKind::FIELD => crate::analysis::SymbolKind::Field,
+            SymbolKind::OBJECT => crate::analysis::SymbolKind::Instance,
+            SymbolKind::VARIABLE => crate::analysis::SymbolKind::Variable,
+            SymbolKind::NAMESPACE => crate::analysis::SymbolKind::Namespace,
+            SymbolKind::MODULE => crate::analysis::SymbolKind::Module,
+            _ => crate::analysis::SymbolKind::Variable,
+        }
+    }
+
+    fn text_range_to_lsp_range_sync(&self, range: crate::analysis::TextRange) -> Range {
+        Range {
+            start: Position {
+                line: 0,
+                character: range.start as u32,
+            },
+            end: Position {
+                line: 0,
+                character: range.end as u32,
+            },
+        }
+    }
+
+    fn lsp_range_to_text_range_sync(&self, range: Range) -> crate::analysis::TextRange {
+        crate::analysis::TextRange::new(
+            range.start.character as usize,
+            range.end.character as usize,
+        )
+    }
 }
 
 /// Returns the server capabilities for the LSP initialization
@@ -674,6 +885,7 @@ pub fn server_capabilities() -> ServerCapabilities {
             },
         )),
         inlay_hint_provider: Some(OneOf::Left(true)),
+        call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
         ..Default::default()
     }
 }

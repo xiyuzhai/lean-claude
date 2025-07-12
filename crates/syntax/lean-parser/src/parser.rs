@@ -1,6 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use lean_syn_expr::{SourcePos, SourceRange, Syntax};
+use lean_syn_expr::{SourcePos, SourceRange, Syntax, Trivia, TriviaKind};
+use smallvec::SmallVec;
 
 use crate::{
     category::CategoryRegistry,
@@ -33,6 +34,8 @@ pub struct Parser<'a> {
     errors: Vec<ParseError>,
     /// Maximum number of errors before stopping
     max_errors: usize,
+    /// Currently collected leading trivia
+    leading_trivia: Vec<Trivia>,
 }
 
 #[derive(Clone)]
@@ -53,6 +56,7 @@ impl<'a> Parser<'a> {
             warnings: Vec::new(),
             errors: Vec::new(),
             max_errors: 100,
+            leading_trivia: Vec::new(),
         }
     }
 
@@ -67,6 +71,7 @@ impl<'a> Parser<'a> {
             warnings: Vec::new(),
             errors: Vec::new(),
             max_errors: 100,
+            leading_trivia: Vec::new(),
         }
     }
 
@@ -248,54 +253,172 @@ impl<'a> Parser<'a> {
     }
 
     pub fn skip_whitespace(&mut self) {
-        self.consume_while(|ch| ch.is_whitespace());
+        self.collect_leading_trivia();
     }
 
-    pub fn skip_whitespace_and_comments(&mut self) {
+    /// Collect whitespace and comments as trivia
+    fn collect_leading_trivia(&mut self) {
         loop {
-            self.skip_whitespace();
+            let start = self.position();
 
-            // Try to parse documentation comments as syntax nodes
+            // Collect whitespace
+            let whitespace = self.consume_while(|ch| ch.is_whitespace());
+            if !whitespace.is_empty() {
+                let range = SourceRange {
+                    start,
+                    end: self.position(),
+                };
+                self.leading_trivia.push(Trivia {
+                    kind: TriviaKind::Whitespace,
+                    range,
+                    text: whitespace,
+                });
+            }
+
+            // Check for comments
             if self.peek() == Some('/') && self.input.peek_nth(1) == Some('-') {
+                let comment_start = self.position();
                 if self.input.peek_nth(2) == Some('-') || self.input.peek_nth(2) == Some('!') {
-                    // This is a documentation comment, don't skip it
-                    break;
+                    // Documentation comment - collect it as trivia
+                    let comment_text = self.collect_doc_comment();
+                    let range = SourceRange {
+                        start: comment_start,
+                        end: self.position(),
+                    };
+                    self.leading_trivia.push(Trivia {
+                        kind: TriviaKind::DocComment,
+                        range,
+                        text: comment_text,
+                    });
+                } else {
+                    // Regular block comment
+                    let comment_text = self.collect_block_comment();
+                    let range = SourceRange {
+                        start: comment_start,
+                        end: self.position(),
+                    };
+                    self.leading_trivia.push(Trivia {
+                        kind: TriviaKind::BlockComment,
+                        range,
+                        text: comment_text,
+                    });
                 }
-                // Regular block comment
-                self.advance();
-                self.advance();
-                self.skip_block_comment();
             } else if self.peek() == Some('-') && self.input.peek_nth(1) == Some('-') {
                 // Line comment
-                self.advance();
-                self.advance();
-                self.consume_while(|ch| ch != '\n');
+                let comment_start = self.position();
+                let comment_text = self.collect_line_comment();
+                let range = SourceRange {
+                    start: comment_start,
+                    end: self.position(),
+                };
+                self.leading_trivia.push(Trivia {
+                    kind: TriviaKind::LineComment,
+                    range,
+                    text: comment_text,
+                });
             } else {
                 break;
             }
         }
     }
 
-    fn skip_block_comment(&mut self) {
+    pub fn skip_whitespace_and_comments(&mut self) {
+        // This now has the same behavior as skip_whitespace since we collect all trivia
+        self.skip_whitespace();
+    }
+
+    /// Collect a line comment (-- comment)
+    fn collect_line_comment(&mut self) -> String {
+        let mut comment = String::new();
+
+        // Consume --
+        comment.push(self.advance().unwrap());
+        comment.push(self.advance().unwrap());
+
+        // Consume rest of line
+        comment.push_str(&self.consume_while(|ch| ch != '\n'));
+
+        comment
+    }
+
+    /// Collect a block comment (/- comment -/)
+    fn collect_block_comment(&mut self) -> String {
+        let mut comment = String::new();
         let mut depth = 1;
+
+        // Consume /-
+        comment.push(self.advance().unwrap());
+        comment.push(self.advance().unwrap());
+
         while depth > 0 {
             match (self.peek(), self.input.peek_nth(1)) {
                 (Some('/'), Some('-')) => {
-                    self.advance();
-                    self.advance();
+                    comment.push(self.advance().unwrap());
+                    comment.push(self.advance().unwrap());
                     depth += 1;
                 }
                 (Some('-'), Some('/')) => {
-                    self.advance();
-                    self.advance();
+                    comment.push(self.advance().unwrap());
+                    comment.push(self.advance().unwrap());
                     depth -= 1;
                 }
-                (Some(_), _) => {
-                    self.advance();
+                (Some(ch), _) => {
+                    comment.push(self.advance().unwrap());
                 }
                 (None, _) => break,
             }
         }
+
+        comment
+    }
+
+    /// Collect a documentation comment (/-- or /-!)
+    fn collect_doc_comment(&mut self) -> String {
+        let mut comment = String::new();
+
+        // Consume /-- or /-!
+        comment.push(self.advance().unwrap()); // /
+        comment.push(self.advance().unwrap()); // -
+        comment.push(self.advance().unwrap()); // - or !
+
+        // For documentation comments, collect until -/
+        while let (Some(ch), next) = (self.peek(), self.input.peek_nth(1)) {
+            if ch == '-' && next == Some('/') {
+                comment.push(self.advance().unwrap());
+                comment.push(self.advance().unwrap());
+                break;
+            } else {
+                comment.push(self.advance().unwrap());
+            }
+        }
+
+        comment
+    }
+
+    /// Take the currently collected leading trivia and reset the collection
+    fn take_leading_trivia(&mut self) -> Vec<Trivia> {
+        std::mem::take(&mut self.leading_trivia)
+    }
+
+    /// Create a syntax node with leading trivia attached
+    fn create_node(
+        &mut self,
+        kind: lean_syn_expr::SyntaxKind,
+        range: SourceRange,
+        children: SmallVec<[Syntax; 4]>,
+    ) -> Syntax {
+        let leading_trivia = self.take_leading_trivia();
+        let mut node = lean_syn_expr::SyntaxNode::new(kind, range, children);
+        node.leading_trivia = leading_trivia;
+        Syntax::Node(Box::new(node))
+    }
+
+    /// Create a syntax atom with leading trivia attached
+    fn create_atom(&mut self, range: SourceRange, value: eterned::BaseCoword) -> Syntax {
+        let leading_trivia = self.take_leading_trivia();
+        let mut atom = lean_syn_expr::SyntaxAtom::new(range, value);
+        atom.leading_trivia = leading_trivia;
+        Syntax::Atom(atom)
     }
 
     pub fn identifier(&mut self) -> ParserResult<Syntax> {
@@ -311,10 +434,7 @@ impl<'a> Parser<'a> {
         let name = self.consume_while(is_id_continue);
         let range = self.input().range_from(start);
 
-        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
-            range,
-            value: eterned::BaseCoword::new(name),
-        }))
+        Ok(self.create_atom(range, eterned::BaseCoword::new(name)))
     }
 
     pub fn keyword(&mut self, kw: &str) -> ParserResult<()> {
@@ -446,10 +566,10 @@ impl<'a> Parser<'a> {
         };
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
             range,
-            value: eterned::BaseCoword::new(num),
-        }))
+            eterned::BaseCoword::new(num),
+        )))
     }
 
     fn parse_decimal_number(&mut self) -> String {
@@ -534,10 +654,10 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
             range,
-            value: eterned::BaseCoword::new(content),
-        }))
+            eterned::BaseCoword::new(content),
+        )))
     }
 
     pub fn char_literal(&mut self) -> ParserResult<Syntax> {
@@ -592,10 +712,10 @@ impl<'a> Parser<'a> {
         self.expect_char('\'')?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
             range,
-            value: eterned::BaseCoword::new(ch.to_string()),
-        }))
+            eterned::BaseCoword::new(ch.to_string()),
+        )))
     }
 
     pub fn raw_string_literal(&mut self) -> ParserResult<Syntax> {
@@ -659,10 +779,10 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
             range,
-            value: eterned::BaseCoword::new(content),
-        }))
+            eterned::BaseCoword::new(content),
+        )))
     }
 
     pub fn interpolated_string_literal(&mut self) -> ParserResult<Syntax> {
@@ -683,10 +803,10 @@ impl<'a> Parser<'a> {
                     self.advance();
                     if !current_str.is_empty() {
                         let range = self.input().range_from(start);
-                        parts.push(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                        parts.push(Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
                             range,
-                            value: eterned::BaseCoword::new(current_str),
-                        }));
+                            eterned::BaseCoword::new(current_str),
+                        )));
                     }
                     break;
                 }
@@ -694,10 +814,10 @@ impl<'a> Parser<'a> {
                     // Save current string part if any
                     if !current_str.is_empty() {
                         let range = self.input().range_from(start);
-                        parts.push(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                        parts.push(Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
                             range,
-                            value: eterned::BaseCoword::new(current_str.clone()),
-                        }));
+                            eterned::BaseCoword::new(current_str.clone()),
+                        )));
                         current_str.clear();
                     }
 
@@ -758,11 +878,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-            kind: lean_syn_expr::SyntaxKind::StringInterpolation,
+        Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+            lean_syn_expr::SyntaxKind::StringInterpolation,
             range,
-            children: parts.into(),
-        })))
+            parts.into(),
+        ))))
     }
 
     pub fn peek_raw_string(&self) -> bool {
@@ -827,11 +947,11 @@ impl<'a> Parser<'a> {
                     self.expect_char(close_delim)?;
 
                     let range = self.input().range_from(start);
-                    Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-                        kind: binder_kind,
+                    Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+                        binder_kind,
                         range,
-                        children: vec![first_id, ty].into(),
-                    })))
+                        vec![first_id, ty].into(),
+                    ))))
                 } else {
                     // This might be [Monad m] where "Monad m" is the full term
                     // Restore and parse as a term
@@ -841,11 +961,11 @@ impl<'a> Parser<'a> {
                     self.expect_char(close_delim)?;
 
                     let range = self.input().range_from(start);
-                    Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-                        kind: binder_kind,
+                    Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+                        binder_kind,
                         range,
-                        children: vec![term].into(),
-                    })))
+                        vec![term].into(),
+                    ))))
                 }
             } else {
                 // Empty brackets or starts with non-identifier
@@ -882,11 +1002,11 @@ impl<'a> Parser<'a> {
                 children.push(t);
             }
 
-            Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-                kind: binder_kind,
+            Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+                binder_kind,
                 range,
-                children: children.into(),
-            })))
+                children.into(),
+            ))))
         }
     }
 }

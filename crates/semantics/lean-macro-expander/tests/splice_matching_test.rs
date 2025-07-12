@@ -19,51 +19,51 @@ fn test_splice_pattern_matching() {
         end: SourcePos::new(0, 0, 0),
     };
 
-    let pattern = Syntax::Node(Box::new(SyntaxNode {
-        kind: SyntaxKind::App,
-        range: dummy_range,
-        children: vec![
-            Syntax::Atom(SyntaxAtom {
-                range: dummy_range,
-                value: BaseCoword::new("wrap".to_string()),
-            }),
-            Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::SyntaxSplice,
-                range: dummy_range,
-                children: vec![Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: BaseCoword::new("xs".to_string()),
-                })]
+    let pattern = Syntax::Node(Box::new(SyntaxNode::new(
+        SyntaxKind::App,
+        dummy_range,
+        vec![
+            Syntax::Atom(SyntaxAtom::new(
+                dummy_range,
+                BaseCoword::new("wrap".to_string()),
+            )),
+            Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::SyntaxSplice,
+                dummy_range,
+                vec![Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    BaseCoword::new("xs".to_string()),
+                ))]
                 .into(),
-            })),
+            ))),
         ]
         .into(),
-    }));
+    )));
 
     // Create syntax manually: App(wrap, a, b, c)
-    let syntax = Syntax::Node(Box::new(SyntaxNode {
-        kind: SyntaxKind::App,
-        range: dummy_range,
-        children: vec![
-            Syntax::Atom(SyntaxAtom {
-                range: dummy_range,
-                value: BaseCoword::new("wrap".to_string()),
-            }),
-            Syntax::Atom(SyntaxAtom {
-                range: dummy_range,
-                value: BaseCoword::new("a".to_string()),
-            }),
-            Syntax::Atom(SyntaxAtom {
-                range: dummy_range,
-                value: BaseCoword::new("b".to_string()),
-            }),
-            Syntax::Atom(SyntaxAtom {
-                range: dummy_range,
-                value: BaseCoword::new("c".to_string()),
-            }),
+    let syntax = Syntax::Node(Box::new(SyntaxNode::new(
+        SyntaxKind::App,
+        dummy_range,
+        vec![
+            Syntax::Atom(SyntaxAtom::new(
+                dummy_range,
+                BaseCoword::new("wrap".to_string()),
+            )),
+            Syntax::Atom(SyntaxAtom::new(
+                dummy_range,
+                BaseCoword::new("a".to_string()),
+            )),
+            Syntax::Atom(SyntaxAtom::new(
+                dummy_range,
+                BaseCoword::new("b".to_string()),
+            )),
+            Syntax::Atom(SyntaxAtom::new(
+                dummy_range,
+                BaseCoword::new("c".to_string()),
+            )),
         ]
         .into(),
-    }));
+    )));
 
     println!("Manual pattern: {pattern:?}");
     println!("Manual syntax: {syntax:?}");
@@ -115,14 +115,14 @@ fn test_splice_template_substitution() {
     let c = seq_parser.identifier().unwrap();
 
     // Create an App node to hold the sequence
-    let seq = Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-        kind: lean_syn_expr::SyntaxKind::App,
-        range: lean_syn_expr::SourceRange {
+    let seq = Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+        lean_syn_expr::SyntaxKind::App,
+        lean_syn_expr::SourceRange {
             start: lean_syn_expr::SourcePos::new(0, 0, 0),
             end: lean_syn_expr::SourcePos::new(0, 0, 0),
         },
-        children: vec![a, b, c].into(),
-    }));
+        vec![a, b, c].into(),
+    )));
 
     bindings.insert(BaseCoword::new("xs".to_string()), seq);
 

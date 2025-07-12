@@ -4,7 +4,6 @@ use lean_syn_expr::{Syntax, SyntaxKind};
 
 /// Test parsing mathlib4 files that exercise specific language features
 #[test]
-#[ignore] // Run with `cargo test --test mathlib4_feature_test -- --ignored`
 fn test_mathlib4_import_statements() {
     // Test files with heavy import usage
     let test_content = r#"
@@ -37,7 +36,6 @@ variable {α : Sort*}
 }
 
 #[test]
-#[ignore]
 fn test_mathlib4_attribute_syntax() {
     // Test attribute syntax commonly used in mathlib4
     let test_content = r#"
@@ -66,7 +64,6 @@ instance (priority := 10) decidableEq_of_subsingleton [Subsingleton α] : Decida
 }
 
 #[test]
-#[ignore]
 fn test_mathlib4_instance_syntax() {
     // Test instance declarations with complex syntax
     let test_content = r#"
@@ -94,7 +91,6 @@ instance [Subsingleton α] (p : α → Prop) : Subsingleton (Subtype p) :=
 }
 
 #[test]
-#[ignore]
 fn test_mathlib4_theorem_syntax() {
     // Test theorem declarations with complex proof syntax
     let test_content = r#"

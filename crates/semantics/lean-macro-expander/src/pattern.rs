@@ -1,6 +1,6 @@
 use eterned::BaseCoword;
 use im::HashMap;
-use lean_syn_expr::{Syntax, SyntaxKind};
+use lean_syn_expr::{Syntax, SyntaxKind, SyntaxNode};
 
 use crate::error::{ExpansionError, ExpansionResult};
 
@@ -204,11 +204,11 @@ impl PatternMatcher {
                                 splice_elements[0].clone()
                             } else {
                                 // Create an App node containing all splice elements
-                                Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-                                    kind: SyntaxKind::App,
-                                    range: s_node.range,
-                                    children: splice_elements.into(),
-                                }))
+                                Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+                                    SyntaxKind::App,
+                                    s_node.range,
+                                    splice_elements.into(),
+                                )))
                             };
 
                             // Bind the splice variable
@@ -280,11 +280,11 @@ pub fn substitute_template(
                 for child in &node.children {
                     new_children.push(substitute_template(child, bindings)?);
                 }
-                return Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-                    kind: node.kind,
-                    range: node.range,
-                    children: new_children.into(),
-                })));
+                return Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+                    node.kind,
+                    node.range,
+                    new_children.into(),
+                ))));
             }
 
             // Handle antiquotations in template
@@ -348,11 +348,11 @@ pub fn substitute_template(
                 }
             }
 
-            Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-                kind: node.kind,
-                range: node.range,
-                children: new_children.into(),
-            })))
+            Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+                node.kind,
+                node.range,
+                new_children.into(),
+            ))))
         }
     }
 }

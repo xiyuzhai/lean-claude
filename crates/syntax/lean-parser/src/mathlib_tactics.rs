@@ -18,11 +18,11 @@ impl<'a> Parser<'a> {
         self.keyword("ring")?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Parse `ring_nf` tactic - normalizes ring expressions
@@ -41,11 +41,11 @@ impl<'a> Parser<'a> {
             children.push(loc);
         }
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse `linarith` tactic - linear arithmetic solver
@@ -85,11 +85,11 @@ impl<'a> Parser<'a> {
         let range = self.input().range_from(start);
         let children = args.unwrap_or_default().into();
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse `simp_all` tactic
@@ -113,11 +113,11 @@ impl<'a> Parser<'a> {
             children.push(cfg);
         }
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse `norm_num` tactic - numerical normalization
@@ -136,11 +136,11 @@ impl<'a> Parser<'a> {
             children.push(loc);
         }
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse `field_simp` tactic
@@ -161,11 +161,11 @@ impl<'a> Parser<'a> {
         }
         children.extend(lemmas);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse `abel` tactic - for abelian group problems
@@ -175,11 +175,11 @@ impl<'a> Parser<'a> {
         self.keyword("abel")?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Parse `omega` tactic - for linear integer/natural arithmetic
@@ -189,11 +189,11 @@ impl<'a> Parser<'a> {
         self.keyword("omega")?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Parse `tauto` tactic - tautology prover
@@ -203,11 +203,11 @@ impl<'a> Parser<'a> {
         self.keyword("tauto")?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Parse `aesop` tactic - general automation
@@ -242,11 +242,11 @@ impl<'a> Parser<'a> {
         let range = self.input().range_from(start);
         let children = config.unwrap_or_default().into();
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse `hint` tactic
@@ -256,11 +256,11 @@ impl<'a> Parser<'a> {
         self.keyword("hint")?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Parse `library_search` tactic
@@ -270,11 +270,11 @@ impl<'a> Parser<'a> {
         self.keyword("library_search")?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Parse `suggest` tactic
@@ -297,11 +297,11 @@ impl<'a> Parser<'a> {
             children.push(d);
         }
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse tactic location: `at h1 h2 ⊢` or `at *`
@@ -347,20 +347,20 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Some(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomTactic,
+        Ok(Some(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomTactic,
             range,
-            children: targets.into(),
-        }))))
+            targets.into(),
+        )))))
     }
 
     /// Helper to create an atom
     fn make_atom(&self, s: &str, start: lean_syn_expr::SourcePos) -> Syntax {
         let range = self.input().range_from(start);
-        Syntax::Atom(lean_syn_expr::SyntaxAtom {
+        Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
             range,
-            value: eterned::BaseCoword::new(s),
-        })
+            eterned::BaseCoword::new(s),
+        ))
     }
 
     /// Parse simp arguments: optional only, lemmas, and config
@@ -414,11 +414,11 @@ impl<'a> Parser<'a> {
                     }
                     children.push(lemma);
 
-                    Syntax::Node(Box::new(SyntaxNode {
-                        kind: SyntaxKind::CustomTactic,
+                    Syntax::Node(Box::new(SyntaxNode::new(
+                        SyntaxKind::CustomTactic,
                         range,
                         children,
-                    }))
+                    )))
                 } else {
                     lemma
                 };

@@ -384,7 +384,6 @@ fn test_parse_mathlib4_sample() {
 }
 
 #[test]
-#[ignore]
 fn test_parse_specific_mathlib4_file() {
     // Test parsing a specific well-known file
     let test_files = [
@@ -532,7 +531,6 @@ fn test_mathlib4_macro_heavy_files() {
 }
 
 #[test]
-#[ignore]
 fn test_mathlib4_syntax_categories() {
     // Test files that exercise different syntax categories
     let syntax_test_files = [
@@ -618,7 +616,6 @@ fn analyze_syntax(syntax: &lean_syn_expr::Syntax, stats: &mut SyntaxStats) {
 }
 
 #[test]
-#[ignore]
 fn test_mathlib4_style_imports() {
     // Test mathlib4-style import syntax
     let test_content = r#"

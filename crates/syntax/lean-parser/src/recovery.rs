@@ -76,11 +76,11 @@ impl<'a> Parser<'a> {
 
         // Create an error node containing the skipped content
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Error,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Error,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Skip until we find a matching delimiter
@@ -115,11 +115,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Error,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Error,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Skip until we find one of the specified tokens
@@ -130,22 +130,22 @@ impl<'a> Parser<'a> {
             for token in tokens {
                 if self.peek_keyword(token) {
                     let range = self.input().range_from(start);
-                    return Ok(Syntax::Node(Box::new(SyntaxNode {
-                        kind: SyntaxKind::Error,
+                    return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                        SyntaxKind::Error,
                         range,
-                        children: smallvec![],
-                    })));
+                        smallvec![],
+                    ))));
                 }
             }
             self.advance();
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Error,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Error,
             range,
-            children: smallvec![],
-        })))
+            smallvec![],
+        ))))
     }
 
     /// Insert a missing token and create a synthetic node
@@ -157,10 +157,10 @@ impl<'a> Parser<'a> {
         };
 
         // Create a synthetic atom for the missing token
-        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+        Ok(Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
             range,
-            value: eterned::BaseCoword::new(token),
-        }))
+            eterned::BaseCoword::new(token),
+        )))
     }
 
     /// Try an alternative parse when the primary one fails

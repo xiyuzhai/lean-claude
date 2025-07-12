@@ -7,7 +7,7 @@ use lean_kernel::{
     expr::{BinderInfo, ExprKind},
     Expr, Level, Name,
 };
-use lean_syn_expr::{Syntax, SyntaxKind};
+use lean_syn_expr::{Syntax, SyntaxAtom, SyntaxKind, SyntaxNode};
 
 use crate::{
     context::{LevelContext, LocalContext},
@@ -1155,33 +1155,33 @@ mod tests {
         };
 
         // Create syntax for: have h : Nat := 42, h
-        let have_syntax = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Have,
-            range: dummy_range,
-            children: vec![
+        let have_syntax = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Have,
+            dummy_range,
+            vec![
                 // name: h
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: eterned::BaseCoword::new("h".to_string()),
-                }),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    eterned::BaseCoword::new("h".to_string()),
+                )),
                 // type: Nat
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: eterned::BaseCoword::new("Nat".to_string()),
-                }),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    eterned::BaseCoword::new("Nat".to_string()),
+                )),
                 // proof: 42
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: eterned::BaseCoword::new("42".to_string()),
-                }),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    eterned::BaseCoword::new("42".to_string()),
+                )),
                 // body: h
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: eterned::BaseCoword::new("h".to_string()),
-                }),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    eterned::BaseCoword::new("h".to_string()),
+                )),
             ]
             .into(),
-        }));
+        )));
 
         let result = elab.elaborate(&have_syntax);
         assert!(
@@ -1211,23 +1211,23 @@ mod tests {
         };
 
         // Create syntax for: show Nat from 42
-        let show_syntax = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Show,
-            range: dummy_range,
-            children: vec![
+        let show_syntax = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Show,
+            dummy_range,
+            vec![
                 // type: Nat
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: eterned::BaseCoword::new("Nat".to_string()),
-                }),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    eterned::BaseCoword::new("Nat".to_string()),
+                )),
                 // proof: 42
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: eterned::BaseCoword::new("42".to_string()),
-                }),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    eterned::BaseCoword::new("42".to_string()),
+                )),
             ]
             .into(),
-        }));
+        )));
 
         let result = elab.elaborate(&show_syntax);
         assert!(
@@ -1257,15 +1257,15 @@ mod tests {
         };
 
         // Create syntax for character literal 'a'
-        let char_syntax = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CharLit,
-            range: dummy_range,
-            children: vec![Syntax::Atom(SyntaxAtom {
-                range: dummy_range,
-                value: eterned::BaseCoword::new("'a'".to_string()),
-            })]
+        let char_syntax = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CharLit,
+            dummy_range,
+            vec![Syntax::Atom(SyntaxAtom::new(
+                dummy_range,
+                eterned::BaseCoword::new("'a'".to_string()),
+            ))]
             .into(),
-        }));
+        )));
 
         let result = elab.elaborate(&char_syntax);
         assert!(
@@ -1295,69 +1295,48 @@ mod tests {
         };
 
         // Create syntax for: match x with | 0 => 1 | n => n + 1
-        let match_syntax = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Match,
-            range: dummy_range,
-            children: vec![
+        let match_syntax = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Match,
+            dummy_range,
+            vec![
                 // discriminant: x
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: eterned::BaseCoword::new("x".to_string()),
-                }),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    eterned::BaseCoword::new("x".to_string()),
+                )),
                 // First arm: | 0 => 1
-                Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::MatchArm,
-                    range: dummy_range,
-                    children: vec![
+                Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::MatchArm, dummy_range, vec![
                         // pattern: 0
-                        Syntax::Atom(SyntaxAtom {
-                            range: dummy_range,
-                            value: eterned::BaseCoword::new("0".to_string()),
-                        }),
+                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("0".to_string()),
+                        )),
                         // body: 1
-                        Syntax::Atom(SyntaxAtom {
-                            range: dummy_range,
-                            value: eterned::BaseCoword::new("1".to_string()),
-                        }),
+                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("1".to_string()),
+                        )),
                     ]
                     .into(),
-                })),
+                ))),
                 // Second arm: | n => n + 1
-                Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::MatchArm,
-                    range: dummy_range,
-                    children: vec![
+                Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::MatchArm, dummy_range, vec![
                         // pattern: n
-                        Syntax::Atom(SyntaxAtom {
-                            range: dummy_range,
-                            value: eterned::BaseCoword::new("n".to_string()),
-                        }),
+                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("n".to_string()),
+                        )),
                         // body: n + 1
-                        Syntax::Node(Box::new(SyntaxNode {
-                            kind: SyntaxKind::BinOp,
-                            range: dummy_range,
-                            children: vec![
-                                Syntax::Atom(SyntaxAtom {
-                                    range: dummy_range,
-                                    value: eterned::BaseCoword::new("n".to_string()),
-                                }),
-                                Syntax::Atom(SyntaxAtom {
-                                    range: dummy_range,
-                                    value: eterned::BaseCoword::new("+".to_string()),
-                                }),
-                                Syntax::Atom(SyntaxAtom {
-                                    range: dummy_range,
-                                    value: eterned::BaseCoword::new("1".to_string()),
-                                }),
+                        Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::BinOp, dummy_range, vec![
+                                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("n".to_string()),
+                                )),
+                                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("+".to_string()),
+                                )),
+                                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("1".to_string()),
+                                )),
                             ]
                             .into(),
-                        })),
+                        ))),
                     ]
                     .into(),
-                })),
+                ))),
             ]
             .into(),
-        }));
+        )));
 
         // Add x to local context
         let nat_type = Expr::const_expr("Nat".into(), vec![]);
@@ -1399,54 +1378,35 @@ mod tests {
 
         // Create syntax for: match x with | 0 => 1 | 1 => 2
         // This is non-exhaustive for Nat
-        let match_syntax = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Match,
-            range: dummy_range,
-            children: vec![
+        let match_syntax = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Match, dummy_range, vec![
                 // discriminant: x
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: eterned::BaseCoword::new("x".to_string()),
-                }),
+                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("x".to_string()),
+                )),
                 // First arm: | 0 => 1
-                Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::MatchArm,
-                    range: dummy_range,
-                    children: vec![
+                Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::MatchArm, dummy_range, vec![
                         // pattern: 0
-                        Syntax::Atom(SyntaxAtom {
-                            range: dummy_range,
-                            value: eterned::BaseCoword::new("0".to_string()),
-                        }),
+                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("0".to_string()),
+                        )),
                         // body: 1
-                        Syntax::Atom(SyntaxAtom {
-                            range: dummy_range,
-                            value: eterned::BaseCoword::new("1".to_string()),
-                        }),
+                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("1".to_string()),
+                        )),
                     ]
                     .into(),
-                })),
+                ))),
                 // Second arm: | 1 => 2
-                Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::MatchArm,
-                    range: dummy_range,
-                    children: vec![
+                Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::MatchArm, dummy_range, vec![
                         // pattern: 1
-                        Syntax::Atom(SyntaxAtom {
-                            range: dummy_range,
-                            value: eterned::BaseCoword::new("1".to_string()),
-                        }),
+                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("1".to_string()),
+                        )),
                         // body: 2
-                        Syntax::Atom(SyntaxAtom {
-                            range: dummy_range,
-                            value: eterned::BaseCoword::new("2".to_string()),
-                        }),
+                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("2".to_string()),
+                        )),
                     ]
                     .into(),
-                })),
+                ))),
             ]
             .into(),
-        }));
+        )));
 
         // Add x to local context with Nat type
         let nat_type = Expr::const_expr(Name::mk_simple("Nat"), vec![]);
@@ -1476,28 +1436,19 @@ mod tests {
         };
 
         // Create syntax for: 1 + 2
-        let binop_syntax = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::BinOp,
-            range: dummy_range,
-            children: vec![
+        let binop_syntax = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::BinOp, dummy_range, vec![
                 // left: 1
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: eterned::BaseCoword::new("1".to_string()),
-                }),
+                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("1".to_string()),
+                )),
                 // operator: +
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: eterned::BaseCoword::new("+".to_string()),
-                }),
+                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("+".to_string()),
+                )),
                 // right: 2
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: eterned::BaseCoword::new("2".to_string()),
-                }),
+                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("2".to_string()),
+                )),
             ]
             .into(),
-        }));
+        )));
 
         let result = elab.elaborate(&binop_syntax);
         assert!(

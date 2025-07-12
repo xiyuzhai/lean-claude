@@ -94,11 +94,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Module,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Module,
             range,
-            children: commands.into(),
-        })))
+            commands.into(),
+        ))))
     }
 
     /// Parse a command (top-level declaration)
@@ -271,11 +271,11 @@ impl<'a> Parser<'a> {
         let module_path = self.module_path()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Import,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Import,
             range,
-            children: smallvec![module_path],
-        })))
+            smallvec![module_path],
+        ))))
     }
 
     /// Parse open statement: `open Module.Path`
@@ -288,11 +288,11 @@ impl<'a> Parser<'a> {
         let module_path = self.module_path()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Open,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Open,
             range,
-            children: smallvec![module_path],
-        })))
+            smallvec![module_path],
+        ))))
     }
 
     /// Parse namespace: `namespace Name` or `namespace Name.Path.To.Module`
@@ -305,11 +305,11 @@ impl<'a> Parser<'a> {
         let name = self.parse_dotted_name()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Namespace,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Namespace,
             range,
-            children: smallvec![name],
-        })))
+            smallvec![name],
+        ))))
     }
 
     /// Parse a dotted name like `Foo.Bar.Baz`
@@ -332,11 +332,11 @@ impl<'a> Parser<'a> {
         } else {
             // Multiple parts, create a compound name node
             let range = self.input().range_from(start);
-            Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::Identifier, // Use Identifier for now
+            Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::Identifier, // Use Identifier for now
                 range,
-                children: parts.into(),
-            })))
+                parts.into(),
+            ))))
         }
     }
 
@@ -354,11 +354,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::End,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::End,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse section: `section [Name]`
@@ -375,11 +375,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Section,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Section,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse documentation comment: `/-- ... -/` or `/-! ... -/`
@@ -422,14 +422,14 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Comment,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Comment,
             range,
-            children: smallvec![Syntax::Atom(SyntaxAtom {
+            smallvec![Syntax::Atom(SyntaxAtom::new(
                 range,
-                value: BaseCoword::new(content.trim()),
-            })],
-        })))
+                BaseCoword::new(content.trim()),
+            ))],
+        ))))
     }
 
     /// Parse module path like `Mathlib.Data.Nat.Basic`
@@ -457,10 +457,10 @@ impl<'a> Parser<'a> {
             .join(".");
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Atom(SyntaxAtom {
+        Ok(Syntax::Atom(SyntaxAtom::new(
             range,
-            value: BaseCoword::new(path),
-        }))
+            BaseCoword::new(path),
+        )))
     }
 
     pub fn hash_command(&mut self) -> ParserResult<Syntax> {
@@ -485,11 +485,11 @@ impl<'a> Parser<'a> {
             _ => SyntaxKind::HashCommand, // Generic hash command
         };
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
             kind,
             range,
-            children: smallvec![cmd_name, arg],
-        })))
+            smallvec![cmd_name, arg],
+        ))))
     }
 
     /// Parse elab command: `elab "name" args : type => body`
@@ -559,11 +559,11 @@ impl<'a> Parser<'a> {
         children.push(body);
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Elab,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Elab,
             range,
-            children: children.into(),
-        })))
+            children.into(),
+        ))))
     }
 
     /// Parse elab_rules command
@@ -585,11 +585,11 @@ impl<'a> Parser<'a> {
         }
         if !attributes.is_empty() {
             let attrs_range = self.input().range_from(start);
-            children.push(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::AttributeList,
-                range: attrs_range,
-                children: attributes,
-            })));
+            children.push(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::AttributeList,
+                attrs_range,
+                attributes,
+            ))));
         }
 
         // Parse colon
@@ -647,17 +647,17 @@ impl<'a> Parser<'a> {
 
         // Create rules node
         let rules_range = self.input().range_from(start);
-        children.push(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::ElabRulesList,
-            range: rules_range,
-            children: rules,
-        })));
+        children.push(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::ElabRulesList,
+            rules_range,
+            rules,
+        ))));
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::ElabRules,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::ElabRules,
             range,
             children,
-        })))
+        ))))
     }
 }

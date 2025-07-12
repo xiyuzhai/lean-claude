@@ -40,11 +40,11 @@ impl<'a> Parser<'a> {
                 if c.is_ascii_digit() {
                     let num = self.number()?;
                     let range = self.input().range_from(start);
-                    return Ok(Syntax::Node(Box::new(SyntaxNode {
-                        kind: SyntaxKind::UniverseSucc,
+                    return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                        SyntaxKind::UniverseSucc,
                         range,
-                        children: smallvec![base, num],
-                    })));
+                        smallvec![base, num],
+                    ))));
                 }
             }
 
@@ -95,11 +95,11 @@ impl<'a> Parser<'a> {
         let level2 = self.universe_level()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::UniverseMax,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::UniverseMax,
             range,
-            children: smallvec![level1, level2],
-        })))
+            smallvec![level1, level2],
+        ))))
     }
 
     /// Parse imax level: `imax u v`
@@ -114,11 +114,11 @@ impl<'a> Parser<'a> {
         let level2 = self.universe_level()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::UniverseIMax,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::UniverseIMax,
             range,
-            children: smallvec![level1, level2],
-        })))
+            smallvec![level1, level2],
+        ))))
     }
 
     /// Parse universe declaration: `universe u v w`
@@ -144,11 +144,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Universe,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Universe,
             range,
-            children: names.into(),
-        })))
+            names.into(),
+        ))))
     }
 
     /// Parse Sort or Type with universe level
@@ -163,30 +163,30 @@ impl<'a> Parser<'a> {
             if self.peek() == Some('*') {
                 self.advance();
                 let range = self.input().range_from(start);
-                return Ok(Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::Sort,
+                return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::Sort,
                     range,
-                    children: smallvec![Syntax::Atom(SyntaxAtom {
+                    smallvec![Syntax::Atom(SyntaxAtom::new(
                         range,
-                        value: eterned::BaseCoword::new("*"),
-                    })],
-                })));
+                        eterned::BaseCoword::new("*"),
+                    ))],
+                ))));
             } else if self.peek().is_some() && !self.peek_term_end() {
                 let level = self.universe_level()?;
                 let range = self.input().range_from(start);
-                return Ok(Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::Sort,
+                return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::Sort,
                     range,
-                    children: smallvec![level],
-                })));
+                    smallvec![level],
+                ))));
             } else {
                 // Just Sort without level
                 let range = self.input().range_from(start);
-                return Ok(Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::Sort,
+                return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::Sort,
                     range,
-                    children: smallvec![],
-                })));
+                    smallvec![],
+                ))));
             }
         }
 
@@ -198,41 +198,41 @@ impl<'a> Parser<'a> {
             if self.peek() == Some('*') {
                 self.advance();
                 let range = self.input().range_from(start);
-                return Ok(Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::Type,
+                return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::Type,
                     range,
-                    children: smallvec![Syntax::Atom(SyntaxAtom {
+                    smallvec![Syntax::Atom(SyntaxAtom::new(
                         range,
-                        value: eterned::BaseCoword::new("*"),
-                    })],
-                })));
+                        eterned::BaseCoword::new("*"),
+                    ))],
+                ))));
             } else if self.peek().is_some() && !self.peek_term_end() {
                 let level = self.universe_level()?;
                 let range = self.input().range_from(start);
-                return Ok(Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::Type,
+                return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::Type,
                     range,
-                    children: smallvec![level],
-                })));
+                    smallvec![level],
+                ))));
             } else {
                 // Just Type without level (Type 0)
                 let range = self.input().range_from(start);
-                return Ok(Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::Type,
+                return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::Type,
                     range,
-                    children: smallvec![],
-                })));
+                    smallvec![],
+                ))));
             }
         }
 
         if self.peek_keyword("Prop") {
             self.keyword("Prop")?;
             let range = self.input().range_from(start);
-            return Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::Prop,
+            return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::Prop,
                 range,
-                children: smallvec![],
-            })));
+                smallvec![],
+            ))));
         }
 
         Err(ParseError::boxed(

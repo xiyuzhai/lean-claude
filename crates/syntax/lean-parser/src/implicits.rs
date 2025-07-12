@@ -82,11 +82,11 @@ impl<'a> Parser<'a> {
             children.push(t);
         }
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::LeftParen, // Using LeftParen for explicit binder
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::LeftParen, // Using LeftParen for explicit binder
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse implicit binder: {x : T} or {x y : T}
@@ -129,11 +129,11 @@ impl<'a> Parser<'a> {
             children.push(t);
         }
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::LeftBrace, // Using LeftBrace for implicit binder
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::LeftBrace, // Using LeftBrace for implicit binder
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse strict implicit binder: {{x : T}}
@@ -172,11 +172,11 @@ impl<'a> Parser<'a> {
         let mut children: SmallVec<[Syntax; 4]> = names.into();
         children.push(ty);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::LeftBrace, // TODO: Add proper StrictImplicitBinder kind
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::LeftBrace, // TODO: Add proper StrictImplicitBinder kind
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse instance implicit binder: [inst : TC]
@@ -224,11 +224,11 @@ impl<'a> Parser<'a> {
         }
         children.push(ty);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::LeftBracket, // Using LeftBracket for instance implicit
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::LeftBracket, // Using LeftBracket for instance implicit
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse auto-implicit underscore
@@ -238,10 +238,10 @@ impl<'a> Parser<'a> {
         self.expect_char('_')?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Atom(SyntaxAtom {
+        Ok(Syntax::Atom(SyntaxAtom::new(
             range,
-            value: eterned::BaseCoword::new("_"),
-        }))
+            eterned::BaseCoword::new("_"),
+        )))
     }
 }
 

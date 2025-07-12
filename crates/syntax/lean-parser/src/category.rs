@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use lean_syn_expr::Syntax;
+use lean_syn_expr::{Syntax, SyntaxAtom, SyntaxNode};
 
 use crate::{
     error::{ParseError, ParseErrorKind},
@@ -256,10 +256,10 @@ impl ParserCategory {
         let op_range = parser.input().range_from(op_start);
 
         // Create operator atom
-        let op_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom {
-            range: op_range,
-            value: eterned::BaseCoword::new(op_str),
-        });
+        let op_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+            op_range,
+            eterned::BaseCoword::new(op_str),
+        ));
 
         // Parse right-hand side with appropriate precedence
         // For now, assume left associativity for all operators
@@ -286,11 +286,11 @@ impl ParserCategory {
             end: right_range.end,
         };
 
-        Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-            kind: lean_syn_expr::SyntaxKind::BinOp,
+        Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+            lean_syn_expr::SyntaxKind::BinOp,
             range,
-            children: vec![left, op_atom, right].into(),
-        })))
+            vec![left, op_atom, right].into(),
+        ))))
     }
 
     fn enhance_error<'a>(
@@ -585,18 +585,18 @@ pub fn init_standard_categories() -> CategoryRegistry {
                     p.parse_category(crate::precedence::Precedence(100))
                 })?;
                 let range = p.input().range_from(start);
-                Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-                    kind: lean_syn_expr::SyntaxKind::UnaryOp,
+                Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+                    lean_syn_expr::SyntaxKind::UnaryOp,
                     range,
-                    children: vec![
-                        Syntax::Atom(lean_syn_expr::SyntaxAtom {
-                            range: p.input().range_from(start),
-                            value: eterned::BaseCoword::new("-"),
-                        }),
+                    vec![
+                        Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                            p.input().range_from(start),
+                            eterned::BaseCoword::new("-"),
+                        )),
                         operand,
                     ]
                     .into(),
-                })))
+                ))))
             }),
             precedence: crate::precedence::Precedence(100),
             name: "negation".to_string(),
@@ -616,18 +616,18 @@ pub fn init_standard_categories() -> CategoryRegistry {
                     p.parse_category(crate::precedence::Precedence(100))
                 })?;
                 let range = p.input().range_from(start);
-                Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-                    kind: lean_syn_expr::SyntaxKind::UnaryOp,
+                Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+                    lean_syn_expr::SyntaxKind::UnaryOp,
                     range,
-                    children: vec![
-                        Syntax::Atom(lean_syn_expr::SyntaxAtom {
-                            range: p.input().range_from(start),
-                            value: eterned::BaseCoword::new("!"),
-                        }),
+                    vec![
+                        Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                            p.input().range_from(start),
+                            eterned::BaseCoword::new("!"),
+                        )),
                         operand,
                     ]
                     .into(),
-                })))
+                ))))
             }),
             precedence: crate::precedence::Precedence(100),
             name: "logical not".to_string(),
@@ -647,18 +647,18 @@ pub fn init_standard_categories() -> CategoryRegistry {
                     p.parse_category(crate::precedence::Precedence(100))
                 })?;
                 let range = p.input().range_from(start);
-                Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-                    kind: lean_syn_expr::SyntaxKind::UnaryOp,
+                Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+                    lean_syn_expr::SyntaxKind::UnaryOp,
                     range,
-                    children: vec![
-                        Syntax::Atom(lean_syn_expr::SyntaxAtom {
-                            range: p.input().range_from(start),
-                            value: eterned::BaseCoword::new("¬"),
-                        }),
+                    vec![
+                        Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                            p.input().range_from(start),
+                            eterned::BaseCoword::new("¬"),
+                        )),
                         operand,
                     ]
                     .into(),
-                })))
+                ))))
             }),
             precedence: crate::precedence::Precedence(100),
             name: "logical not".to_string(),

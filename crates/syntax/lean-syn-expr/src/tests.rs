@@ -75,10 +75,7 @@ fn test_syntax_atom() {
             offset: 3,
         },
     };
-    let atom = SyntaxAtom {
-        range,
-        value: "foo".into(),
-    };
+    let atom = SyntaxAtom::new(range, "foo".into());
     let syntax = Syntax::Atom(atom);
 
     assert!(!syntax.is_missing());
@@ -101,11 +98,7 @@ fn test_syntax_node_empty() {
             offset: 0,
         },
     };
-    let node = SyntaxNode {
-        kind: SyntaxKind::Module,
-        range,
-        children: SmallVec::new(),
-    };
+    let node = SyntaxNode::new(SyntaxKind::Module, range, SmallVec::new());
     let syntax = Syntax::Node(Box::new(node));
 
     assert!(!syntax.is_missing());
@@ -129,8 +122,8 @@ fn test_syntax_node_with_children() {
         },
     };
 
-    let child1 = Syntax::Atom(SyntaxAtom {
-        range: SourceRange {
+    let child1 = Syntax::Atom(SyntaxAtom::new(
+        SourceRange {
             start: SourcePos {
                 line: 1,
                 column: 0,
@@ -142,11 +135,11 @@ fn test_syntax_node_with_children() {
                 offset: 3,
             },
         },
-        value: "def".into(),
-    });
+        "def".into(),
+    ));
 
-    let child2 = Syntax::Atom(SyntaxAtom {
-        range: SourceRange {
+    let child2 = Syntax::Atom(SyntaxAtom::new(
+        SourceRange {
             start: SourcePos {
                 line: 1,
                 column: 4,
@@ -158,14 +151,10 @@ fn test_syntax_node_with_children() {
                 offset: 7,
             },
         },
-        value: "foo".into(),
-    });
+        "foo".into(),
+    ));
 
-    let node = SyntaxNode {
-        kind: SyntaxKind::Declaration,
-        range,
-        children: smallvec![child1, child2],
-    };
+    let node = SyntaxNode::new(SyntaxKind::Declaration, range, smallvec![child1, child2]);
     let syntax = Syntax::Node(Box::new(node));
 
     assert!(!syntax.is_missing());
@@ -212,8 +201,8 @@ fn test_nested_syntax_tree() {
         },
     };
 
-    let def_keyword = Syntax::Atom(SyntaxAtom {
-        range: SourceRange {
+    let def_keyword = Syntax::Atom(SyntaxAtom::new(
+        SourceRange {
             start: SourcePos {
                 line: 1,
                 column: 0,
@@ -225,12 +214,12 @@ fn test_nested_syntax_tree() {
                 offset: 3,
             },
         },
-        value: "def".into(),
-    });
+        "def".into(),
+    ));
 
-    let ident = Syntax::Node(Box::new(SyntaxNode {
-        kind: SyntaxKind::Identifier,
-        range: SourceRange {
+    let ident = Syntax::Node(Box::new(SyntaxNode::new(
+        SyntaxKind::Identifier,
+        SourceRange {
             start: SourcePos {
                 line: 1,
                 column: 4,
@@ -242,8 +231,8 @@ fn test_nested_syntax_tree() {
                 offset: 7,
             },
         },
-        children: smallvec![Syntax::Atom(SyntaxAtom {
-            range: SourceRange {
+        smallvec![Syntax::Atom(SyntaxAtom::new(
+            SourceRange {
                 start: SourcePos {
                     line: 1,
                     column: 4,
@@ -255,13 +244,13 @@ fn test_nested_syntax_tree() {
                     offset: 7
                 },
             },
-            value: "foo".into(),
-        })],
-    }));
+            "foo".into(),
+        ))],
+    )));
 
-    let type_part = Syntax::Node(Box::new(SyntaxNode {
-        kind: SyntaxKind::App,
-        range: SourceRange {
+    let type_part = Syntax::Node(Box::new(SyntaxNode::new(
+        SyntaxKind::App,
+        SourceRange {
             start: SourcePos {
                 line: 1,
                 column: 8,
@@ -273,9 +262,9 @@ fn test_nested_syntax_tree() {
                 offset: 14,
             },
         },
-        children: smallvec![
-            Syntax::Atom(SyntaxAtom {
-                range: SourceRange {
+        smallvec![
+            Syntax::Atom(SyntaxAtom::new(
+                SourceRange {
                     start: SourcePos {
                         line: 1,
                         column: 8,
@@ -287,11 +276,11 @@ fn test_nested_syntax_tree() {
                         offset: 9
                     },
                 },
-                value: ":".into(),
-            }),
-            Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::Identifier,
-                range: SourceRange {
+                ":".into(),
+            )),
+            Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::Identifier,
+                SourceRange {
                     start: SourcePos {
                         line: 1,
                         column: 10,
@@ -303,8 +292,8 @@ fn test_nested_syntax_tree() {
                         offset: 13
                     },
                 },
-                children: smallvec![Syntax::Atom(SyntaxAtom {
-                    range: SourceRange {
+                smallvec![Syntax::Atom(SyntaxAtom::new(
+                    SourceRange {
                         start: SourcePos {
                             line: 1,
                             column: 10,
@@ -316,17 +305,14 @@ fn test_nested_syntax_tree() {
                             offset: 13
                         },
                     },
-                    value: "Nat".into(),
-                })],
-            })),
+                    "Nat".into(),
+                ))],
+            ))),
         ],
-    }));
+    )));
 
-    let def_node = SyntaxNode {
-        kind: SyntaxKind::Declaration,
-        range: def_range,
-        children: smallvec![def_keyword, ident, type_part],
-    };
+    let def_node = SyntaxNode::new(SyntaxKind::Declaration, def_range, smallvec![def_keyword, ident, type_part],
+    );
 
     let syntax = Syntax::Node(Box::new(def_node));
 
@@ -366,20 +352,11 @@ fn test_syntax_equality() {
         end: pos2,
     };
 
-    let atom1 = Syntax::Atom(SyntaxAtom {
-        range,
-        value: "foo".into(),
-    });
+    let atom1 = Syntax::Atom(SyntaxAtom::new(range, "foo".into()));
 
-    let atom2 = Syntax::Atom(SyntaxAtom {
-        range,
-        value: "foo".into(),
-    });
+    let atom2 = Syntax::Atom(SyntaxAtom::new(range, "foo".into()));
 
-    let atom3 = Syntax::Atom(SyntaxAtom {
-        range,
-        value: "bar".into(),
-    });
+    let atom3 = Syntax::Atom(SyntaxAtom::new(range, "bar".into()));
 
     assert_eq!(atom1, atom2);
     assert_ne!(atom1, atom3);
@@ -416,10 +393,7 @@ fn test_edge_cases() {
         end: large_pos,
     };
 
-    let atom = Syntax::Atom(SyntaxAtom {
-        range,
-        value: "".into(), // Empty string
-    });
+    let atom = Syntax::Atom(SyntaxAtom::new(range, "".into())); // Empty string
 
     assert_eq!(atom.as_str(), "");
     assert_eq!(atom.range(), Some(&range));
@@ -427,9 +401,9 @@ fn test_edge_cases() {
     // Test deeply nested structure
     let mut current = Syntax::Missing;
     for i in 0..10 {
-        current = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::LeftParen,
-            range: SourceRange {
+        current = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::LeftParen,
+            SourceRange {
                 start: SourcePos {
                     line: 1,
                     column: i,
@@ -441,8 +415,8 @@ fn test_edge_cases() {
                     offset: (i + 1) as usize,
                 },
             },
-            children: vec![current].into(),
-        }));
+            vec![current].into(),
+        )));
     }
 
     // Should have 10 levels of nesting

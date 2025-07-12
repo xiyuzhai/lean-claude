@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use lean_kernel::Name;
-use lean_syn_expr::{Syntax, SyntaxKind};
+use lean_syn_expr::{Syntax, SyntaxAtom, SyntaxKind, SyntaxNode};
 
 use crate::{error::ElabError, ElabState};
 
@@ -315,11 +315,11 @@ fn instantiate_template(
                 new_children.push(instantiate_template(child, bindings)?);
             }
 
-            Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode {
-                kind: node.kind,
-                range: node.range,
-                children: new_children.into(),
-            })))
+            Ok(Syntax::Node(Box::new(lean_syn_expr::SyntaxNode::new(
+                node.kind,
+                node.range,
+                new_children.into(),
+            ))))
         }
         Syntax::Atom(_) => Ok(template.clone()),
         Syntax::Missing => Ok(template.clone()),
@@ -342,29 +342,29 @@ mod tests {
     #[test]
     fn test_pattern_matching_literal() {
         // Pattern: `(myterm)`
-        let pattern = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::SyntaxQuotation,
-            range: dummy_range(),
-            children: vec![Syntax::Atom(SyntaxAtom {
-                range: dummy_range(),
-                value: eterned::BaseCoword::new("myterm"),
-            })]
+        let pattern = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::SyntaxQuotation,
+            dummy_range(),
+            vec![Syntax::Atom(SyntaxAtom::new(
+                dummy_range(),
+                eterned::BaseCoword::new("myterm"),
+            ))]
             .into(),
-        }));
+        )));
 
         // Syntax to match: myterm
-        let syntax = Syntax::Atom(SyntaxAtom {
-            range: dummy_range(),
-            value: eterned::BaseCoword::new("myterm"),
-        });
+        let syntax = Syntax::Atom(SyntaxAtom::new(
+            dummy_range(),
+            eterned::BaseCoword::new("myterm"),
+        ));
 
         assert!(matches_pattern(&pattern, &syntax));
 
         // Non-matching syntax: other
-        let non_match = Syntax::Atom(SyntaxAtom {
-            range: dummy_range(),
-            value: eterned::BaseCoword::new("other"),
-        });
+        let non_match = Syntax::Atom(SyntaxAtom::new(
+            dummy_range(),
+            eterned::BaseCoword::new("other"),
+        ));
 
         assert!(!matches_pattern(&pattern, &non_match));
     }
@@ -372,32 +372,19 @@ mod tests {
     #[test]
     fn test_pattern_matching_variable() {
         // Pattern: `($x)`
-        let pattern = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::SyntaxQuotation,
-            range: dummy_range(),
-            children: vec![Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::SyntaxAntiquotation,
-                range: dummy_range(),
-                children: vec![Syntax::Atom(SyntaxAtom {
-                    range: dummy_range(),
-                    value: eterned::BaseCoword::new("$x"),
-                })]
+        let pattern = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::SyntaxQuotation, dummy_range(), vec![Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::SyntaxAntiquotation, dummy_range(), vec![Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("$x"),
+                ))]
                 .into(),
-            }))]
+            )))]
             .into(),
-        }));
+        )));
 
         // Any syntax should match
-        let syntax1 = Syntax::Atom(SyntaxAtom {
-            range: dummy_range(),
-            value: eterned::BaseCoword::new("anything"),
-        });
+        let syntax1 = Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("anything"),
+        ));
 
-        let syntax2 = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::App,
-            range: dummy_range(),
-            children: vec![].into(),
-        }));
+        let syntax2 = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::App, dummy_range(), vec![].into(),
+        )));
 
         assert!(matches_pattern(&pattern, &syntax1));
         assert!(matches_pattern(&pattern, &syntax2));
@@ -406,51 +393,30 @@ mod tests {
     #[test]
     fn test_extract_bindings() {
         // Pattern: `(f $x $y)`
-        let pattern = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::SyntaxQuotation,
-            range: dummy_range(),
-            children: vec![Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::App,
-                range: dummy_range(),
-                children: vec![
-                    Syntax::Atom(SyntaxAtom {
-                        range: dummy_range(),
-                        value: eterned::BaseCoword::new("f"),
-                    }),
-                    Syntax::Atom(SyntaxAtom {
-                        range: dummy_range(),
-                        value: eterned::BaseCoword::new("$x"),
-                    }),
-                    Syntax::Atom(SyntaxAtom {
-                        range: dummy_range(),
-                        value: eterned::BaseCoword::new("$y"),
-                    }),
+        let pattern = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::SyntaxQuotation, dummy_range(), vec![Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::App, dummy_range(), vec![
+                    Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("f"),
+                    )),
+                    Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("$x"),
+                    )),
+                    Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("$y"),
+                    )),
                 ]
                 .into(),
-            }))]
+            )))]
             .into(),
-        }));
+        )));
 
         // Syntax: (f a b)
-        let syntax = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::App,
-            range: dummy_range(),
-            children: vec![
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range(),
-                    value: eterned::BaseCoword::new("f"),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range(),
-                    value: eterned::BaseCoword::new("a"),
-                }),
-                Syntax::Atom(SyntaxAtom {
-                    range: dummy_range(),
-                    value: eterned::BaseCoword::new("b"),
-                }),
+        let syntax = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::App, dummy_range(), vec![
+                Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("f"),
+                )),
+                Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("a"),
+                )),
+                Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("b"),
+                )),
             ]
             .into(),
-        }));
+        )));
 
         let bindings = extract_pattern_bindings(&pattern, &syntax).unwrap();
         assert_eq!(bindings.len(), 2);
@@ -471,25 +437,15 @@ mod tests {
         let mut registry = ElabRulesRegistry::new();
 
         // Register a simple rule: `(myterm) => `(42)
-        let pattern = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::SyntaxQuotation,
-            range: dummy_range(),
-            children: vec![Syntax::Atom(SyntaxAtom {
-                range: dummy_range(),
-                value: eterned::BaseCoword::new("myterm"),
-            })]
+        let pattern = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::SyntaxQuotation, dummy_range(), vec![Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("myterm"),
+            ))]
             .into(),
-        }));
+        )));
 
-        let template = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::SyntaxQuotation,
-            range: dummy_range(),
-            children: vec![Syntax::Atom(SyntaxAtom {
-                range: dummy_range(),
-                value: eterned::BaseCoword::new("42"),
-            })]
+        let template = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::SyntaxQuotation, dummy_range(), vec![Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("42"),
+            ))]
             .into(),
-        }));
+        )));
 
         let rule = ElabRule {
             pattern,
@@ -500,10 +456,8 @@ mod tests {
         registry.register_rule("term", rule);
 
         // Test finding rules
-        let test_syntax = Syntax::Atom(SyntaxAtom {
-            range: dummy_range(),
-            value: eterned::BaseCoword::new("myterm"),
-        });
+        let test_syntax = Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("myterm"),
+        ));
 
         let found_rules = registry.find_rules(&test_syntax, "term");
         assert_eq!(found_rules.len(), 1);

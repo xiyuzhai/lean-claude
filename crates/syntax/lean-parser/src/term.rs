@@ -64,21 +64,21 @@ impl<'a> Parser<'a> {
 
                 // Create binary operation node
                 let range = self.input().range_from(start);
-                left = Syntax::Node(Box::new(SyntaxNode {
-                    kind: match op_str.as_str() {
+                left = Syntax::Node(Box::new(SyntaxNode::new(
+                    match op_str.as_str() {
                         "->" | "→" => SyntaxKind::Arrow,
                         _ => SyntaxKind::BinOp,
                     },
                     range,
-                    children: smallvec![
+                    smallvec![
                         left,
-                        Syntax::Atom(lean_syn_expr::SyntaxAtom {
-                            range: op_range,
-                            value: eterned::BaseCoword::new(op_str),
-                        }),
+                        Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                            op_range,
+                            eterned::BaseCoword::new(op_str),
+                        )),
                         right
                     ],
-                }));
+                )));
             } else {
                 break;
             }
@@ -110,17 +110,17 @@ impl<'a> Parser<'a> {
             let operand = self.prefix_term()?;
 
             let range = self.input().range_from(start);
-            Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::UnaryOp,
+            Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::UnaryOp,
                 range,
-                children: smallvec![
-                    Syntax::Atom(lean_syn_expr::SyntaxAtom {
-                        range: op_range,
-                        value: eterned::BaseCoword::new(op_str),
-                    }),
+                smallvec![
+                    Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                        op_range,
+                        eterned::BaseCoword::new(op_str),
+                    )),
                     operand
                 ],
-            })))
+            ))))
         } else {
             // Parse primary expression then check for application
             self.app_term()
@@ -241,11 +241,11 @@ impl<'a> Parser<'a> {
             Ok(terms.into_iter().next().unwrap())
         } else {
             let range = self.input().range_from(start);
-            Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::App,
+            Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::App,
                 range,
-                children: terms.into(),
-            })))
+                terms.into(),
+            ))))
         }
     }
 
@@ -307,20 +307,20 @@ impl<'a> Parser<'a> {
             let range = self.input().range_from(start);
 
             // Create a proper qualified identifier node for Unit.unit
-            let unit_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom {
+            let unit_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
                 range,
-                value: eterned::BaseCoword::new("Unit"),
-            });
-            let unit_atom2 = Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                eterned::BaseCoword::new("Unit"),
+            ));
+            let unit_atom2 = Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
                 range,
-                value: eterned::BaseCoword::new("unit"),
-            });
+                eterned::BaseCoword::new("unit"),
+            ));
 
-            return Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::App,
+            return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::App,
                 range,
-                children: vec![unit_atom, unit_atom2].into(),
-            })));
+                vec![unit_atom, unit_atom2].into(),
+            ))));
         }
 
         let term = self.term()?;
@@ -362,11 +362,11 @@ impl<'a> Parser<'a> {
         if self.peek() == Some(']') {
             self.advance(); // consume ']'
             let range = self.input().range_from(start);
-            return Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::List,
+            return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::List,
                 range,
-                children: smallvec![],
-            })));
+                smallvec![],
+            ))));
         }
 
         // Try to parse as a list literal first
@@ -444,11 +444,11 @@ impl<'a> Parser<'a> {
             self.advance(); // consume ']'
             self.input_mut().commit_position(); // Commit the saved position
             let range = self.input().range_from(start);
-            return Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::List,
+            return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::List,
                 range,
-                children: elements.into(),
-            })));
+                elements.into(),
+            ))));
         }
 
         // Not a list, restore and parse as instance implicit
@@ -478,11 +478,11 @@ impl<'a> Parser<'a> {
         let else_branch = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Match, // Reuse Match for if-then-else for now
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Match, // Reuse Match for if-then-else for now
             range,
-            children: smallvec![cond, then_branch, else_branch],
-        })))
+            smallvec![cond, then_branch, else_branch],
+        ))))
     }
 
     /// Parse lambda: `λ x => body` or `fun x => body`
@@ -531,11 +531,11 @@ impl<'a> Parser<'a> {
         let mut children = binders;
         children.push(body);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Lambda,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Lambda,
             range,
-            children: children.into(),
-        })))
+            children.into(),
+        ))))
     }
 
     /// Parse forall: `∀ x, P x` or `forall x, P x`
@@ -569,11 +569,7 @@ impl<'a> Parser<'a> {
 
                     // Create a binder node
                     let binder_range = self.input().range_from(start);
-                    let binder = Syntax::Node(Box::new(SyntaxNode {
-                        kind: SyntaxKind::LeftParen, // Using LeftParen to indicate explicit binder
-                        range: binder_range,
-                        children: smallvec![name, ty],
-                    }));
+                    let binder = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::LeftParen, binder_range, smallvec![name, ty])));
                     binders.push(binder);
                 } else {
                     // Just a name
@@ -595,11 +591,11 @@ impl<'a> Parser<'a> {
         let mut children = binders;
         children.push(body);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Forall,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Forall,
             range,
-            children: children.into(),
-        })))
+            children.into(),
+        ))))
     }
 
     /// Parse let: `let x := e in body`
@@ -654,11 +650,11 @@ impl<'a> Parser<'a> {
         children.push(value);
         children.push(body);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Let,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Let,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse have: `have h : P := proof`
@@ -684,11 +680,11 @@ impl<'a> Parser<'a> {
         let proof = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Have,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Have,
             range,
-            children: smallvec![name, ty, proof],
-        })))
+            smallvec![name, ty, proof],
+        ))))
     }
 
     /// Parse show: `show P from proof`
@@ -707,11 +703,11 @@ impl<'a> Parser<'a> {
         let proof = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Show,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Show,
             range,
-            children: smallvec![ty, proof],
-        })))
+            smallvec![ty, proof],
+        ))))
     }
 
     /// Parse calc term: `calc a = b := proof1 _ = c := proof2`
@@ -756,11 +752,11 @@ impl<'a> Parser<'a> {
         self.expect_char('}')?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Subtype,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Subtype,
             range,
-            children: smallvec![name, ty, pred],
-        })))
+            smallvec![name, ty, pred],
+        ))))
     }
 
     /// Parse anonymous constructor: `⟨expr, ...⟩`
@@ -790,11 +786,11 @@ impl<'a> Parser<'a> {
         self.expect_char('⟩')?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::AnonymousConstructor,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::AnonymousConstructor,
             range,
-            children: elements.into(),
-        })))
+            elements.into(),
+        ))))
     }
 
     /// Parse explicit application: `@f arg1 arg2`
@@ -820,11 +816,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::ExplicitApp,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::ExplicitApp,
             range,
-            children: args.into(),
-        })))
+            args.into(),
+        ))))
     }
 
     /// Check if we're at a term boundary
@@ -907,18 +903,18 @@ impl<'a> Parser<'a> {
                     let mut children = vec![expr, field];
                     children.extend(method_args);
 
-                    expr = Syntax::Node(Box::new(SyntaxNode {
-                        kind: SyntaxKind::App,
+                    expr = Syntax::Node(Box::new(SyntaxNode::new(
+                        SyntaxKind::App,
                         range,
-                        children: children.into(),
-                    }));
+                        children.into(),
+                    )));
                 } else {
                     // Field projection
-                    expr = Syntax::Node(Box::new(SyntaxNode {
-                        kind: SyntaxKind::Projection,
+                    expr = Syntax::Node(Box::new(SyntaxNode::new(
+                        SyntaxKind::Projection,
                         range,
-                        children: smallvec![expr, field],
-                    }));
+                        smallvec![expr, field],
+                    )));
                 }
             } else {
                 break;
@@ -974,11 +970,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Do,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Do,
             range,
-            children: statements.into(),
-        })))
+            statements.into(),
+        ))))
     }
 
     /// Parse do-let statement: `let x := expr` or `let x ← expr`
@@ -1035,15 +1031,15 @@ impl<'a> Parser<'a> {
         }
         children.push(value);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: if is_bind {
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            if is_bind {
                 SyntaxKind::Bind
             } else {
                 SyntaxKind::Let
             },
             range,
-            children: children.into(),
-        })))
+            children.into(),
+        ))))
     }
 
     /// Parse do-return statement: `return expr`
@@ -1056,11 +1052,11 @@ impl<'a> Parser<'a> {
         let expr = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Return,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Return,
             range,
-            children: smallvec![expr],
-        })))
+            smallvec![expr],
+        ))))
     }
 
     /// Parse do-pure statement: `pure expr`
@@ -1073,11 +1069,11 @@ impl<'a> Parser<'a> {
         let expr = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Return, // Reuse Return kind for pure
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Return, // Reuse Return kind for pure
             range,
-            children: smallvec![expr],
-        })))
+            smallvec![expr],
+        ))))
     }
 
     /// Parse do-for statement: `for x in xs do body`
@@ -1109,11 +1105,11 @@ impl<'a> Parser<'a> {
         };
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Do, // Reuse Do kind for for loops
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Do, // Reuse Do kind for for loops
             range,
-            children: smallvec![pattern, collection, body],
-        })))
+            smallvec![pattern, collection, body],
+        ))))
     }
 
     /// Parse do expression statement: `expr` or `pat ← expr`
@@ -1143,11 +1139,11 @@ impl<'a> Parser<'a> {
             Ok((pattern, expr))
         }) {
             let range = self.input().range_from(start);
-            Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::Bind,
+            Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::Bind,
                 range,
-                children: smallvec![pattern, expr],
-            })))
+                smallvec![pattern, expr],
+            ))))
         } else {
             // Just a plain expression
             self.term()
@@ -1168,9 +1164,9 @@ impl<'a> Parser<'a> {
         self.expect_char('·')?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Atom(SyntaxAtom {
+        Ok(Syntax::Atom(SyntaxAtom::new(
             range,
-            value: BaseCoword::new("·"),
-        }))
+            BaseCoword::new("·"),
+        )))
     }
 }

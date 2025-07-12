@@ -130,11 +130,11 @@ impl<'a> Parser<'a> {
         }
         children.push(body);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::MacroDef,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::MacroDef,
             range,
-            children: children.into(),
-        })))
+            children.into(),
+        ))))
     }
 
     /// Parse macro_rules: `macro_rules | pattern => body | pattern => body`
@@ -165,11 +165,11 @@ impl<'a> Parser<'a> {
             // Body
             let body = self.parse_macro_body()?;
 
-            rules.push(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::MacroRule,
-                range: self.input().range_from(start),
-                children: smallvec![pattern, body],
-            })));
+            rules.push(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::MacroRule,
+                self.input().range_from(start),
+                smallvec![pattern, body],
+            ))));
 
             self.skip_whitespace();
             if self.peek() != Some('|') {
@@ -178,11 +178,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::MacroRules,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::MacroRules,
             range,
-            children: rules.into(),
-        })))
+            rules.into(),
+        ))))
     }
 
     /// Parse a syntax declaration: `syntax "pattern" : category`
@@ -221,11 +221,11 @@ impl<'a> Parser<'a> {
         children.push(category);
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Syntax,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Syntax,
             range,
-            children: children.into(),
-        })))
+            children.into(),
+        ))))
     }
 
     /// Parse notation: `notation "pattern" => body`
@@ -262,11 +262,11 @@ impl<'a> Parser<'a> {
         children.push(body);
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::NotationDef,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::NotationDef,
             range,
-            children: children.into(),
-        })))
+            children.into(),
+        ))))
     }
 
     /// Parse attributes: `[attr1, attr2]` or `@[attr1, attr2]`
@@ -301,11 +301,11 @@ impl<'a> Parser<'a> {
         self.expect_char(']')?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::AttributeList,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::AttributeList,
             range,
-            children: attrs.into(),
-        })))
+            attrs.into(),
+        ))))
     }
 
     /// Parse a single attribute
@@ -334,11 +334,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Attribute,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Attribute,
             range,
-            children: children.into(),
-        })))
+            children.into(),
+        ))))
     }
 
     /// Parse precedence annotation: `(priority := 1000)`
@@ -361,11 +361,11 @@ impl<'a> Parser<'a> {
         self.expect_char(')')?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Precedence,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Precedence,
             range,
-            children: smallvec![keyword, value],
-        })))
+            smallvec![keyword, value],
+        ))))
     }
 
     /// Parse a macro pattern (e.g., x:term or multiple parameters with
@@ -412,19 +412,19 @@ impl<'a> Parser<'a> {
                         }
 
                         let range = p.input().range_from(start);
-                        let mut param = Syntax::Node(Box::new(SyntaxNode {
-                            kind: SyntaxKind::App, // Use App for typed param
+                        let mut param = Syntax::Node(Box::new(SyntaxNode::new(
+                            SyntaxKind::App, // Use App for typed param
                             range,
-                            children: smallvec![ident, category],
-                        }));
+                            smallvec![ident, category],
+                        )));
 
                         // If repeated, wrap in a repetition node
                         if is_repeated {
-                            param = Syntax::Node(Box::new(SyntaxNode {
-                                kind: SyntaxKind::App, // Use App for repetition
+                            param = Syntax::Node(Box::new(SyntaxNode::new(
+                                SyntaxKind::App, // Use App for repetition
                                 range,
-                                children: smallvec![param],
-                            }));
+                                smallvec![param],
+                            )));
                         }
 
                         Ok(param)
@@ -455,11 +455,11 @@ impl<'a> Parser<'a> {
         } else {
             // Multiple elements - create a pattern node
             let range = self.input().range_from(start);
-            Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::App, // Use App for pattern
+            Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::App, // Use App for pattern
                 range,
-                children: elements.into(),
-            })))
+                elements.into(),
+            ))))
         }
     }
 
@@ -510,11 +510,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::By, // Reuse By for do blocks for now
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::By, // Reuse By for do blocks for now
             range,
-            children: statements.into(),
-        })))
+            statements.into(),
+        ))))
     }
 
     /// Parse do-let: `let pat := expr`
@@ -544,11 +544,11 @@ impl<'a> Parser<'a> {
         let body = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Let, // Reuse Let for for loops for now
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Let, // Reuse Let for for loops for now
             range,
-            children: smallvec![pat, expr, body],
-        })))
+            smallvec![pat, expr, body],
+        ))))
     }
 
     /// Parse do-try: `try expr catch pat => handler`
@@ -574,11 +574,11 @@ impl<'a> Parser<'a> {
         let handler = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Match, // Reuse Match for try-catch for now
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Match, // Reuse Match for try-catch for now
             range,
-            children: smallvec![expr, pat, handler],
-        })))
+            smallvec![expr, pat, handler],
+        ))))
     }
 
     /// Parse do-if: `if cond then expr else expr`
@@ -649,11 +649,11 @@ impl<'a> Parser<'a> {
         self.expect_char(')')?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::SyntaxQuotation,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::SyntaxQuotation,
             range,
-            children: children.into(),
-        })))
+            children.into(),
+        ))))
     }
 
     /// Parse a term inside a quotation (may contain antiquotations)
@@ -692,40 +692,40 @@ impl<'a> Parser<'a> {
                     self.advance(); // consume first +
                     self.advance(); // consume second +
                     let op_range = self.input().range_from(op_start);
-                    let op_syntax = Syntax::Atom(lean_syn_expr::SyntaxAtom {
-                        range: op_range,
-                        value: eterned::BaseCoword::new("++".to_string()),
-                    });
+                    let op_syntax = Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                        op_range,
+                        eterned::BaseCoword::new("++".to_string()),
+                    ));
 
                     self.skip_whitespace();
                     let right = self.parse_quotation_term_with_app()?;
 
                     let range = self.input().range_from(start);
-                    result = Syntax::Node(Box::new(SyntaxNode {
-                        kind: SyntaxKind::BinOp,
+                    result = Syntax::Node(Box::new(SyntaxNode::new(
+                        SyntaxKind::BinOp,
                         range,
-                        children: smallvec![result, op_syntax, right],
-                    }));
+                        smallvec![result, op_syntax, right],
+                    )));
                     break;
                 } else if "+-*/".contains(ch) {
                     // Single character binary operator
                     let op_start = self.position();
                     let op = self.advance().unwrap();
                     let op_range = self.input().range_from(op_start);
-                    let op_syntax = Syntax::Atom(lean_syn_expr::SyntaxAtom {
-                        range: op_range,
-                        value: eterned::BaseCoword::new(op.to_string()),
-                    });
+                    let op_syntax = Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                        op_range,
+                        eterned::BaseCoword::new(op.to_string()),
+                    ));
 
                     self.skip_whitespace();
                     let right = self.parse_quotation_term_with_app()?;
 
                     let range = self.input().range_from(start);
-                    result = Syntax::Node(Box::new(SyntaxNode {
-                        kind: SyntaxKind::BinOp,
+                    result = Syntax::Node(Box::new(SyntaxNode::new(
+                        SyntaxKind::BinOp,
                         range,
-                        children: smallvec![result, op_syntax, right],
-                    }));
+                        smallvec![result, op_syntax, right],
+                    )));
                     break;
                 }
             }
@@ -734,11 +734,11 @@ impl<'a> Parser<'a> {
             if let Ok(arg) = self.try_parse(|p| p.parse_quotation_atom()) {
                 // Create application node
                 let range = self.input().range_from(start);
-                result = Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::App,
+                result = Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::App,
                     range,
-                    children: smallvec![result, arg],
-                }));
+                    smallvec![result, arg],
+                )));
             } else {
                 break;
             }
@@ -796,20 +796,20 @@ impl<'a> Parser<'a> {
             let range = self.input().range_from(start);
 
             // Create a proper qualified identifier node for Unit.unit
-            let unit_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom {
+            let unit_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
                 range,
-                value: eterned::BaseCoword::new("Unit"),
-            });
-            let unit_atom2 = Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                eterned::BaseCoword::new("Unit"),
+            ));
+            let unit_atom2 = Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
                 range,
-                value: eterned::BaseCoword::new("unit"),
-            });
+                eterned::BaseCoword::new("unit"),
+            ));
 
-            return Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::App,
+            return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::App,
                 range,
-                children: vec![unit_atom, unit_atom2].into(),
-            })));
+                vec![unit_atom, unit_atom2].into(),
+            ))));
         }
 
         // Parse the content using quotation parser
@@ -837,11 +837,11 @@ impl<'a> Parser<'a> {
         } else {
             // Create a qualified name node using App
             let range = self.input().range_from(start);
-            Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::App,
+            Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::App,
                 range,
-                children: parts.into(),
-            })))
+                parts.into(),
+            ))))
         }
     }
 
@@ -875,11 +875,11 @@ impl<'a> Parser<'a> {
 
                 // Create a node with category
                 let range = self.input().range_from(start);
-                return Ok(Syntax::Node(Box::new(SyntaxNode {
-                    kind: SyntaxKind::SyntaxAntiquotation,
+                return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::SyntaxAntiquotation,
                     range,
-                    children: children.into(),
-                })));
+                    children.into(),
+                ))));
             }
 
             id
@@ -894,19 +894,19 @@ impl<'a> Parser<'a> {
 
             // Create a splice node instead of antiquotation
             let range = self.input().range_from(start);
-            return Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::SyntaxSplice,
+            return Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::SyntaxSplice,
                 range,
-                children: children.into(),
-            })));
+                children.into(),
+            ))));
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::SyntaxAntiquotation,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::SyntaxAntiquotation,
             range,
-            children: children.into(),
-        })))
+            children.into(),
+        ))))
     }
 
     /// Parse lambda inside quotation: fun x => body
@@ -937,11 +937,11 @@ impl<'a> Parser<'a> {
         let body = self.parse_quotation_term_with_app()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Lambda,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Lambda,
             range,
-            children: smallvec![binder, body],
-        })))
+            smallvec![binder, body],
+        ))))
     }
 
     /// Parse let expression inside quotation: let x := val; body
@@ -972,11 +972,11 @@ impl<'a> Parser<'a> {
         let body = self.parse_quotation_term_with_app()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Let,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Let,
             range,
-            children: smallvec![binder, value, body],
-        })))
+            smallvec![binder, value, body],
+        ))))
     }
 
     /// Parse if-then-else inside quotation
@@ -1008,51 +1008,51 @@ impl<'a> Parser<'a> {
 
         // Create an if-then-else as a function application
         // if c then t else e => (((if c) then t) else e)
-        let if_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom {
-            range: self.input().range_from(start),
-            value: eterned::BaseCoword::new("if".to_string()),
-        });
+        let if_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+            self.input().range_from(start),
+            eterned::BaseCoword::new("if".to_string()),
+        ));
 
-        let then_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom {
-            range: self.input().range_from(start),
-            value: eterned::BaseCoword::new("then".to_string()),
-        });
+        let then_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+            self.input().range_from(start),
+            eterned::BaseCoword::new("then".to_string()),
+        ));
 
-        let else_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom {
-            range: self.input().range_from(start),
-            value: eterned::BaseCoword::new("else".to_string()),
-        });
+        let else_atom = Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+            self.input().range_from(start),
+            eterned::BaseCoword::new("else".to_string()),
+        ));
 
         // Build nested applications
-        let if_cond = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::App,
+        let if_cond = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::App,
             range,
-            children: smallvec![if_atom, cond],
-        }));
+            smallvec![if_atom, cond],
+        )));
 
-        let if_cond_then = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::App,
+        let if_cond_then = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::App,
             range,
-            children: smallvec![if_cond, then_atom],
-        }));
+            smallvec![if_cond, then_atom],
+        )));
 
-        let if_cond_then_branch = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::App,
+        let if_cond_then_branch = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::App,
             range,
-            children: smallvec![if_cond_then, then_branch],
-        }));
+            smallvec![if_cond_then, then_branch],
+        )));
 
-        let if_cond_then_branch_else = Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::App,
+        let if_cond_then_branch_else = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::App,
             range,
-            children: smallvec![if_cond_then_branch, else_atom],
-        }));
+            smallvec![if_cond_then_branch, else_atom],
+        )));
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::App,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::App,
             range,
-            children: smallvec![if_cond_then_branch_else, else_branch],
-        })))
+            smallvec![if_cond_then_branch_else, else_branch],
+        ))))
     }
 
     /// Parse a list pattern: [elem1, elem2, ..., $xs,*]
@@ -1113,11 +1113,11 @@ impl<'a> Parser<'a> {
         self.expect_char(']')?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::List,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::List,
             range,
-            children: elements.into(),
-        })))
+            elements.into(),
+        ))))
     }
 
     /// Parse a pattern inside a quotation (for macro_rules patterns)
@@ -1156,10 +1156,10 @@ impl<'a> Parser<'a> {
                 // Single character token
                 if let Some(ch) = self.advance() {
                     let range = self.input().range_from(self.position());
-                    tokens.push(Syntax::Atom(lean_syn_expr::SyntaxAtom {
+                    tokens.push(Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
                         range,
-                        value: eterned::BaseCoword::new(ch.to_string()),
-                    }));
+                        eterned::BaseCoword::new(ch.to_string()),
+                    )));
                 }
             }
         }
@@ -1174,11 +1174,11 @@ impl<'a> Parser<'a> {
             Ok(tokens.into_iter().next().unwrap())
         } else {
             let range = self.input().range_from(start);
-            Ok(Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::App,
+            Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::App,
                 range,
-                children: tokens.into(),
-            })))
+                tokens.into(),
+            ))))
         }
     }
 
@@ -1221,11 +1221,11 @@ impl<'a> Parser<'a> {
 
             // Create arm node
             let arm_range = self.input().range_from(start);
-            let arm = Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::MatchArm,
-                range: arm_range,
-                children: smallvec![pattern, body],
-            }));
+            let arm = Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::MatchArm,
+                arm_range,
+                smallvec![pattern, body],
+            )));
             arms.push(arm);
 
             self.skip_whitespace();
@@ -1240,10 +1240,10 @@ impl<'a> Parser<'a> {
         let mut children = smallvec![scrutinee];
         children.extend(arms);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Match,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Match,
             range,
             children,
-        })))
+        ))))
     }
 }

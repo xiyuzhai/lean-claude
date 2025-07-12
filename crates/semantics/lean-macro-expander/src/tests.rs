@@ -1,6 +1,6 @@
 use expect_test::{expect, Expect};
 use lean_parser::Parser;
-use lean_syn_expr::{Syntax, SyntaxKind};
+use lean_syn_expr::{Syntax, SyntaxAtom, SyntaxKind, SyntaxNode};
 
 use crate::{environment::MacroEnvironment, expander::MacroExpander};
 
@@ -127,20 +127,17 @@ fn test_pattern_matching() {
     };
 
     // Pattern: $x
-    let pattern = Syntax::Node(Box::new(SyntaxNode {
-        kind: SyntaxKind::SyntaxAntiquotation,
-        range: dummy_range,
-        children: smallvec![Syntax::Atom(SyntaxAtom {
-            range: dummy_range,
-            value: BaseCoword::new("x"),
-        })],
-    }));
+    let pattern = Syntax::Node(Box::new(SyntaxNode::new(
+        SyntaxKind::SyntaxAntiquotation,
+        dummy_range,
+        smallvec![Syntax::Atom(SyntaxAtom::new(
+            dummy_range,
+            BaseCoword::new("x"),
+        ))],
+    )));
 
     // Syntax: 42
-    let syntax = Syntax::Atom(SyntaxAtom {
-        range: dummy_range,
-        value: BaseCoword::new("42"),
-    });
+    let syntax = Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("42")));
 
     let result = PatternMatcher::match_pattern(&pattern, &syntax).unwrap();
     assert!(result.is_some());
@@ -154,7 +151,7 @@ fn test_pattern_matching() {
 fn test_template_substitution() {
     use eterned::BaseCoword;
     use im::HashMap;
-    use lean_syn_expr::{SourcePos, SourceRange, SyntaxAtom, SyntaxNode};
+    use lean_syn_expr::{SourcePos, SourceRange};
     use smallvec::smallvec;
 
     use crate::pattern::substitute_template;
@@ -165,41 +162,35 @@ fn test_template_substitution() {
     };
 
     // Template: $x + $x
-    let template = Syntax::Node(Box::new(SyntaxNode {
-        kind: SyntaxKind::BinOp,
-        range: dummy_range,
-        children: smallvec![
-            Syntax::Atom(SyntaxAtom {
-                range: dummy_range,
-                value: BaseCoword::new("+"),
-            }),
-            Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::SyntaxAntiquotation,
-                range: dummy_range,
-                children: smallvec![Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: BaseCoword::new("x"),
-                })],
-            })),
-            Syntax::Node(Box::new(SyntaxNode {
-                kind: SyntaxKind::SyntaxAntiquotation,
-                range: dummy_range,
-                children: smallvec![Syntax::Atom(SyntaxAtom {
-                    range: dummy_range,
-                    value: BaseCoword::new("x"),
-                })],
-            })),
+    let template = Syntax::Node(Box::new(SyntaxNode::new(
+        SyntaxKind::BinOp,
+        dummy_range,
+        smallvec![
+            Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("+"),)),
+            Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::SyntaxAntiquotation,
+                dummy_range,
+                smallvec![Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    BaseCoword::new("x"),
+                ))],
+            ))),
+            Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::SyntaxAntiquotation,
+                dummy_range,
+                smallvec![Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    BaseCoword::new("x"),
+                ))],
+            ))),
         ],
-    }));
+    )));
 
     // Bindings: x -> 42
     let mut bindings = HashMap::new();
     bindings.insert(
         BaseCoword::new("x"),
-        Syntax::Atom(SyntaxAtom {
-            range: dummy_range,
-            value: BaseCoword::new("42"),
-        }),
+        Syntax::Atom(SyntaxAtom::new(dummy_range, BaseCoword::new("42"))),
     );
 
     let result = substitute_template(&template, &bindings).unwrap();

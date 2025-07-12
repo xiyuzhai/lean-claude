@@ -103,11 +103,11 @@ impl<'a> Parser<'a> {
             children.push(p);
         }
 
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::DeclareSyntaxCat,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::DeclareSyntaxCat,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Register a custom syntax category
@@ -180,10 +180,10 @@ impl<'a> Parser<'a> {
             cat
         } else {
             // Default to term category
-            Syntax::Atom(lean_syn_expr::SyntaxAtom {
-                range: self.input().range_from(self.position()),
-                value: eterned::BaseCoword::new("term"),
-            })
+            Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                self.input().range_from(self.position()),
+                eterned::BaseCoword::new("term"),
+            ))
         };
         children.push(category.clone());
 
@@ -211,11 +211,11 @@ impl<'a> Parser<'a> {
         )?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::SyntaxExtension,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::SyntaxExtension,
             range,
-            children: children.into(),
-        })))
+            children.into(),
+        ))))
     }
 
     /// Parse a syntax pattern (simplified version)
@@ -240,11 +240,11 @@ impl<'a> Parser<'a> {
 
                     // Create parameter node
                     let param_range = self.input().range_from(start);
-                    parts.push(Syntax::Node(Box::new(SyntaxNode {
-                        kind: SyntaxKind::SyntaxParam,
-                        range: param_range,
-                        children: smallvec![ident, category],
-                    })));
+                    parts.push(Syntax::Node(Box::new(SyntaxNode::new(
+                        SyntaxKind::SyntaxParam,
+                        param_range,
+                        smallvec![ident, category],
+                    ))));
                 } else {
                     parts.push(ident);
                 }
@@ -254,21 +254,21 @@ impl<'a> Parser<'a> {
                     ParseError::boxed(ParseErrorKind::UnexpectedEof, self.position())
                 })?;
                 let op_range = self.input().range_from(start);
-                parts.push(Syntax::Atom(lean_syn_expr::SyntaxAtom {
-                    range: op_range,
-                    value: eterned::BaseCoword::new(ch.to_string()),
-                }));
+                parts.push(Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                    op_range,
+                    eterned::BaseCoword::new(ch.to_string()),
+                )));
             }
 
             self.skip_whitespace();
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::SyntaxPattern,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::SyntaxPattern,
             range,
-            children: parts.into(),
-        })))
+            parts.into(),
+        ))))
     }
 
     /// Register a syntax extension in the category system
@@ -348,11 +348,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::CustomSyntax,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::CustomSyntax,
             range,
-            children: matched_parts.into(),
-        })))
+            matched_parts.into(),
+        ))))
     }
 
     /// Extract the leading token from a syntax pattern
@@ -451,18 +451,18 @@ pub fn define_prefix_operator(
                     let operand = p.with_category(&cat_name, |p| p.parse_category(precedence))?;
 
                     let range = p.input().range_from(start);
-                    Ok(Syntax::Node(Box::new(SyntaxNode {
-                        kind: SyntaxKind::UnaryOp,
+                    Ok(Syntax::Node(Box::new(SyntaxNode::new(
+                        SyntaxKind::UnaryOp,
                         range,
-                        children: vec![
-                            Syntax::Atom(lean_syn_expr::SyntaxAtom {
-                                range: p.input().range_from(start),
-                                value: eterned::BaseCoword::new(op_str.clone()),
-                            }),
+                        vec![
+                            Syntax::Atom(lean_syn_expr::SyntaxAtom::new(
+                                p.input().range_from(start),
+                                eterned::BaseCoword::new(op_str.clone()),
+                            )),
                             operand,
                         ]
                         .into(),
-                    })))
+                    ))))
                 }),
                 precedence,
                 name: name.to_string(),

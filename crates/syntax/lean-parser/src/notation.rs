@@ -56,11 +56,11 @@ impl<'a> Parser<'a> {
         children.push(self.term()?);
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::NotationDef,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::NotationDef,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse notation fixity: `infix`, `prefix`, `postfix`
@@ -84,10 +84,10 @@ impl<'a> Parser<'a> {
         };
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Atom(SyntaxAtom {
+        Ok(Syntax::Atom(SyntaxAtom::new(
             range,
-            value: eterned::BaseCoword::new(fixity),
-        }))
+            eterned::BaseCoword::new(fixity),
+        )))
     }
 
     /// Parse precedence specification: `50` or `max` or `min`
@@ -118,14 +118,14 @@ impl<'a> Parser<'a> {
         };
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::Precedence,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Precedence,
             range,
-            children: smallvec![Syntax::Atom(SyntaxAtom {
+            smallvec![Syntax::Atom(SyntaxAtom::new(
                 range,
-                value: eterned::BaseCoword::new(prec),
-            })],
-        })))
+                eterned::BaseCoword::new(prec),
+            ))],
+        ))))
     }
 
     /// Parse infix notation: `infix:50 " + " => HAdd.hAdd`
@@ -156,11 +156,11 @@ impl<'a> Parser<'a> {
         children.push(self.term()?);
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::NotationDef,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::NotationDef,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse prefix notation: `prefix:75 "-" => Neg.neg`
@@ -191,11 +191,11 @@ impl<'a> Parser<'a> {
         children.push(self.term()?);
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::NotationDef,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::NotationDef,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse postfix notation: `postfix:80 "!" => factorial`
@@ -226,11 +226,11 @@ impl<'a> Parser<'a> {
         children.push(self.term()?);
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::NotationDef,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::NotationDef,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse mixfix notation with parameters
@@ -271,11 +271,11 @@ impl<'a> Parser<'a> {
         children.push(self.term()?);
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::NotationDef,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::NotationDef,
             range,
             children,
-        })))
+        ))))
     }
 
     /// Parse operator declaration with associativity
@@ -297,10 +297,10 @@ impl<'a> Parser<'a> {
 
         self.skip_whitespace();
 
-        let mut children = smallvec![Syntax::Atom(SyntaxAtom {
-            range: self.input().range_from(start),
-            value: eterned::BaseCoword::new(fixity),
-        })];
+        let mut children = smallvec![Syntax::Atom(SyntaxAtom::new(
+            self.input().range_from(start),
+            eterned::BaseCoword::new(fixity),
+        ))];
 
         // Parse precedence
         if self.peek() == Some(':') {
@@ -321,11 +321,11 @@ impl<'a> Parser<'a> {
         children.push(self.term()?);
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode {
-            kind: SyntaxKind::NotationDef,
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::NotationDef,
             range,
             children,
-        })))
+        ))))
     }
 }
 
