@@ -10,12 +10,15 @@ use lean_kernel::{
 };
 use lean_syn_expr::{Syntax, SyntaxAtom, SyntaxKind, SyntaxNode};
 
+use std::sync::Arc;
+
 use crate::{
     context::{LevelContext, LocalContext},
     elab_rules::ElabRulesRegistry,
     error::ElabError,
     instances::InstanceContext,
     metavar::MetavarContext,
+    module_loader::{ModuleLoader, ModuleLoaderConfig},
     namespace::NamespaceContext,
     typeck::TypeChecker,
     universe::UniverseInferenceContext,
@@ -40,6 +43,8 @@ pub struct ElabState {
     pub env: Option<Environment>,
     /// Namespace context for name resolution
     pub ns_ctx: NamespaceContext,
+    /// Module loader for imports
+    pub module_loader: Arc<ModuleLoader>,
 }
 
 impl ElabState {
@@ -53,6 +58,7 @@ impl ElabState {
             elab_rules: ElabRulesRegistry::new(),
             env: None,
             ns_ctx: NamespaceContext::new(),
+            module_loader: Arc::new(ModuleLoader::new(ModuleLoaderConfig::default())),
         }
     }
 
@@ -66,11 +72,17 @@ impl ElabState {
             elab_rules: ElabRulesRegistry::new(),
             env: Some(env),
             ns_ctx: NamespaceContext::new(),
+            module_loader: Arc::new(ModuleLoader::new(ModuleLoaderConfig::default())),
         }
     }
 
     pub fn set_env(&mut self, env: Environment) {
         self.env = Some(env);
+    }
+
+    /// Get module loader
+    pub fn module_loader(&self) -> &ModuleLoader {
+        &self.module_loader
     }
 
     /// Solve universe constraints

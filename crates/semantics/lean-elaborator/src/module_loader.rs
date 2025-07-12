@@ -284,7 +284,7 @@ impl ModuleLoader {
     }
 
     /// Merge environments based on import options
-    fn merge_environments(
+    pub fn merge_environments(
         &self,
         mut base: Environment,
         imported: &Environment,

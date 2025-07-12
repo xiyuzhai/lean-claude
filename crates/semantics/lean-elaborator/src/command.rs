@@ -6,8 +6,9 @@
 use lean_kernel::{environment::Environment, module::Import, Expr, Level, Name};
 use lean_syn_expr::{Syntax, SyntaxKind};
 use smallvec::smallvec;
+use std::sync::Arc;
 
-use crate::{error::ElabError, namespace::OpenedNamespace, ElabState, Elaborator};
+use crate::{error::ElabError, namespace::OpenedNamespace, module_loader::ModuleLoader, ElabState, Elaborator};
 
 impl Elaborator {
     /// Elaborate a command
@@ -49,12 +50,26 @@ impl Elaborator {
         // Create import (TODO: handle import options)
         let import = Import::simple(module_name.clone());
 
-        // Add to current module's imports (this would be handled by module loader)
-        // For now, just mark it as a pending import
-        Err(ElabError::UnsupportedFeature(format!(
-            "Import of {} not yet implemented",
-            module_name
-        )))
+        // Get the module loader from state
+        let loader = &self.state().module_loader;
+        
+        // Get current environment or create a new one
+        let base_env = self.state().env.clone().unwrap_or_else(Environment::new);
+        
+        // Load and elaborate the imported module
+        let imported_env = loader.elaborate_module(&module_name, base_env.clone())?;
+        
+        // Merge the imported environment into our current environment
+        let merged_env = loader.merge_environments(base_env, &imported_env, &import)?;
+        
+        // Update our environment
+        self.state_mut().set_env(merged_env);
+        
+        // Open the imported namespace if needed (based on import options)
+        // For now, just make the imported names available
+        self.state_mut().ns_ctx.open_namespace(OpenedNamespace::new(module_name));
+        
+        Ok(())
     }
 
     /// Elaborate namespace command
@@ -417,6 +432,68 @@ pub fn elaborate_module_commands(
 mod tests {
     use super::*;
     use crate::environment_ext::init_basic_environment;
+    use lean_parser::ExpandingParser;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+    use crate::module_loader::{ModuleLoader, ModuleLoaderConfig};
+
+    #[test]
+    fn test_import_elaboration() {
+        let mut elaborator = Elaborator::new();
+        elaborator.state_mut().set_env(init_basic_environment());
+
+        // Create a simple import syntax
+        let import_text = "import Std.Data.List";
+        let mut parser = ExpandingParser::new(import_text);
+        let module = parser.parse_module().expect("Failed to parse module");
+        
+        // Extract the first command from the module
+        let syntax = match &module {
+            Syntax::Node(node) if node.kind == SyntaxKind::Module => {
+                node.children.first().expect("Module should have import command")
+            }
+            _ => panic!("Expected module syntax")
+        };
+
+        // The import should fail because the module doesn't exist
+        let result = elaborator.elaborate_command(&syntax);
+        assert!(result.is_err());
+        
+        match result {
+            Err(ElabError::ModuleNotFound(name)) => {
+                assert_eq!(name.to_string(), "Std.Data.List");
+            }
+            _ => panic!("Expected ModuleNotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_import_with_module_loader_config() {
+        // Create a module loader with custom search paths
+        let mut config = ModuleLoaderConfig::default();
+        config.search_paths.push(PathBuf::from("./test_modules"));
+        
+        let mut elaborator = Elaborator::new();
+        // Replace the default module loader with our configured one
+        elaborator.state_mut().module_loader = Arc::new(ModuleLoader::new(config));
+        elaborator.state_mut().set_env(init_basic_environment());
+
+        // Try to import a module that doesn't exist
+        let import_text = "import TestModule";
+        let mut parser = ExpandingParser::new(import_text);
+        let module = parser.parse_module().expect("Failed to parse module");
+        
+        // Extract the first command from the module
+        let syntax = match &module {
+            Syntax::Node(node) if node.kind == SyntaxKind::Module => {
+                node.children.first().expect("Module should have import command")
+            }
+            _ => panic!("Expected module syntax")
+        };
+
+        let result = elaborator.elaborate_command(&syntax);
+        assert!(result.is_err());
+    }
 
     #[test]
     fn test_namespace_command() {
