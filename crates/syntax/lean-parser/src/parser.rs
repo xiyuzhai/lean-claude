@@ -423,11 +423,12 @@ impl<'a> Parser<'a> {
 
     pub fn identifier(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
+        self.skip_whitespace(); // Collect leading trivia
 
         if !self.peek().is_some_and(is_id_start) {
             return Err(ParseError::boxed(
                 ParseErrorKind::Expected("identifier".to_string()),
-                start,
+                self.position(),
             ));
         }
 

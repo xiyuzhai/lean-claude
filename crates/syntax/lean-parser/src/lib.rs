@@ -32,3 +32,6 @@ pub use parser::{Parser, ParserResult};
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod trivia_tests;
