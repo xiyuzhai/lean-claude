@@ -58,6 +58,7 @@ docs/_build/
 editors/vscode/node_modules/
 editors/vscode/out/
 editors/vscode/*.vsix
+editors/vscode/.vscode-test/
 
 # Disabled benchmarks
 crates/apps/lean-analyzer/benches.disabled/
