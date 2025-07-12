@@ -51,6 +51,27 @@ impl Environment {
         Ok(())
     }
 
+    /// Add a declaration with a specific name (for imports with renaming)
+    pub fn add_declaration_with_name(
+        &mut self,
+        name: Name,
+        decl: Declaration,
+    ) -> Result<(), String> {
+        if self.declarations.contains_key(&name) {
+            return Err(format!("declaration '{}' already exists", name));
+        }
+
+        // Verify universe parameters are declared
+        for univ in &decl.universe_params {
+            if !self.universe_names.contains(univ) {
+                return Err(format!("universe '{univ}' not declared"));
+            }
+        }
+
+        self.declarations.insert(name, decl);
+        Ok(())
+    }
+
     pub fn get_declaration(&self, name: &Name) -> Option<&Declaration> {
         self.declarations.get(name)
     }
@@ -65,6 +86,11 @@ impl Environment {
 
     pub fn declarations(&self) -> impl Iterator<Item = &Declaration> {
         self.declarations.values()
+    }
+
+    /// Get all declarations as a vector of (name, declaration) pairs
+    pub fn get_all_declarations(&self) -> Vec<(&Name, &Declaration)> {
+        self.declarations.iter().collect()
     }
 }
 

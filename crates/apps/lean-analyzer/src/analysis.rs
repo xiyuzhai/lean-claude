@@ -62,7 +62,12 @@ pub struct SyntaxNode {
 }
 
 impl SyntaxNode {
-    pub fn new(kind: SyntaxKind, range: TextRange, children: Vec<SyntaxNode>, text: Option<String>) -> Self {
+    pub fn new(
+        kind: SyntaxKind,
+        range: TextRange,
+        children: Vec<SyntaxNode>,
+        text: Option<String>,
+    ) -> Self {
         Self {
             kind,
             range,

@@ -457,10 +457,7 @@ impl<'a> Parser<'a> {
             .join(".");
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Atom(SyntaxAtom::new(
-            range,
-            BaseCoword::new(path),
-        )))
+        Ok(Syntax::Atom(SyntaxAtom::new(range, BaseCoword::new(path))))
     }
 
     pub fn hash_command(&mut self) -> ParserResult<Syntax> {

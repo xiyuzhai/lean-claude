@@ -1038,6 +1038,7 @@ dependencies = [
  "lean-kernel",
  "lean-parser",
  "lean-syn-expr",
+ "smallvec",
  "thiserror",
 ]
 

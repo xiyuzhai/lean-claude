@@ -79,7 +79,11 @@ impl<'a> Parser<'a> {
         }
         children.push(value);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Def, range, children))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Def,
+            range,
+            children,
+        ))))
     }
 
     /// Parse theorem command: `theorem name [params] : type := proof`
@@ -127,7 +131,11 @@ impl<'a> Parser<'a> {
         children.push(ty);
         children.push(proof);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Theorem, range, children))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Theorem,
+            range,
+            children,
+        ))))
     }
 
     /// Parse variable command: `variable {α : Type} (x : α)`
@@ -146,7 +154,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Variable, range, binders.into()))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Variable,
+            range,
+            binders.into(),
+        ))))
     }
 
     /// Parse example command: `example : type := proof`
@@ -189,7 +201,11 @@ impl<'a> Parser<'a> {
         children.push(ty);
         children.push(proof);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Theorem, range, children.into()))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Theorem,
+            range,
+            children.into(),
+        ))))
     }
 
     /// Parse universe command: `universe u v`
@@ -214,7 +230,11 @@ impl<'a> Parser<'a> {
         let ty = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Constant, range, smallvec![name, ty]))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Constant,
+            range,
+            smallvec![name, ty],
+        ))))
     }
 
     /// Parse axiom command: `axiom ax : Prop`
@@ -234,7 +254,11 @@ impl<'a> Parser<'a> {
         let ty = self.term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Axiom, range, smallvec![name, ty]))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Axiom,
+            range,
+            smallvec![name, ty],
+        ))))
     }
 
     /// Parse instance command: `instance : Functor List := ...`
@@ -301,7 +325,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Structure, range, children))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Structure,
+            range,
+            children,
+        ))))
     }
 
     /// Parse a structure field: `fieldName : Type`
@@ -319,7 +347,11 @@ impl<'a> Parser<'a> {
         let field_type = self.atom_term()?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Field, range, smallvec![field_name, field_type]))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Field,
+            range,
+            smallvec![field_name, field_type],
+        ))))
     }
 
     /// Parse inductive command: `inductive Name [params] where [constructors]`
@@ -391,7 +423,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Inductive, range, children))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Inductive,
+            range,
+            children,
+        ))))
     }
 
     /// Parse an inductive constructor: `ConstructorName [: Type]`
@@ -416,7 +452,11 @@ impl<'a> Parser<'a> {
             children.push(ty);
         }
 
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Constructor, range, children))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Constructor,
+            range,
+            children,
+        ))))
     }
 
     /// Parse class command: `class Name [params] [extends Parent] where
@@ -473,7 +513,11 @@ impl<'a> Parser<'a> {
         children.extend(fields);
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Class, range, children))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Class,
+            range,
+            children,
+        ))))
     }
 
     /// Parse abbrev command: `abbrev Name [params] := Type`
@@ -533,7 +577,11 @@ impl<'a> Parser<'a> {
         self.keyword("end")?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Mutual, range, declarations.into()))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Mutual,
+            range,
+            declarations.into(),
+        ))))
     }
 
     /// Parse a declaration inside a mutual block
@@ -580,7 +628,11 @@ impl<'a> Parser<'a> {
         }
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Deriving, range, typeclasses.into()))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Deriving,
+            range,
+            typeclasses.into(),
+        ))))
     }
 
     pub fn abbrev_command(&mut self) -> ParserResult<Syntax> {
@@ -632,7 +684,11 @@ impl<'a> Parser<'a> {
         children.push(body);
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Abbrev, range, children))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Abbrev,
+            range,
+            children,
+        ))))
     }
 
     pub fn instance_command(&mut self) -> ParserResult<Syntax> {
@@ -686,6 +742,10 @@ impl<'a> Parser<'a> {
         children.push(ty);
         children.push(value);
 
-        Ok(Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Instance, range, children))))
+        Ok(Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Instance,
+            range,
+            children,
+        ))))
     }
 }

@@ -1,6 +1,7 @@
 //! Type checking and type inference
 
 use lean_kernel::{
+    environment::Environment,
     expr::{BinderInfo, ExprKind},
     Expr, Level, Name,
 };
@@ -13,11 +14,29 @@ pub struct TypeChecker<'a> {
     lctx: &'a LocalContext,
     /// Metavariable context
     mctx: &'a mut MetavarContext,
+    /// Environment for constant lookup
+    env: Option<&'a Environment>,
 }
 
 impl<'a> TypeChecker<'a> {
     pub fn new(lctx: &'a LocalContext, mctx: &'a mut MetavarContext) -> Self {
-        Self { lctx, mctx }
+        Self {
+            lctx,
+            mctx,
+            env: None,
+        }
+    }
+
+    pub fn with_env(
+        lctx: &'a LocalContext,
+        mctx: &'a mut MetavarContext,
+        env: &'a Environment,
+    ) -> Self {
+        Self {
+            lctx,
+            mctx,
+            env: Some(env),
+        }
     }
 
     /// Infer the type of an expression
@@ -47,9 +66,37 @@ impl<'a> TypeChecker<'a> {
                 // Type of Sort u is Sort (u+1)
                 Ok(Expr::sort(Level::succ(level.clone())))
             }
-            ExprKind::Const(name, _levels) => {
-                // TODO: Look up constant in environment
-                Err(ElabError::UnknownIdentifier(name.clone()))
+            ExprKind::Const(name, levels) => {
+                // Look up constant in environment
+                if let Some(env) = self.env {
+                    if let Some(decl) = env.get_declaration(name) {
+                        // TODO: Proper universe level instantiation
+                        // For now, just return the declared type
+                        if levels.is_empty() && decl.universe_params.is_empty() {
+                            // No universe polymorphism
+                            Ok(decl.ty.clone())
+                        } else if levels.len() == decl.universe_params.len() {
+                            // Universe instantiation needed
+                            // TODO: Implement proper universe substitution
+                            Ok(decl.ty.clone())
+                        } else {
+                            Err(ElabError::UniverseLevelError(format!(
+                                "Universe level mismatch for {}: expected {}, got {}",
+                                name,
+                                decl.universe_params.len(),
+                                levels.len()
+                            )))
+                        }
+                    } else {
+                        Err(ElabError::UnknownIdentifier(name.clone()))
+                    }
+                } else {
+                    // No environment - create metavariable as fallback
+                    let const_type = self
+                        .mctx
+                        .mk_metavar(Expr::sort(Level::zero()), self.lctx.clone());
+                    Ok(const_type)
+                }
             }
             ExprKind::App(f, a) => {
                 // Infer type of function
@@ -74,35 +121,96 @@ impl<'a> TypeChecker<'a> {
                     }),
                 }
             }
-            ExprKind::Lam(name, ty, body, _) => {
+            ExprKind::Lam(name, ty, body, info) => {
+                // Check that the domain is a type
+                let ty_type = self.infer_type(ty)?;
+                self.ensure_is_type(&ty_type)?;
+
+                // Create a fresh fvar for the lambda parameter
+                let mut extended_lctx = self.lctx.clone();
+                let fvar_id = extended_lctx.push_local_decl(name.clone(), (**ty).clone());
+
+                // Infer the type of the body in the extended context
+                let mut extended_tc = TypeChecker::new(&extended_lctx, self.mctx);
+
+                // Substitute the parameter in the body with the fresh fvar
+                let body_with_fvar = TypeChecker::instantiate_bvar_with_fvar(body, 0, &fvar_id);
+                let body_type = extended_tc.infer_type(&body_with_fvar)?;
+
+                // Abstract the fvar back to a bound variable in the body type
+                let body_type_abstracted =
+                    TypeChecker::abstract_fvar_to_bvar(&body_type, &fvar_id, 0);
+
                 // Type of lambda is forall
                 Ok(Expr::forall(
                     name.clone(),
                     (**ty).clone(),
-                    (**body).clone(), // TODO: Infer body type in extended context
-                    BinderInfo::Default,
+                    body_type_abstracted,
+                    *info,
                 ))
             }
-            ExprKind::Forall(_name, ty, _body, _info) => {
+            ExprKind::Forall(name, ty, body, _info) => {
                 // Check that ty is a type
                 let ty_type = self.infer_type(ty)?;
                 self.ensure_is_type(&ty_type)?;
 
-                // TODO: Check body in extended context
+                // Get the universe level of the domain type
+                let domain_level = match &ty_type.kind {
+                    ExprKind::Sort(level) => level.clone(),
+                    _ => Level::zero(), // Fallback
+                };
 
-                // Type of forall is a sort
-                Ok(Expr::sort(Level::zero())) // TODO: Universe polymorphism
+                // Create a fresh fvar for the forall parameter
+                let mut extended_lctx = self.lctx.clone();
+                let fvar_id = extended_lctx.push_local_decl(name.clone(), (**ty).clone());
+
+                // Check the body type in the extended context
+                let mut extended_tc = TypeChecker::new(&extended_lctx, self.mctx);
+
+                // Substitute the parameter in the body with the fresh fvar
+                let body_with_fvar = TypeChecker::instantiate_bvar_with_fvar(body, 0, &fvar_id);
+                let body_type = extended_tc.infer_type(&body_with_fvar)?;
+
+                // Ensure the body is a type
+                extended_tc.ensure_is_type(&body_type)?;
+
+                // Get the universe level of the codomain type
+                let codomain_level = match &body_type.kind {
+                    ExprKind::Sort(level) => level.clone(),
+                    _ => Level::zero(), // Fallback
+                };
+
+                // Type of forall is the max of domain and codomain levels
+                // TODO: Implement proper universe level calculation
+                let result_level = Level::max(domain_level, codomain_level);
+                Ok(Expr::sort(result_level))
             }
-            ExprKind::Let(_name, _ty, _val, body) => {
+            ExprKind::Let(name, ty, val, body) => {
                 // Check that value has the declared type
-                // let val_type = self.infer_type(val)?;
-                // For now, don't check type equality since we're using metavariables
-                // self.ensure_def_eq(&val_type, ty)?;
+                let val_type = self.infer_type(val)?;
+                self.ensure_def_eq(&val_type, ty)?;
 
-                // Type of let is type of body with substitution
-                // For now, just infer the body type directly
-                // TODO: Properly handle let bindings in context
-                self.infer_type(body)
+                // Create a fresh fvar for the let binding
+                let mut extended_lctx = self.lctx.clone();
+                let fvar_id = extended_lctx.push_local_def(
+                    name.clone(),
+                    Some((**ty).clone()),
+                    (**val).clone(),
+                );
+
+                // Infer the type of the body in the extended context
+                let mut extended_tc = TypeChecker::new(&extended_lctx, self.mctx);
+
+                // Substitute the let variable in the body with the fresh fvar
+                let body_with_fvar = TypeChecker::instantiate_bvar_with_fvar(body, 0, &fvar_id);
+                let body_type = extended_tc.infer_type(&body_with_fvar)?;
+
+                // Abstract the fvar back to a bound variable in the body type
+                let body_type_abstracted =
+                    TypeChecker::abstract_fvar_to_bvar(&body_type, &fvar_id, 0);
+
+                // Now substitute the let value into the body type
+                Ok(self.instantiate(&body_type_abstracted, val))
             }
             ExprKind::Lit(lit) => {
                 use lean_kernel::expr::Literal;
@@ -111,11 +219,22 @@ impl<'a> TypeChecker<'a> {
                     Literal::String(_) => Ok(Expr::const_expr("String".into(), vec![])),
                 }
             }
-            ExprKind::Proj(struct_name, idx, _e) => {
-                // TODO: Look up structure and field types
-                Err(ElabError::InvalidProjection(format!(
-                    "Projection {struct_name}.{idx} not implemented"
-                )))
+            ExprKind::Proj(struct_name, idx, e) => {
+                // Infer the type of the expression being projected
+                let e_type = self.infer_type(e)?;
+
+                // TODO: Proper structure field lookup
+                // For now, create a metavariable for the result type
+                let result_type = self
+                    .mctx
+                    .mk_metavar(Expr::sort(Level::zero()), self.lctx.clone());
+
+                // TODO: Add proper projection type inference:
+                // 1. Check that e_type is a structure type
+                // 2. Look up the field at index idx in struct_name
+                // 3. Instantiate the field type with the expression
+
+                Ok(result_type)
             }
             ExprKind::MData(_, e) => {
                 // Metadata doesn't affect the type
@@ -237,6 +356,110 @@ impl<'a> TypeChecker<'a> {
         self.instantiate_core(expr, value, 0)
     }
 
+    /// Instantiate a specific bound variable with a free variable
+    fn instantiate_bvar_with_fvar(expr: &Expr, bvar_idx: u32, fvar_id: &Name) -> Expr {
+        Self::instantiate_bvar_with_fvar_core(expr, bvar_idx, fvar_id, 0)
+    }
+
+    fn instantiate_bvar_with_fvar_core(
+        expr: &Expr,
+        target_bvar: u32,
+        fvar_id: &Name,
+        depth: u32,
+    ) -> Expr {
+        match &expr.kind {
+            ExprKind::BVar(idx) => {
+                if *idx == target_bvar + depth {
+                    // Replace with fvar
+                    Expr::fvar(fvar_id.clone())
+                } else {
+                    expr.clone()
+                }
+            }
+            ExprKind::App(f, a) => {
+                let f_inst = Self::instantiate_bvar_with_fvar_core(f, target_bvar, fvar_id, depth);
+                let a_inst = Self::instantiate_bvar_with_fvar_core(a, target_bvar, fvar_id, depth);
+                Expr::app(f_inst, a_inst)
+            }
+            ExprKind::Lam(name, ty, body, info) => {
+                let ty_inst =
+                    Self::instantiate_bvar_with_fvar_core(ty, target_bvar, fvar_id, depth);
+                let body_inst =
+                    Self::instantiate_bvar_with_fvar_core(body, target_bvar, fvar_id, depth + 1);
+                Expr::lam(name.clone(), ty_inst, body_inst, *info)
+            }
+            ExprKind::Forall(name, ty, body, info) => {
+                let ty_inst =
+                    Self::instantiate_bvar_with_fvar_core(ty, target_bvar, fvar_id, depth);
+                let body_inst =
+                    Self::instantiate_bvar_with_fvar_core(body, target_bvar, fvar_id, depth + 1);
+                Expr::forall(name.clone(), ty_inst, body_inst, *info)
+            }
+            ExprKind::Let(name, ty, val, body) => {
+                let ty_inst =
+                    Self::instantiate_bvar_with_fvar_core(ty, target_bvar, fvar_id, depth);
+                let val_inst =
+                    Self::instantiate_bvar_with_fvar_core(val, target_bvar, fvar_id, depth);
+                let body_inst =
+                    Self::instantiate_bvar_with_fvar_core(body, target_bvar, fvar_id, depth + 1);
+                Expr::let_expr(name.clone(), ty_inst, val_inst, body_inst)
+            }
+            _ => expr.clone(),
+        }
+    }
+
+    /// Abstract a free variable to a bound variable
+    fn abstract_fvar_to_bvar(expr: &Expr, fvar_id: &Name, target_bvar: u32) -> Expr {
+        Self::abstract_fvar_to_bvar_core(expr, fvar_id, target_bvar, 0)
+    }
+
+    fn abstract_fvar_to_bvar_core(
+        expr: &Expr,
+        fvar_id: &Name,
+        target_bvar: u32,
+        depth: u32,
+    ) -> Expr {
+        match &expr.kind {
+            ExprKind::FVar(name) if name == fvar_id => {
+                // Replace with bvar
+                Expr::bvar(target_bvar + depth)
+            }
+            ExprKind::BVar(idx) => {
+                // Adjust bound variables that are "above" our target
+                if *idx >= target_bvar + depth {
+                    Expr::bvar(idx + 1)
+                } else {
+                    expr.clone()
+                }
+            }
+            ExprKind::App(f, a) => {
+                let f_abs = Self::abstract_fvar_to_bvar_core(f, fvar_id, target_bvar, depth);
+                let a_abs = Self::abstract_fvar_to_bvar_core(a, fvar_id, target_bvar, depth);
+                Expr::app(f_abs, a_abs)
+            }
+            ExprKind::Lam(name, ty, body, info) => {
+                let ty_abs = Self::abstract_fvar_to_bvar_core(ty, fvar_id, target_bvar, depth);
+                let body_abs =
+                    Self::abstract_fvar_to_bvar_core(body, fvar_id, target_bvar, depth + 1);
+                Expr::lam(name.clone(), ty_abs, body_abs, *info)
+            }
+            ExprKind::Forall(name, ty, body, info) => {
+                let ty_abs = Self::abstract_fvar_to_bvar_core(ty, fvar_id, target_bvar, depth);
+                let body_abs =
+                    Self::abstract_fvar_to_bvar_core(body, fvar_id, target_bvar, depth + 1);
+                Expr::forall(name.clone(), ty_abs, body_abs, *info)
+            }
+            ExprKind::Let(name, ty, val, body) => {
+                let ty_abs = Self::abstract_fvar_to_bvar_core(ty, fvar_id, target_bvar, depth);
+                let val_abs = Self::abstract_fvar_to_bvar_core(val, fvar_id, target_bvar, depth);
+                let body_abs =
+                    Self::abstract_fvar_to_bvar_core(body, fvar_id, target_bvar, depth + 1);
+                Expr::let_expr(name.clone(), ty_abs, val_abs, body_abs)
+            }
+            _ => expr.clone(),
+        }
+    }
+
     fn instantiate_core(&self, expr: &Expr, value: &Expr, depth: u32) -> Expr {
         match &expr.kind {
             ExprKind::BVar(idx) => {
@@ -326,6 +549,16 @@ impl<'a> Unifier<'a> {
     pub fn new(lctx: &'a LocalContext, mctx: &'a mut MetavarContext) -> Self {
         Self {
             tc: TypeChecker::new(lctx, mctx),
+        }
+    }
+
+    pub fn with_env(
+        lctx: &'a LocalContext,
+        mctx: &'a mut MetavarContext,
+        env: &'a Environment,
+    ) -> Self {
+        Self {
+            tc: TypeChecker::with_env(lctx, mctx, env),
         }
     }
 

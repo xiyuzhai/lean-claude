@@ -569,7 +569,11 @@ impl<'a> Parser<'a> {
 
                     // Create a binder node
                     let binder_range = self.input().range_from(start);
-                    let binder = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::LeftParen, binder_range, smallvec![name, ty])));
+                    let binder = Syntax::Node(Box::new(SyntaxNode::new(
+                        SyntaxKind::LeftParen,
+                        binder_range,
+                        smallvec![name, ty],
+                    )));
                     binders.push(binder);
                 } else {
                     // Just a name
@@ -1164,9 +1168,6 @@ impl<'a> Parser<'a> {
         self.expect_char('·')?;
 
         let range = self.input().range_from(start);
-        Ok(Syntax::Atom(SyntaxAtom::new(
-            range,
-            BaseCoword::new("·"),
-        )))
+        Ok(Syntax::Atom(SyntaxAtom::new(range, BaseCoword::new("·"))))
     }
 }

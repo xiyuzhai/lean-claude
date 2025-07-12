@@ -24,7 +24,7 @@ pub struct Instance {
 }
 
 /// Instance resolution context
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct InstanceContext {
     /// Available instances, indexed by type class name
     instances: HashMap<Name, Vec<Instance>>,

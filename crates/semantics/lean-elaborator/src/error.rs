@@ -38,4 +38,19 @@ pub enum ElabError {
 
     #[error("Unsupported feature: {0}")]
     UnsupportedFeature(String),
+
+    #[error("Module not found: {0}")]
+    ModuleNotFound(Name),
+
+    #[error("Import cycle detected: {0}")]
+    ImportCycle(Name),
+
+    #[error("IO error: {0}")]
+    IOError(String),
+
+    #[error("Parse error: {0}")]
+    ParseError(String),
+
+    #[error("Namespace error: {0}")]
+    NamespaceError(String),
 }

@@ -4,6 +4,7 @@
 //! performing type inference and filling in implicit arguments.
 
 use lean_kernel::{
+    environment::Environment,
     expr::{BinderInfo, ExprKind},
     Expr, Level, Name,
 };
@@ -15,10 +16,13 @@ use crate::{
     error::ElabError,
     instances::InstanceContext,
     metavar::MetavarContext,
+    namespace::NamespaceContext,
     typeck::TypeChecker,
+    universe::UniverseInferenceContext,
 };
 
 /// Elaboration state
+#[derive(Clone)]
 pub struct ElabState {
     /// Local variable context
     pub lctx: LocalContext,
@@ -26,10 +30,16 @@ pub struct ElabState {
     pub mctx: MetavarContext,
     /// Universe level context
     pub level_ctx: LevelContext,
+    /// Universe inference context
+    pub uinfer: UniverseInferenceContext,
     /// Instance resolution context
     pub inst_ctx: InstanceContext,
     /// Custom elaboration rules registry
     pub elab_rules: ElabRulesRegistry,
+    /// Environment for constant lookup
+    pub env: Option<Environment>,
+    /// Namespace context for name resolution
+    pub ns_ctx: NamespaceContext,
 }
 
 impl ElabState {
@@ -38,9 +48,34 @@ impl ElabState {
             lctx: LocalContext::new(),
             mctx: MetavarContext::new(),
             level_ctx: LevelContext::new(),
+            uinfer: UniverseInferenceContext::new(),
             inst_ctx: InstanceContext::new(),
             elab_rules: ElabRulesRegistry::new(),
+            env: None,
+            ns_ctx: NamespaceContext::new(),
         }
+    }
+
+    pub fn with_env(env: Environment) -> Self {
+        Self {
+            lctx: LocalContext::new(),
+            mctx: MetavarContext::new(),
+            level_ctx: LevelContext::new(),
+            uinfer: UniverseInferenceContext::new(),
+            inst_ctx: InstanceContext::new(),
+            elab_rules: ElabRulesRegistry::new(),
+            env: Some(env),
+            ns_ctx: NamespaceContext::new(),
+        }
+    }
+
+    pub fn set_env(&mut self, env: Environment) {
+        self.env = Some(env);
+    }
+
+    /// Solve universe constraints
+    pub fn solve_universe_constraints(&mut self) -> Result<(), ElabError> {
+        self.uinfer.solve(&mut self.mctx)
     }
 }
 
@@ -124,7 +159,11 @@ impl Elaborator {
         let expr = self.elaborate(syntax)?;
 
         // Check that the expression has the expected type
-        let mut tc = TypeChecker::new(&self.state.lctx, &mut self.state.mctx);
+        let mut tc = if let Some(env) = &self.state.env {
+            TypeChecker::with_env(&self.state.lctx, &mut self.state.mctx, env)
+        } else {
+            TypeChecker::new(&self.state.lctx, &mut self.state.mctx)
+        };
         tc.check_type(&expr, expected_ty)?;
 
         Ok(expr)
@@ -132,7 +171,11 @@ impl Elaborator {
 
     /// Infer the type of an expression
     pub fn infer_type(&mut self, expr: &Expr) -> Result<Expr, ElabError> {
-        let mut tc = TypeChecker::new(&self.state.lctx, &mut self.state.mctx);
+        let mut tc = if let Some(env) = &self.state.env {
+            TypeChecker::with_env(&self.state.lctx, &mut self.state.mctx, env)
+        } else {
+            TypeChecker::new(&self.state.lctx, &mut self.state.mctx)
+        };
         tc.infer_type(expr)
     }
 
@@ -157,6 +200,14 @@ impl Elaborator {
         // Check if it's a local variable
         if let Some(fvar_id) = self.state.lctx.find_by_user_name(&name) {
             return Ok(Expr::fvar(fvar_id.clone()));
+        }
+
+        // Try namespace resolution
+        let resolved_names = self.state.ns_ctx.resolve_name(&name);
+
+        // For now, use the first resolved name
+        if let Some(resolved) = resolved_names.first() {
+            return Ok(Expr::const_expr(resolved.name.clone(), vec![]));
         }
 
         // Otherwise treat as a constant (will need to be resolved later)
@@ -1305,28 +1356,49 @@ mod tests {
                     eterned::BaseCoword::new("x".to_string()),
                 )),
                 // First arm: | 0 => 1
-                Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::MatchArm, dummy_range, vec![
+                Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::MatchArm,
+                    dummy_range,
+                    vec![
                         // pattern: 0
-                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("0".to_string()),
+                        Syntax::Atom(SyntaxAtom::new(
+                            dummy_range,
+                            eterned::BaseCoword::new("0".to_string()),
                         )),
                         // body: 1
-                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("1".to_string()),
+                        Syntax::Atom(SyntaxAtom::new(
+                            dummy_range,
+                            eterned::BaseCoword::new("1".to_string()),
                         )),
                     ]
                     .into(),
                 ))),
                 // Second arm: | n => n + 1
-                Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::MatchArm, dummy_range, vec![
+                Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::MatchArm,
+                    dummy_range,
+                    vec![
                         // pattern: n
-                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("n".to_string()),
+                        Syntax::Atom(SyntaxAtom::new(
+                            dummy_range,
+                            eterned::BaseCoword::new("n".to_string()),
                         )),
                         // body: n + 1
-                        Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::BinOp, dummy_range, vec![
-                                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("n".to_string()),
+                        Syntax::Node(Box::new(SyntaxNode::new(
+                            SyntaxKind::BinOp,
+                            dummy_range,
+                            vec![
+                                Syntax::Atom(SyntaxAtom::new(
+                                    dummy_range,
+                                    eterned::BaseCoword::new("n".to_string()),
                                 )),
-                                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("+".to_string()),
+                                Syntax::Atom(SyntaxAtom::new(
+                                    dummy_range,
+                                    eterned::BaseCoword::new("+".to_string()),
                                 )),
-                                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("1".to_string()),
+                                Syntax::Atom(SyntaxAtom::new(
+                                    dummy_range,
+                                    eterned::BaseCoword::new("1".to_string()),
                                 )),
                             ]
                             .into(),
@@ -1378,28 +1450,47 @@ mod tests {
 
         // Create syntax for: match x with | 0 => 1 | 1 => 2
         // This is non-exhaustive for Nat
-        let match_syntax = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::Match, dummy_range, vec![
+        let match_syntax = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::Match,
+            dummy_range,
+            vec![
                 // discriminant: x
-                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("x".to_string()),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    eterned::BaseCoword::new("x".to_string()),
                 )),
                 // First arm: | 0 => 1
-                Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::MatchArm, dummy_range, vec![
+                Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::MatchArm,
+                    dummy_range,
+                    vec![
                         // pattern: 0
-                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("0".to_string()),
+                        Syntax::Atom(SyntaxAtom::new(
+                            dummy_range,
+                            eterned::BaseCoword::new("0".to_string()),
                         )),
                         // body: 1
-                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("1".to_string()),
+                        Syntax::Atom(SyntaxAtom::new(
+                            dummy_range,
+                            eterned::BaseCoword::new("1".to_string()),
                         )),
                     ]
                     .into(),
                 ))),
                 // Second arm: | 1 => 2
-                Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::MatchArm, dummy_range, vec![
+                Syntax::Node(Box::new(SyntaxNode::new(
+                    SyntaxKind::MatchArm,
+                    dummy_range,
+                    vec![
                         // pattern: 1
-                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("1".to_string()),
+                        Syntax::Atom(SyntaxAtom::new(
+                            dummy_range,
+                            eterned::BaseCoword::new("1".to_string()),
                         )),
                         // body: 2
-                        Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("2".to_string()),
+                        Syntax::Atom(SyntaxAtom::new(
+                            dummy_range,
+                            eterned::BaseCoword::new("2".to_string()),
                         )),
                     ]
                     .into(),
@@ -1436,15 +1527,24 @@ mod tests {
         };
 
         // Create syntax for: 1 + 2
-        let binop_syntax = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::BinOp, dummy_range, vec![
+        let binop_syntax = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::BinOp,
+            dummy_range,
+            vec![
                 // left: 1
-                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("1".to_string()),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    eterned::BaseCoword::new("1".to_string()),
                 )),
                 // operator: +
-                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("+".to_string()),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    eterned::BaseCoword::new("+".to_string()),
                 )),
                 // right: 2
-                Syntax::Atom(SyntaxAtom::new(dummy_range, eterned::BaseCoword::new("2".to_string()),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range,
+                    eterned::BaseCoword::new("2".to_string()),
                 )),
             ]
             .into(),

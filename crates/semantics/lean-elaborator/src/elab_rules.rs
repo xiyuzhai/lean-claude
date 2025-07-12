@@ -372,7 +372,15 @@ mod tests {
     #[test]
     fn test_pattern_matching_variable() {
         // Pattern: `($x)`
-        let pattern = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::SyntaxQuotation, dummy_range(), vec![Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::SyntaxAntiquotation, dummy_range(), vec![Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("$x"),
+        let pattern = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::SyntaxQuotation,
+            dummy_range(),
+            vec![Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::SyntaxAntiquotation,
+                dummy_range(),
+                vec![Syntax::Atom(SyntaxAtom::new(
+                    dummy_range(),
+                    eterned::BaseCoword::new("$x"),
                 ))]
                 .into(),
             )))]
@@ -380,10 +388,15 @@ mod tests {
         )));
 
         // Any syntax should match
-        let syntax1 = Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("anything"),
+        let syntax1 = Syntax::Atom(SyntaxAtom::new(
+            dummy_range(),
+            eterned::BaseCoword::new("anything"),
         ));
 
-        let syntax2 = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::App, dummy_range(), vec![].into(),
+        let syntax2 = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::App,
+            dummy_range(),
+            vec![].into(),
         )));
 
         assert!(matches_pattern(&pattern, &syntax1));
@@ -393,12 +406,24 @@ mod tests {
     #[test]
     fn test_extract_bindings() {
         // Pattern: `(f $x $y)`
-        let pattern = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::SyntaxQuotation, dummy_range(), vec![Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::App, dummy_range(), vec![
-                    Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("f"),
+        let pattern = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::SyntaxQuotation,
+            dummy_range(),
+            vec![Syntax::Node(Box::new(SyntaxNode::new(
+                SyntaxKind::App,
+                dummy_range(),
+                vec![
+                    Syntax::Atom(SyntaxAtom::new(
+                        dummy_range(),
+                        eterned::BaseCoword::new("f"),
                     )),
-                    Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("$x"),
+                    Syntax::Atom(SyntaxAtom::new(
+                        dummy_range(),
+                        eterned::BaseCoword::new("$x"),
                     )),
-                    Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("$y"),
+                    Syntax::Atom(SyntaxAtom::new(
+                        dummy_range(),
+                        eterned::BaseCoword::new("$y"),
                     )),
                 ]
                 .into(),
@@ -407,12 +432,21 @@ mod tests {
         )));
 
         // Syntax: (f a b)
-        let syntax = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::App, dummy_range(), vec![
-                Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("f"),
+        let syntax = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::App,
+            dummy_range(),
+            vec![
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range(),
+                    eterned::BaseCoword::new("f"),
                 )),
-                Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("a"),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range(),
+                    eterned::BaseCoword::new("a"),
                 )),
-                Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("b"),
+                Syntax::Atom(SyntaxAtom::new(
+                    dummy_range(),
+                    eterned::BaseCoword::new("b"),
                 )),
             ]
             .into(),
@@ -437,12 +471,22 @@ mod tests {
         let mut registry = ElabRulesRegistry::new();
 
         // Register a simple rule: `(myterm) => `(42)
-        let pattern = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::SyntaxQuotation, dummy_range(), vec![Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("myterm"),
+        let pattern = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::SyntaxQuotation,
+            dummy_range(),
+            vec![Syntax::Atom(SyntaxAtom::new(
+                dummy_range(),
+                eterned::BaseCoword::new("myterm"),
             ))]
             .into(),
         )));
 
-        let template = Syntax::Node(Box::new(SyntaxNode::new(SyntaxKind::SyntaxQuotation, dummy_range(), vec![Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("42"),
+        let template = Syntax::Node(Box::new(SyntaxNode::new(
+            SyntaxKind::SyntaxQuotation,
+            dummy_range(),
+            vec![Syntax::Atom(SyntaxAtom::new(
+                dummy_range(),
+                eterned::BaseCoword::new("42"),
             ))]
             .into(),
         )));
@@ -456,7 +500,9 @@ mod tests {
         registry.register_rule("term", rule);
 
         // Test finding rules
-        let test_syntax = Syntax::Atom(SyntaxAtom::new(dummy_range(), eterned::BaseCoword::new("myterm"),
+        let test_syntax = Syntax::Atom(SyntaxAtom::new(
+            dummy_range(),
+            eterned::BaseCoword::new("myterm"),
         ));
 
         let found_rules = registry.find_rules(&test_syntax, "term");

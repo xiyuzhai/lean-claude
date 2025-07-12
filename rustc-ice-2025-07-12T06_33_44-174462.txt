@@ -1,0 +1,71 @@
+thread 'main' panicked at /rust/deps/annotate-snippets-0.9.2/src/display_list/from_snippet.rs:275:9:
+SourceAnnotation range `(79, 80)` is bigger than source length `62`
+stack backtrace:
+   0:     0xf53fb5aba3e0 - std::backtrace_rs::backtrace::libunwind::trace::hde56002cdfe82a07
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/../../backtrace/src/backtrace/libunwind.rs:117:9
+   1:     0xf53fb5aba3e0 - std::backtrace_rs::backtrace::trace_unsynchronized::h5fe412731d66a6a0
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/../../backtrace/src/backtrace/mod.rs:66:14
+   2:     0xf53fb5aba3e0 - std::backtrace::Backtrace::create::h99957de69fb9e07f
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/backtrace.rs:331:13
+   3:     0xf53fb4d136e4 - std[634da65455f828ef]::panicking::update_hook::<alloc[6e817576cd99c6ae]::boxed::Box<rustc_driver_impl[eb75ae52a3a45fdc]::install_ice_hook::{closure#1}>>::{closure#0}
+   4:     0xf53fb5ad4a48 - <alloc::boxed::Box<F,A> as core::ops::function::Fn<Args>>::call::h0c5c2f7add0c6184
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/alloc/src/boxed.rs:1985:9
+   5:     0xf53fb5ad4a48 - std::panicking::rust_panic_with_hook::hed36456f29839a6b
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/panicking.rs:841:13
+   6:     0xf53fb5ad4720 - std::panicking::begin_panic_handler::{{closure}}::h9ec8053fe418eea2
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/panicking.rs:706:13
+   7:     0xf53fb5ad0ee4 - std::sys::backtrace::__rust_end_short_backtrace::he6ec8f8285d2f862
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/sys/backtrace.rs:168:18
+   8:     0xf53fb5ad444c - __rustc[c00c44d2e7a9f37a]::rust_begin_unwind
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/panicking.rs:697:5
+   9:     0xf53fb2ab3608 - core::panicking::panic_fmt::hae938a50563c36eb
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/core/src/panicking.rs:75:14
+  10:     0xc25c172f48f0 - <annotate_snippets[68b2ea9526bc8c68]::display_list::structs::DisplayList as core[d6765a8e0c1645a5]::convert::From<annotate_snippets[68b2ea9526bc8c68]::snippet::Snippet>>::from
+  11:     0xc25c17465428 - <rustfmt_nightly[6cc03fcbddc50d9f]::format_report_formatter::FormatReportFormatter as core[d6765a8e0c1645a5]::fmt::Display>::fmt
+  12:     0xf53fb2b07508 - core::fmt::rt::Argument::fmt::hc18880da61923089
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/core/src/fmt/rt.rs:173:76
+  13:     0xf53fb2b07508 - core::fmt::write::h1d9e7895a5cf52fa
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/core/src/fmt/mod.rs:1469:25
+  14:     0xf53fb5ac4368 - std::io::default_write_fmt::ha5a47095d8f8d86b
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/io/mod.rs:639:11
+  15:     0xf53fb5ac4368 - std::io::Write::write_fmt::hc89e6dee07aec50e
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/io/mod.rs:1954:13
+  16:     0xf53fb5ac4368 - <&std::io::stdio::Stderr as std::io::Write>::write_fmt::hd30f2fbe535f4ee1
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/io/stdio.rs:1066:21
+  17:     0xf53fb5ac4d78 - <std::io::stdio::Stderr as std::io::Write>::write_fmt::hbb4fefeec02d3cfb
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/io/stdio.rs:1040:18
+  18:     0xf53fb5ac4d78 - std::io::stdio::print_to::h43607b8f7a6cf363
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/io/stdio.rs:1164:32
+  19:     0xf53fb5ac4d78 - std::io::stdio::_eprint::h9cb4b797d7ffeec7
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/io/stdio.rs:1286:5
+  20:     0xc25c173d65c4 - rustfmt[f95f39b183c10f90]::format_and_emit_report::<std[634da65455f828ef]::io::stdio::Stdout>
+  21:     0xc25c173d4160 - rustfmt[f95f39b183c10f90]::execute
+  22:     0xc25c173d0454 - rustfmt[f95f39b183c10f90]::main
+  23:     0xc25c173c46c4 - std[634da65455f828ef]::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  24:     0xc25c173c4bdc - std[634da65455f828ef]::rt::lang_start::<()>::{closure#0}
+  25:     0xf53fb5ab7230 - core::ops::function::impls::<impl core::ops::function::FnOnce<A> for &F>::call_once::h9721aecfaf48ffbb
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/core/src/ops/function.rs:290:21
+  26:     0xf53fb5ab7230 - std::panicking::catch_unwind::do_call::h26d8306f16170bb9
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/panicking.rs:589:40
+  27:     0xf53fb5ab7230 - std::panicking::catch_unwind::h0fff66d4c7bcd29f
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/panicking.rs:552:19
+  28:     0xf53fb5ab7230 - std::panic::catch_unwind::h135bb70c2e77edcb
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/panic.rs:359:14
+  29:     0xf53fb5ab7230 - std::rt::lang_start_internal::{{closure}}::h4ecd001a4ce66c4b
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/rt.rs:175:24
+  30:     0xf53fb5ab7230 - std::panicking::catch_unwind::do_call::h3698689cd2869df5
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/panicking.rs:589:40
+  31:     0xf53fb5ab7230 - std::panicking::catch_unwind::hafd75bf415218402
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/panicking.rs:552:19
+  32:     0xf53fb5ab7230 - std::panic::catch_unwind::hc60e86ca29312f31
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/panic.rs:359:14
+  33:     0xf53fb5ab7230 - std::rt::lang_start_internal::h76b2748f76140d1e
+                               at /rustc/2a023bf80a6fbd6a06d5460a34eb247b986286ed/library/std/src/rt.rs:171:5
+  34:     0xc25c173d751c - main
+  35:     0xf53fb16084c4 - <unknown>
+  36:     0xf53fb1608598 - __libc_start_main
+  37:     0xc25c172d7648 - <unknown>
+
+
+rustc version: 1.90.0-nightly (2a023bf80 2025-07-10)
+platform: aarch64-unknown-linux-gnu

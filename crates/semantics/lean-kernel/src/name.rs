@@ -58,6 +58,24 @@ impl Name {
         components.reverse();
         components
     }
+
+    /// Join a base name with a relative name
+    pub fn join_relative(base: &Name, relative: &Name) -> Name {
+        let relative_components = relative.components();
+        let mut result = base.clone();
+
+        for component in relative_components {
+            if component.parse::<u64>().is_ok() {
+                if let Ok(num) = component.parse::<u64>() {
+                    result = Name::num(result, num);
+                }
+            } else {
+                result = Name::str(result, component);
+            }
+        }
+
+        result
+    }
 }
 
 impl fmt::Display for Name {
