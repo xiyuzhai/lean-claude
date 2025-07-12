@@ -61,6 +61,10 @@ insta = "1.34"
 name = "lean-analyzer"
 path = "src/main.rs"
 
+[features]
+default = []
+lsp-test = []
+
 [[bench]]
 name = "analyzer_benchmarks"
 harness = false

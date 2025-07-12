@@ -249,22 +249,19 @@ impl LeanLanguageServer {
         let text_range = self.lsp_position_to_text_range(position, &path).await?;
 
         let references = self.analysis_host.find_references(&path, text_range);
-        let lsp_references: Result<Vec<Location>, anyhow::Error> = references
-            .into_iter()
-            .map(|(ref_path, ref_range)| -> Result<Location, anyhow::Error> {
-                let ref_uri = Url::from_file_path(&ref_path)
-                    .map_err(|_| anyhow::anyhow!("Invalid file path"))?;
-                let ref_position = futures::executor::block_on(
-                    self.text_range_to_lsp_range(ref_range, &ref_path),
-                )?;
-                Ok(Location {
-                    uri: ref_uri,
-                    range: ref_position,
-                })
-            })
-            .collect();
+        let mut lsp_references = Vec::new();
 
-        Ok(serde_json::to_value(lsp_references?)?)
+        for (ref_path, ref_range) in references {
+            let ref_uri =
+                Url::from_file_path(&ref_path).map_err(|_| anyhow::anyhow!("Invalid file path"))?;
+            let ref_position = self.text_range_to_lsp_range(ref_range, &ref_path).await?;
+            lsp_references.push(Location {
+                uri: ref_uri,
+                range: ref_position,
+            });
+        }
+
+        Ok(serde_json::to_value(lsp_references)?)
     }
 
     async fn handle_document_symbols(
