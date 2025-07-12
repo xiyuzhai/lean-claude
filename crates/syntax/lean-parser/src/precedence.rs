@@ -286,6 +286,288 @@ static BINARY_OPERATORS: Lazy<HashMap<String, OperatorInfo>> = Lazy::new(|| {
         },
     );
 
+    // Mathematical set operations
+    ops.insert(
+        "∈".to_string(),
+        OperatorInfo {
+            symbol: "∈".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "∉".to_string(),
+        OperatorInfo {
+            symbol: "∉".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "⊂".to_string(),
+        OperatorInfo {
+            symbol: "⊂".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "⊃".to_string(),
+        OperatorInfo {
+            symbol: "⊃".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "⊆".to_string(),
+        OperatorInfo {
+            symbol: "⊆".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "⊇".to_string(),
+        OperatorInfo {
+            symbol: "⊇".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "∩".to_string(),
+        OperatorInfo {
+            symbol: "∩".to_string(),
+            precedence: Precedence(70),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "∪".to_string(),
+        OperatorInfo {
+            symbol: "∪".to_string(),
+            precedence: Precedence(65),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "∖".to_string(),
+        OperatorInfo {
+            symbol: "∖".to_string(),
+            precedence: Precedence(65),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "△".to_string(),
+        OperatorInfo {
+            symbol: "△".to_string(),
+            precedence: Precedence(65),
+            associativity: Associativity::Left,
+        },
+    );
+
+    // Mathematical quantifiers and logical symbols
+    ops.insert(
+        "⇒".to_string(),
+        OperatorInfo {
+            symbol: "⇒".to_string(),
+            precedence: Precedence(25),
+            associativity: Associativity::Right,
+        },
+    );
+    ops.insert(
+        "⇔".to_string(),
+        OperatorInfo {
+            symbol: "⇔".to_string(),
+            precedence: Precedence(20),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "↔".to_string(),
+        OperatorInfo {
+            symbol: "↔".to_string(),
+            precedence: Precedence(20),
+            associativity: Associativity::None,
+        },
+    );
+
+    // Mathematical equivalence and congruence
+    ops.insert(
+        "≈".to_string(),
+        OperatorInfo {
+            symbol: "≈".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "≃".to_string(),
+        OperatorInfo {
+            symbol: "≃".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "≅".to_string(),
+        OperatorInfo {
+            symbol: "≅".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "≡".to_string(),
+        OperatorInfo {
+            symbol: "≡".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+
+    // Mathematical ordering
+    ops.insert(
+        "≺".to_string(),
+        OperatorInfo {
+            symbol: "≺".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "≻".to_string(),
+        OperatorInfo {
+            symbol: "≻".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "≼".to_string(),
+        OperatorInfo {
+            symbol: "≼".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "≽".to_string(),
+        OperatorInfo {
+            symbol: "≽".to_string(),
+            precedence: Precedence(50),
+            associativity: Associativity::None,
+        },
+    );
+
+    // Mathematical operations
+    ops.insert(
+        "⊕".to_string(),
+        OperatorInfo {
+            symbol: "⊕".to_string(),
+            precedence: Precedence(65),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "⊗".to_string(),
+        OperatorInfo {
+            symbol: "⊗".to_string(),
+            precedence: Precedence(70),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "⊞".to_string(),
+        OperatorInfo {
+            symbol: "⊞".to_string(),
+            precedence: Precedence(65),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "⊠".to_string(),
+        OperatorInfo {
+            symbol: "⊠".to_string(),
+            precedence: Precedence(70),
+            associativity: Associativity::Left,
+        },
+    );
+
+    // Arrows and mappings
+    ops.insert(
+        "↦".to_string(),
+        OperatorInfo {
+            symbol: "↦".to_string(),
+            precedence: Precedence(25),
+            associativity: Associativity::Right,
+        },
+    );
+    ops.insert(
+        "⟶".to_string(),
+        OperatorInfo {
+            symbol: "⟶".to_string(),
+            precedence: Precedence(25),
+            associativity: Associativity::Right,
+        },
+    );
+    ops.insert(
+        "⟵".to_string(),
+        OperatorInfo {
+            symbol: "⟵".to_string(),
+            precedence: Precedence(25),
+            associativity: Associativity::Left,
+        },
+    );
+
+    // Division variants
+    ops.insert(
+        "÷".to_string(),
+        OperatorInfo {
+            symbol: "÷".to_string(),
+            precedence: Precedence(70),
+            associativity: Associativity::Left,
+        },
+    );
+
+    // Multiplication variants
+    ops.insert(
+        "×".to_string(),
+        OperatorInfo {
+            symbol: "×".to_string(),
+            precedence: Precedence(70),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "⋅".to_string(),
+        OperatorInfo {
+            symbol: "⋅".to_string(),
+            precedence: Precedence(70),
+            associativity: Associativity::Left,
+        },
+    );
+
+    // Plus/minus variants
+    ops.insert(
+        "±".to_string(),
+        OperatorInfo {
+            symbol: "±".to_string(),
+            precedence: Precedence(65),
+            associativity: Associativity::Left,
+        },
+    );
+    ops.insert(
+        "∓".to_string(),
+        OperatorInfo {
+            symbol: "∓".to_string(),
+            precedence: Precedence(65),
+            associativity: Associativity::Left,
+        },
+    );
+
     // Pipe operators
     ops.insert(
         "|>".to_string(),
@@ -353,6 +635,49 @@ static UNARY_OPERATORS: Lazy<HashMap<String, OperatorInfo>> = Lazy::new(|| {
         "!".to_string(),
         OperatorInfo {
             symbol: "!".to_string(),
+            precedence: Precedence(75),
+            associativity: Associativity::None,
+        },
+    );
+
+    // Mathematical unary operators
+    ops.insert(
+        "√".to_string(),
+        OperatorInfo {
+            symbol: "√".to_string(),
+            precedence: Precedence(85),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "∃".to_string(),
+        OperatorInfo {
+            symbol: "∃".to_string(),
+            precedence: Precedence(30),
+            associativity: Associativity::None,
+        },
+    );
+    // Note: ∀ (forall) is NOT a unary operator - it's handled by forall_term()
+    // ops.insert(
+    //     "∀".to_string(),
+    //     OperatorInfo {
+    //         symbol: "∀".to_string(),
+    //         precedence: Precedence(30),
+    //         associativity: Associativity::None,
+    //     },
+    // );
+    ops.insert(
+        "∆".to_string(),
+        OperatorInfo {
+            symbol: "∆".to_string(),
+            precedence: Precedence(75),
+            associativity: Associativity::None,
+        },
+    );
+    ops.insert(
+        "∇".to_string(),
+        OperatorInfo {
+            symbol: "∇".to_string(),
             precedence: Precedence(75),
             associativity: Associativity::None,
         },

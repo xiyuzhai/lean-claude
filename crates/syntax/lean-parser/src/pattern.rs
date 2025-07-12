@@ -189,7 +189,8 @@ impl<'a> Parser<'a> {
         })))
     }
 
-    /// Parse parenthesized pattern: `(pattern)` or unit pattern `()`
+    /// Parse parenthesized pattern: `(pattern)`, unit pattern `()`, or tuple
+    /// pattern `(a, b, c)`
     fn paren_pattern(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
         self.expect_char('(')?;
@@ -222,10 +223,41 @@ impl<'a> Parser<'a> {
             })));
         }
 
-        let pattern = self.pattern()?;
+        // Parse first pattern
+        let first_pattern = self.pattern()?;
         self.skip_whitespace();
+
+        // Check if this is a tuple pattern (has comma)
+        if self.peek() == Some(',') {
+            let mut elements = vec![first_pattern];
+
+            while self.peek() == Some(',') {
+                self.advance(); // consume ','
+                self.skip_whitespace();
+
+                // Allow trailing comma
+                if self.peek() == Some(')') {
+                    break;
+                }
+
+                elements.push(self.pattern()?);
+                self.skip_whitespace();
+            }
+
+            self.expect_char(')')?;
+            let range = self.input().range_from(start);
+
+            // Create tuple pattern
+            return Ok(Syntax::Node(Box::new(SyntaxNode {
+                kind: SyntaxKind::TuplePattern,
+                range,
+                children: elements.into(),
+            })));
+        }
+
+        // Single parenthesized pattern
         self.expect_char(')')?;
-        Ok(pattern)
+        Ok(first_pattern)
     }
 
     /// Parse literal pattern: number, string, or char literal
@@ -338,12 +370,23 @@ impl<'a> Parser<'a> {
         })))
     }
 
-    /// Parse a match arm: `pattern => expr`
+    /// Parse a match arm: `pattern => expr` or `pattern if condition => expr`
     fn match_arm(&mut self) -> ParserResult<Syntax> {
         let start = self.position();
 
         let pattern = self.pattern()?;
         self.skip_whitespace();
+
+        // Check for guard condition (if clause)
+        let mut children = smallvec![pattern];
+
+        if self.peek_keyword("if") {
+            self.keyword("if")?;
+            self.skip_whitespace();
+            let guard_condition = self.term()?;
+            children.push(guard_condition);
+            self.skip_whitespace();
+        }
 
         // Parse arrow
         if self.peek() == Some('=') && self.input().peek_nth(1) == Some('>') {
@@ -360,12 +403,13 @@ impl<'a> Parser<'a> {
 
         self.skip_whitespace();
         let expr = self.term()?;
+        children.push(expr);
 
         let range = self.input().range_from(start);
         Ok(Syntax::Node(Box::new(SyntaxNode {
             kind: SyntaxKind::MatchArm,
             range,
-            children: smallvec![pattern, expr],
+            children,
         })))
     }
 }
