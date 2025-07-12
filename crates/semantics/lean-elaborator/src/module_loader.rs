@@ -482,3 +482,8 @@ mod tests {
         assert!(matches!(result, Err(ElabError::ImportCycle(_))));
     }
 }
+
+// Include integration tests
+#[cfg(test)]
+#[path = "module_loader_test.rs"]
+mod module_loader_test;
