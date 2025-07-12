@@ -13,6 +13,9 @@ fn test_type_inference_basic() {
     let syntax = parser.term().unwrap();
     let expr = elab.elaborate(&syntax).unwrap();
 
+    // Debug: print the lambda expression
+    println!("Lambda expr: {:?}", expr);
+
     // Infer the type
     let ty = elab.infer_type(&expr).unwrap();
 
@@ -24,11 +27,14 @@ fn test_type_inference_basic() {
             // Domain should be a metavariable
             assert!(matches!(&domain.kind, lean_kernel::expr::ExprKind::MVar(_)));
 
-            // Codomain should be bvar(0) (referring to the bound variable)
-            assert!(matches!(
-                &codomain.kind,
-                lean_kernel::expr::ExprKind::BVar(0)
-            ));
+            // For identity function λ x => x, both domain and codomain should be the same metavariable
+            // This represents a polymorphic identity function: ∀ x : ?m, ?m
+            match (&domain.kind, &codomain.kind) {
+                (lean_kernel::expr::ExprKind::MVar(domain_name), lean_kernel::expr::ExprKind::MVar(codomain_name)) => {
+                    assert_eq!(domain_name, codomain_name, "Domain and codomain should be the same metavariable for identity function");
+                }
+                _ => panic!("Expected both domain and codomain to be metavariables"),
+            }
         }
         _ => panic!("Expected forall type for lambda"),
     }
