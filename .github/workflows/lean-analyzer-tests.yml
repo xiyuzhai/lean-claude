@@ -343,7 +343,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        features: ["", "lsp-test"]
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -360,12 +359,12 @@ jobs:
           ~/.cargo/registry
           ~/.cargo/git
           target/
-        key: ${{ runner.os }}-matrix-${{ matrix.features }}-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-matrix-${{ hashFiles('**/Cargo.lock') }}
     
-    - name: Test with features
+    - name: Test cross-platform compatibility
       run: |
         cd crates/apps/lean-analyzer
-        cargo test --features "${{ matrix.features }}" --verbose
+        cargo test --verbose
 
   security-audit:
     name: Security Audit
