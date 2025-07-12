@@ -77,8 +77,6 @@ fn test_parse_mathlib4_files() {
 }
 
 #[test]
-#[ignore] // Run with `cargo test --test mathlib4_parser_test
-          // test_parse_mathlib4_comprehensive -- --ignored`
 fn test_parse_mathlib4_comprehensive() {
     // Test a broader sample of Mathlib4 files to get realistic success rate
     let mathlib_path = Path::new("../../../test-data/mathlib4/Mathlib");
