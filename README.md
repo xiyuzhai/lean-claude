@@ -1,3 +1,5 @@
+
+
 # Lean-Claude
 
 [![CI](https://github.com/xiyuzhai/lean-claude/actions/workflows/ci.yml/badge.svg)](https://github.com/xiyuzhai/lean-claude/actions/workflows/ci.yml)
@@ -34,6 +36,8 @@ This project aims to rewrite the entire Lean4 compiler toolchain in Rust while m
 **🤖 AUTONOMOUS AI DEVELOPMENT**: This incredible parsing compatibility was achieved through **fully autonomous AI development** in just a few conversation sessions! The human contributor provided only occasional advice along the way - **zero lines of code were written by humans**. This represents a breakthrough in AI-driven compiler development and autonomous problem-solving.
 
 ## Quick Start
+
+This project requires the Rust nightly toolchain (see `rust-toolchain.toml`).
 
 ```bash
 # Clone the repository
